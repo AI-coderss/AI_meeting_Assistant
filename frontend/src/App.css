@@ -63,7 +63,7 @@ body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: #1e293b;
-  background: linear-gradient(-45deg, #f7f3f2, #ffffff, #d5dde0, #ffffff);
+  background: linear-gradient(-45deg, #f1f1f1, #ffffff, #f8fcfd, #ffffff);
   background-size: 400% 400%;
   animation: backgroundPan 15s ease infinite;
   transition: all 0.3s ease;

@@ -1,7 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React, { useRef, useEffect, useState } from "react";
 import Header from "./components/Header";
-
 import Tabs from "./components/Tabs";
 import LiveMeeting from "./components/LiveMeeting";
 import UploadMeeting from "./components/UploadMeeting";
@@ -10,7 +9,6 @@ import SummaryPanel from "./components/SummaryPanel";
 import ExportActions from "./components/ExportActions";
 import EmailModal from "./components/EmailModal";
 import Toast from "./components/Toast";
-
 import { useMeetings } from "./hooks/useMeetings";
 import { useTranscript } from "./hooks/useTranscript";
 import { useWebSocketTranscription } from "./hooks/useWebSocketTranscription";
@@ -20,7 +18,13 @@ import "./App.css";
 
 function App() {
   const [activeTab, setActiveTab] = useState("live");
-  const [darkMode, setDarkMode] = useState(false);
+  
+  // ✅ Load dark mode from localStorage
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("darkMode");
+    return saved === "true"; // default: false
+  });
+
   const [emailModal, setEmailModal] = useState({
     show: false,
     emails: "",
@@ -67,11 +71,17 @@ function App() {
     stopLiveRecording,
   } = useWebSocketTranscription({ currentMeeting, showToast });
 
-  // Dark Mode
+  // ✅ Toggle dark mode and save to localStorage
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.className = !darkMode ? "dark-theme" : "";
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("darkMode", newMode);
   };
+
+  // ✅ Update body class based on darkMode state
+  useEffect(() => {
+    document.body.className = darkMode ? "dark-theme" : "";
+  }, [darkMode]);
 
   // Send Email
   const sendEmail = async () => {
@@ -199,3 +209,4 @@ function App() {
 }
 
 export default App;
+
