@@ -137,7 +137,7 @@ body {
 
 /* Header Styles */
 .app-header {
-  background: rgba(22, 92, 206, 0.7);
+  background: #3A54EC;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -391,7 +391,7 @@ body {
 }
 
 /* Button Gradients */
-.btn-record { background: linear-gradient(135deg, #10b981, #059669); }
+.btn-record { background: #3A54EC }
 .btn-stop { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .btn-upload { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 .btn-generate { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
