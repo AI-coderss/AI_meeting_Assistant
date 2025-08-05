@@ -173,7 +173,7 @@ npm start
 - MongoDB schema is Pydantic-based for data validation
 - Temporary files are cleaned after transcription
 - Errors logged via Python’s `logging` module
-- Future webhook automation to replace current email logic
+- Future N8N workflow automation to replace current email logic
 - Planned user authentication via native MongoDB, not third-party providers
 
 ---
@@ -182,7 +182,7 @@ npm start
 
 ### 🛠️ Workflow
 ```bash
-git clone https://github.com/your-org/ai-meeting-assistant.git
+git clone https://github.com/AI-coderss/AI_meeting_Assistant.git
 cd ai-meeting-assistant
 # Create feature branch
 git checkout -b feat/your-feature

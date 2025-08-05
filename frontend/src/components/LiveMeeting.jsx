@@ -37,7 +37,7 @@ const LiveMeeting = ({
                     onClick={() => startLiveRecording(startRecording)}
                     disabled={isTranscribing}
                   >
-                    🎤 Start Recording
+                     Start Recording
                   </button>
                 ) : (
                   <button

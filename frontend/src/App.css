@@ -102,7 +102,7 @@ body {
 /* ================================= */
 .app-header {
   /* ✨ Applied glass effect */
-  background: rgba(5, 95, 240, 0.3);
+  background:#165cce;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -291,24 +291,40 @@ body {
 /* Buttons */
 /* ================================= */
 .btn {
-  padding: 0.75rem 1.5rem;
+ position: relative;
+  padding: 0.8rem 1.5rem; /* Default padding for larger screens */
+  font-size: 0.9rem; /* Default font size */
+  color: white;
+  background: linear-gradient(45deg, #007bff, #4f46e5); /* Gradient background */
   border: none;
-  border-radius: 8px;
+  border-radius: 6px; /* Slightly smaller radius */
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: all 0.2s ease-out;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  color: white; /* Unified button text color */
+  overflow: hidden;
+  transition: all 0.3s ease; /* Smooth transitions */
+
+}
+.btn ::before{
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transform: rotate(45deg) translateY(-100%);
+  transition: transform 0.5s ease; /* Shine animation */
+}
+.btn:hover::before {
+  transform: rotate(45deg) translateY(100%); /* Shine effect on hover */
 }
 
 .btn:hover {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.4); /* Slightly reduced glow effect */
 }
 
 .btn:active {
@@ -406,7 +422,7 @@ body {
   font-size: 0.9rem;
 }
 
-.speaker { font-weight: 700; color: #3b82f6; }
+.speaker { font-weight: 700; color: #165cce; }
 .timestamp { color: #475569; font-family: monospace; }
 .segment-text { color: #1e293b; line-height: 1.6; }
 
