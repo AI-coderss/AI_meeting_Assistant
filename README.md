@@ -1,70 +1,212 @@
-# Getting Started with Create React App
+# 🎤 AI Meeting Assistant
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An AI-powered platform designed to streamline meeting documentation. This assistant transcribes real-time or pre-recorded meetings, generates structured summaries using GPT-4o, and distributes them via webhook automation. It features a modern React.js frontend, Flask-SocketIO backend, MongoDB database, and integrations with Deepgram and OpenAI.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Tech Stack
 
-### `npm start`
+| Layer        | Technology                                       |
+|--------------|--------------------------------------------------|
+| Frontend     | React.js, Zustand, CSS, Framer Motion (planned) |
+| Backend      | Flask, Flask-SocketIO, AsyncIO, Pydantic        |
+| Database     | MongoDB (via Motor async driver)                |
+| AI Models    | OpenAI GPT-4o                                   |
+| Audio Engine | Deepgram SDK (Real-time + Pre-recorded)         |
+| Realtime     | Deepgram WebSocket + Flask-SocketIO             |
+| Validation   | Pydantic                                        |
+| Deployment   | ASGI-ready (Uvicorn recommended)                |
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 📁 Project Structure
 
-### `npm test`
+```
+ai-meeting-assistant/
+├── backend/
+│   ├── server.py               # Core Flask app with async SocketIO and Deepgram
+│   ├── .env                    # Environment variables
+├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── App.js              # Main app logic
+│       ├── index.js            # Entry point
+│       ├── hooks/             # Custom React hooks (state logic)
+│       └── components/        # React UI components
+├── README.md
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🧠 Features
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 🔴 Live Meeting Transcription
+- Real-time microphone recording via `ReactMediaRecorder`
+- Audio sent to Flask via WebSocket
+- Forwarded to Deepgram’s `LiveOptions`
+- Returns partial and final transcripts in real time
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 📁 File-Based Transcription
+- Upload `.mp3`, `.wav`, `.m4a`, `.mp4`
+- Sent to `/api/meetings/<id>/transcribe-file`
+- Deepgram `PrerecordedOptions` used
+- Response includes diarized utterances
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 🤖 AI Summarization with GPT-4o
+- Summarizes using structured JSON schema
+- Sections:
+  - Key Points
+  - Decisions Made
+  - Action Items
+  - Assignees & Deadlines
+  - AI & Attendee Recommendations
+  - Follow-up Reminders
+  - References
+- Handles JSON parsing and error reporting if invalid
 
-### `npm run eject`
+### 🔁 Webhook-Based Automation (Planned)
+- Replace SendGrid with webhook automation
+- After transcription is complete:
+  - Automatically trigger summarization
+  - Send structured summaries to attendees
+- Webhook endpoint can notify internal CRM, ERP, or third-party services
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 🔐 User Authentication & Admin Dashboard (Planned)
+- MongoDB-based user authentication system (no external auth providers)
+- Login & registration with hashed password storage
+- Admin dashboard to:
+  - Add/manage users
+  - Assign roles (admin, attendee, viewer)
+  - View all meetings + summaries
+- Only authorized users can access the platform
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 📬 (Deprecated) Email Distribution
+- SendGrid is being phased out in favor of webhook automation
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 🗃️ Meeting History
+- Search by title, host
+- Filter by participant
+- Displays meeting metadata
+- View transcript + summary from past meetings
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### ✨ Export Capabilities (Planned)
+- PDF
+- Word
+- Copy to clipboard
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🔐 Environment Variables (.env)
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```env
+# API Keys
+OPENAI_API_KEY=sk-...
+DEEPGRAM_API_KEY=...
 
-### Code Splitting
+# Database
+MONGO_URL=mongodb+srv://...
+DB_NAME=ai_meetings
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# Flask
+FLASK_SECRET_KEY=some_long_secret_key
 
-### Analyzing the Bundle Size
+# Frontend
+REACT_APP_BACKEND_URL=http://localhost:8001
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## 🧪 Running Locally
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 1. Backend (Python 3.10+)
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python server.py  # Or use: uvicorn server:app --host 0.0.0.0 --port 8001
+```
 
-### Advanced Configuration
+### 2. Frontend (Node.js 16+)
+```bash
+cd frontend
+npm install
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+---
 
-### Deployment
+## 🔌 API Endpoints
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### 📡 WebSocket (via Flask-SocketIO)
+- `join_meeting`: Initialize Deepgram connection
+- `audio_stream`: Stream audio to Deepgram
+- `disconnect`: Clean up Deepgram resources
 
-### `npm run build` fails to minify
+### 📄 REST API
+| Method | Endpoint                             | Description                           |
+|--------|--------------------------------------|---------------------------------------|
+| GET    | `/api/`                              | Root health/info                      |
+| POST   | `/api/meetings`                      | Create new meeting                    |
+| GET    | `/api/meetings`                      | List meetings (search/filter)        |
+| GET    | `/api/meetings/<id>`                | Get specific meeting                 |
+| POST   | `/api/meetings/<id>/transcript`     | Save transcript                      |
+| POST   | `/api/meetings/<id>/transcribe-file`| Transcribe uploaded file             |
+| POST   | `/api/meetings/<id>/summarize`      | Generate AI summary                  |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+## 📦 Frontend Design
+
+- Modular components: `Header`, `Tabs`, `LiveMeeting`, `UploadMeeting`, etc.
+- Logic stored in `hooks/` like `useTranscript`, `useMeetings`, `useWebSocketTranscription`
+- Zustand is optionally available for shared global state
+- Dark mode support
+- Responsive design with CSS Grid/Flex
+
+---
+
+## 🧰 Developer Notes
+
+- All transcription and GPT calls are async and offloaded to threads
+- WebSocket uses sid-to-Deepgram connection mapping
+- MongoDB schema is Pydantic-based for data validation
+- Temporary files are cleaned after transcription
+- Errors logged via Python’s `logging` module
+- Future webhook automation to replace current email logic
+- Planned user authentication via native MongoDB, not third-party providers
+
+---
+
+## 🤝 Contributing
+
+### 🛠️ Workflow
+```bash
+git clone https://github.com/your-org/ai-meeting-assistant.git
+cd ai-meeting-assistant
+# Create feature branch
+git checkout -b feat/your-feature
+```
+
+### 📐 Style Guidelines
+- Backend: PEP8 + async conventions
+- Frontend: ESLint + Prettier (auto-format)
+- Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+
+### ✅ Testing (Planned)
+- Unit tests for Flask routes and SocketIO handlers
+- Jest/React Testing Library for UI
+
+---
+
+## 📬 Contact
+
+Maintained by [Mohammed Bahageel](https://www.linkedin.com/in/mohammed-bahageel/)
+
+📧 Reach out for collaboration, integration requests, or bug reports.
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. See the `LICENSE` file for details.

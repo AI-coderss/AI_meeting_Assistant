@@ -1,0 +1,11 @@
+flask
+flask-cors
+flask-socketio
+pydantic
+python-dotenv
+motor
+openai
+deepgram-sdk
+sendgrid
+eventlet
+gunicorn
