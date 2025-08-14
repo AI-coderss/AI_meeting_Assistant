@@ -767,6 +767,8 @@ class AsyncCursor(Generic[_DocumentType]):
           :meth:`~pymongo.asynchronous.database.AsyncDatabase.command` to run the explain
           command directly.
 
+        .. note:: The timeout of this method can be set using :func:`pymongo.timeout`.
+
         .. seealso:: The MongoDB documentation on `explain <https://dochub.mongodb.org/core/explain>`_.
         """
         c = self.clone()
@@ -1130,7 +1132,6 @@ class AsyncCursor(Generic[_DocumentType]):
         except BaseException:
             await self.close()
             raise
-
         self._address = response.address
         if isinstance(response, PinnedResponse):
             if not self._sock_mgr:

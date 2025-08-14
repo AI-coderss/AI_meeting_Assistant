@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import struct
+import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Type, Union, overload
 from uuid import UUID
@@ -255,6 +256,9 @@ class BinaryVector:
             self.dtype == other.dtype and self.padding == other.padding and self.data == other.data
         )
 
+    def __len__(self) -> int:
+        return len(self.data)
+
 
 class Binary(bytes):
     """Representation of BSON binary data.
@@ -439,6 +443,9 @@ class Binary(bytes):
         :param padding: For fractional bytes, number of bits to ignore at end of vector.
         :return: Binary packed data identified by dtype and padding.
 
+        .. versionchanged:: 4.14
+           When padding is non-zero, ignored bits should be zero. Raise exception on encoding, warn on decoding.
+
         .. versionadded:: 4.10
         """
         if isinstance(vector, BinaryVector):
@@ -471,6 +478,10 @@ class Binary(bytes):
 
         metadata = struct.pack("<sB", dtype.value, padding)
         data = struct.pack(f"<{len(vector)}{format_str}", *vector)  # type: ignore
+        if padding and len(vector) and not (data[-1] & ((1 << padding) - 1)) == 0:
+            raise ValueError(
+                "Vector has a padding P, but bits in the final byte lower than P are non-zero. They must be zero."
+            )
         return cls(metadata + data, subtype=VECTOR_SUBTYPE)
 
     def as_vector(self) -> BinaryVector:
@@ -489,6 +500,11 @@ class Binary(bytes):
         position += 2
         dtype = BinaryVectorDtype(dtype)
         n_values = len(self) - position
+
+        if padding and dtype != BinaryVectorDtype.PACKED_BIT:
+            raise ValueError(
+                f"Corrupt data. Padding ({padding}) must be 0 for all but PACKED_BIT dtypes. ({dtype=})"
+            )
 
         if dtype == BinaryVectorDtype.INT8:
             dtype_format = "b"
@@ -510,9 +526,19 @@ class Binary(bytes):
 
         elif dtype == BinaryVectorDtype.PACKED_BIT:
             # data packed as uint8
+            if padding and not n_values:
+                raise ValueError("Corrupt data. Vector has a padding P, but no data.")
+            if padding > 7 or padding < 0:
+                raise ValueError(f"Corrupt data. Padding ({padding}) must be between 0 and 7.")
             dtype_format = "B"
             format_string = f"<{n_values}{dtype_format}"
             unpacked_uint8s = list(struct.unpack_from(format_string, self, position))
+            if padding and n_values and unpacked_uint8s[-1] & (1 << padding) - 1 != 0:
+                warnings.warn(
+                    "Vector has a padding P, but bits in the final byte lower than P are non-zero. For pymongo>=5.0, they must be zero.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             return BinaryVector(unpacked_uint8s, dtype, padding)
 
         else:
