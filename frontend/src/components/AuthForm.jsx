@@ -1,39 +1,52 @@
 import React from "react";
+import "../styles/register.css";
 
 export default function AuthForm({ title, onSubmit, formData, setFormData }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-center">{title}</h2>
+    <div className="container-fluid min-vh-100 p-0 d-flex">
+      {/* Left: Image Section */}
+      <div className="col-lg-6 d-none d-lg-block register-left"></div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            className="w-full px-4 py-2 border rounded-lg"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            className="w-full px-4 py-2 border rounded-lg"
-            required
-          />
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
-          >
+      {/* Right: Form Section */}
+      <div className="col-12 col-lg-6 d-flex align-items-center justify-content-center bg-light">
+        <div className="form-container bg-white p-4 p-md-5 rounded shadow-lg animate-fade-in">
+          <img alt="Logo" class="app-logo" src="/logo-img.png"></img>
+          <h2 className="fw-bold text-center mb-4 text-primary-custom">
             {title}
-          </button>
-        </form>
+          </h2>
+          <form onSubmit={onSubmit}>
+            <div className="mb-3">
+              <input
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                className="form-control form-control-lg custom-input"
+                required
+              />
+            </div>
+            <div className="mb-3">
+              <input
+                type="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="form-control form-control-lg custom-input"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary-custom w-100 py-2 text-white"
+            >
+              {title}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

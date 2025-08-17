@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import AuthForm from "../components/AuthForm";
 import Swal from "sweetalert2";
 
-export default function Register() {
+export default function Registeryyy() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
