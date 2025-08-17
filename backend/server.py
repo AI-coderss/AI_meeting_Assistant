@@ -621,6 +621,35 @@ def handle_audio_stream(audio_data):
             loop.run_until_complete(deepgram_connections[sid].send(audio_data))
         threading.Thread(target=_send, daemon=True).start()
 
+#live streaming APIs
+@socketio.on('connect', namespace='/api/meetings/<meeting_id>/live-transcribe')
+def live_transcribe_connect(meeting_id):
+    join_room(meeting_id)
+    logger.info(f"Live transcribe client connected for meeting {meeting_id}")
+
+@socketio.on('audio_stream', namespace='/api/meetings/<meeting_id>/live-transcribe')
+def live_transcribe_audio(audio_data, meeting_id):
+    if request.sid in deepgram_connections:
+        import threading, asyncio
+        def _send():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(deepgram_connections[request.sid].send(audio_data))
+        threading.Thread(target=_send, daemon=True).start()
+
+@socketio.on('disconnect', namespace='/api/meetings/<meeting_id>/live-transcribe')
+def live_transcribe_disconnect(meeting_id):
+    sid = request.sid
+    logger.info(f"Live transcribe client disconnected for meeting {meeting_id}")
+    if sid in deepgram_connections:
+        import threading, asyncio
+        dg_connection = deepgram_connections.pop(sid)
+        def _finish():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(dg_connection.finish())
+        threading.Thread(target=_finish, daemon=True).start()
+
 @socketio.on('disconnect')
 def handle_disconnect():
     sid = request.sid
