@@ -1,80 +1,137 @@
+// src/hooks/useWebSocketTranscription.js
 import { useState, useRef } from "react";
+import { io } from "socket.io-client";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-
-export const useWebSocketTranscription = ({ currentMeeting, showToast }) => {
+// const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = "http://127.0.0.1:8001";
+export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, showToast }) => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [transcript, setTranscript] = useState([]);
   const wsRef = useRef(null);
 
-  const startLiveRecording = async (startRecordingFn) => {
-    if (!currentMeeting) {
-      showToast("No meeting found", "error");
-      return;
-    }
+  // ✅ Helper toast (fallback if showToast missing)
+  const safeToast = (msg, type = "info") => {
+    if (showToast) showToast(msg, type);
+    else console.log(`[${type}]`, msg);
+  };
 
-    setIsRecording(true);
-    setTranscript([]);
-    startRecordingFn();
+  // Ensure meeting exists before starting
+  const createMeetingIfNeeded = async () => {
+    if (currentMeeting) return currentMeeting;
 
+    const token = localStorage.getItem("token");
     try {
-      const wsUrl = `${BACKEND_URL.replace("http", "ws")}/api/meetings/${currentMeeting.id}/live-transcribe`;
-      wsRef.current = new WebSocket(wsUrl);
+      const res = await fetch(`${BACKEND_URL}/api/meetings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: "Live Meeting",
+          participants: [],
+        }),
+      });
 
-      wsRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "transcript" && data.data.text) {
+      if (!res.ok) throw new Error(`Failed to create meeting: ${res.status}`);
+      const data = await res.json();
+      setCurrentMeeting(data);
+      return data;
+    } catch (err) {
+      console.error("Error creating meeting:", err);
+      safeToast("Error creating meeting", "error");
+      throw err;
+    }
+  };
+
+  const startLiveRecording = async () => {
+    try {
+      const meeting = await createMeetingIfNeeded();
+      if (!meeting) return;
+
+      setIsRecording(true);
+      setIsStreaming(true);
+      setTranscript([]);
+
+      const token = localStorage.getItem("token");
+
+      // ✅ connect to Flask-SocketIO
+      wsRef.current = io(BACKEND_URL, {
+        path: "/socket.io",
+        transports: ["websocket"],
+        auth: { token },
+      });
+
+      wsRef.current.on("connect", () => {
+        console.log("✅ Connected to socket.io server");
+        safeToast("Connected to live transcription", "success");
+
+        // join the meeting room
+        wsRef.current.emit("join_meeting", { meeting_id: meeting.id });
+        setIsStreaming(false);
+      });
+
+      wsRef.current.on("transcript", (data) => {
+        if (data.text) {
           const newSegment = {
             id: Date.now().toString(),
-            text: data.data.text,
-            timestamp: data.data.timestamp,
-            speaker: "Speaker 1",
-            confidence: 0.9,
-            is_final: data.data.is_final,
+            text: data.text,
+            timestamp: data.timestamp || Date.now() / 1000,
+            speaker: data.speaker || "Speaker 1",
+            is_final: data.is_final,
           };
-
-          if (data.data.is_final) {
+          if (data.is_final) {
             setTranscript((prev) => [...prev, newSegment]);
           }
         }
-      };
+      });
 
-      wsRef.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        showToast("Live transcription error", "error");
-      };
-    } catch (error) {
-      console.error("WebSocket connection error:", error);
-      showToast("Failed to start live transcription", "error");
+      wsRef.current.on("connect_error", (err) => {
+        console.error("❌ Socket connection error:", err.message);
+        safeToast("Socket connection failed", "error");
+        setIsStreaming(false);
+      });
+
+      wsRef.current.on("disconnect", () => {
+        console.log("🔌 Socket disconnected");
+        setIsStreaming(false);
+      });
+
+    } catch (err) {
+      console.error("startLiveRecording error:", err);
+      safeToast("Failed to start live transcription", "error");
+      setIsStreaming(false);
+      setIsRecording(false);
     }
-
-    showToast("Live recording started", "success");
   };
 
-  const stopLiveRecording = async (stopRecordingFn) => {
+  const stopLiveRecording = async () => {
     setIsRecording(false);
-    stopRecordingFn();
 
     if (wsRef.current) {
-      wsRef.current.close();
+      wsRef.current.disconnect();
       wsRef.current = null;
     }
 
     if (transcript.length > 0 && currentMeeting) {
       try {
+        const token = localStorage.getItem("token");
         await fetch(`${BACKEND_URL}/api/meetings/${currentMeeting.id}/transcript`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             meeting_id: currentMeeting.id,
             segments: transcript,
           }),
         });
-
-        showToast("Recording saved successfully", "success");
+        safeToast("Recording saved successfully", "success");
       } catch (error) {
         console.error("Error saving transcript:", error);
-        showToast("Failed to save transcript", "error");
+        safeToast("Failed to save transcript", "error");
       }
     }
   };
@@ -83,6 +140,7 @@ export const useWebSocketTranscription = ({ currentMeeting, showToast }) => {
     transcript,
     setTranscript,
     isRecording,
+    isStreaming,
     startLiveRecording,
     stopLiveRecording,
   };

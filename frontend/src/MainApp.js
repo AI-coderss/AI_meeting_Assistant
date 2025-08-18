@@ -65,11 +65,7 @@ function MainApp() {
     } = useTranscript({ currentMeeting, showToast });
 
     // Live Recording
-    const {
-        isRecording,
-        startLiveRecording,
-        stopLiveRecording,
-    } = useWebSocketTranscription({ currentMeeting, showToast });
+    const { isRecording, isStreaming, startLiveRecording, stopLiveRecording } = useWebSocketTranscription({ currentMeeting, setCurrentMeeting, showToast });
 
     // ✅ Toggle dark mode and save to localStorage
     const toggleDarkMode = () => {
@@ -144,7 +140,7 @@ function MainApp() {
                 {activeTab === "live" && (
                     <LiveMeeting
                         isRecording={isRecording}
-                        isTranscribing={isTranscribing}
+                        isStreaming={isStreaming}
                         transcript={transcript}
                         transcriptRef={transcriptRef}
                         startLiveRecording={startLiveRecording}

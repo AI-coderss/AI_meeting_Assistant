@@ -26,10 +26,12 @@ import jwt
 
 # Third-party clients you already use
 import openai
-from deepgram import DeepgramClient, PrerecordedOptions, LiveTranscriptionEvents, LiveOptions
+from deepgram import DeepgramClient, PrerecordedOptions, LiveTranscriptionEvents, LiveOptions ,DeepgramClientOptions
+
 # from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-
+import threading
+import asyncio
 # ---------- Configuration ----------
 
 ROOT_DIR = Path(__file__).parent
@@ -581,61 +583,104 @@ def handle_join_meeting(data):
     if not meeting_id:
         logger.error(f"Client {sid} tried to join without meeting_id")
         return
+
     logger.info(f"Client {sid} joining meeting {meeting_id}")
     join_room(meeting_id)
 
     try:
-        dg_connection = deepgram_client.listen.asynclive.v("1")
-        dg_connection.on(LiveTranscriptionEvents.Transcript, lambda r, **k: on_deepgram_message(r, sid=sid, **k))
-        dg_connection.on(LiveTranscriptionEvents.Error, lambda e, **k: on_deepgram_error(e, sid=sid, **k))
+        dg_connection = deepgram_client.listen.asyncwebsocket.v("1")
+
+        # ---------------------------
+        # Async event handlers
+        # ---------------------------
+        async def handle_open(conn, open, **kwargs):
+            logger.info(f"[Deepgram] Connection opened for {sid}")
+
+        async def handle_close(conn, close, **kwargs):
+            logger.info(f"[Deepgram] Connection closed for {sid}, code={close}")
+
+        async def handle_transcript(conn, result, **kwargs):
+            logger.debug(f"[Deepgram] Transcript event for {sid}: {result}")
+
+            # Extract the transcript text from Deepgram response
+            alternatives = result.get("channel", {}).get("alternatives", [])
+            if alternatives:
+                text = alternatives[0].get("transcript", "")
+                is_final = result.get("is_final", False)
+
+                if text:
+                    # Emit to frontend in the same room as the client
+                    socketio.emit(
+                        "transcript",
+                        {"text": text, "is_final": is_final},
+                        room=sid
+                    )
+
+
+        async def handle_error(conn, error, **kwargs):
+            logger.error(f"[Deepgram] Error for {sid}: {error}")
+            on_deepgram_error(error, sid=sid, **kwargs)
+
+        dg_connection.on(LiveTranscriptionEvents.Open, handle_open)
+        dg_connection.on(LiveTranscriptionEvents.Close, handle_close)
+        dg_connection.on(LiveTranscriptionEvents.Transcript, handle_transcript)
+        dg_connection.on(LiveTranscriptionEvents.Error, handle_error)
 
         options = LiveOptions(
-            model="nova-2", punctuate=True, language="en-US",
-            encoding="linear16", channels=1, sample_rate=16000
+            model="nova-2",
+            punctuate=True,
+            language="en-US",
+            encoding="linear16",
+            channels=1,
+            sample_rate=16000,
         )
-        # Start is async in SDK; start in a background thread so we don't block
-        import threading
-        def _start():
-            socketio.emit('joined', {'sid': sid, 'meeting_id': meeting_id}, to=sid)
-            # Fire and forget
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(dg_connection.start(options))
-        threading.Thread(target=_start, daemon=True).start()
 
-        deepgram_connections[sid] = dg_connection
+        # ---------------------------
+        # Run Deepgram in background thread with its own loop
+        # ---------------------------
+        def _start(loop):
+            try:
+                socketio.emit('joined', {'sid': sid, 'meeting_id': meeting_id}, to=sid)
+                logger.info(f"🔄 Starting Deepgram connection for {sid} in meeting {meeting_id}")
+
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(dg_connection.start(options))
+            except Exception as e:
+                logger.error(f"❌ Deepgram start failed for {sid}: {e}")
+                socketio.emit('error', {'data': f'Failed to start transcription: {e}'}, to=sid)
+
+        loop = asyncio.new_event_loop()
+        thread = threading.Thread(target=_start, args=(loop,), daemon=True)
+        thread.start()
+
+        # store connection, loop, and thread so we can clean up on disconnect
+        deepgram_connections[sid] = {
+            "conn": dg_connection,
+            "loop": loop,
+            "thread": thread
+        }
+
     except Exception as e:
-        logger.error(f"Error starting Deepgram for {sid}: {e}")
-        socketio.emit('error', {'data': f'Failed to start transcription service: {e}'}, to=sid)
+        logger.error(f"❌ Error preparing Deepgram for {sid}: {e}")
+        socketio.emit('error', {'data': f'Failed to initialize transcription service: {e}'}, to=sid)
 
 @socketio.on('audio_stream')
 def handle_audio_stream(audio_data):
     sid = request.sid
-    if sid in deepgram_connections:
-        # send() is async; send from background thread/loop
-        import threading, asyncio
-        def _send():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(deepgram_connections[sid].send(audio_data))
-        threading.Thread(target=_send, daemon=True).start()
+    if sid not in deepgram_connections:
+        logger.warning(f"Received audio from {sid}, but no active Deepgram connection")
+        return
 
-#live streaming APIs
-@socketio.on('connect', namespace='/api/meetings/<meeting_id>/live-transcribe')
-def live_transcribe_connect(meeting_id):
-    join_room(meeting_id)
-    logger.info(f"Live transcribe client connected for meeting {meeting_id}")
+    conn_info = deepgram_connections[sid]
+    dg_connection = conn_info["conn"]
+    loop = conn_info["loop"]
 
-@socketio.on('audio_stream', namespace='/api/meetings/<meeting_id>/live-transcribe')
-def live_transcribe_audio(audio_data, meeting_id):
-    if request.sid in deepgram_connections:
-        import threading, asyncio
-        def _send():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(deepgram_connections[request.sid].send(audio_data))
-        threading.Thread(target=_send, daemon=True).start()
+    try:
+        logger.debug(f"🔊 Received audio chunk from {sid}, size={len(audio_data)} bytes")
+        # Schedule sending audio in Deepgram's loop
+        asyncio.run_coroutine_threadsafe(dg_connection.send(audio_data), loop)
+    except Exception as e:
+        logger.error(f"❌ Failed to send audio chunk for {sid}: {e}")
 
 @socketio.on('disconnect', namespace='/api/meetings/<meeting_id>/live-transcribe')
 def live_transcribe_disconnect(meeting_id):
@@ -655,14 +700,19 @@ def handle_disconnect():
     sid = request.sid
     logger.info(f"Client disconnected: {sid}")
     if sid in deepgram_connections:
-        dg_connection = deepgram_connections.pop(sid)
-        import threading, asyncio
+        conn_info = deepgram_connections.pop(sid)
+        dg_connection = conn_info["conn"]
+        loop = conn_info["loop"]
+
         def _finish():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(dg_connection.finish())
+            try:
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(dg_connection.finish())
+                logger.info(f"Finished Deepgram connection for {sid}")
+            except Exception as e:
+                logger.error(f"❌ Error finishing Deepgram connection for {sid}: {e}")
+
         threading.Thread(target=_finish, daemon=True).start()
-        logger.info(f"Finished Deepgram connection for {sid}")
 
 # ---------- App wiring ----------
 
