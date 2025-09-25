@@ -28,7 +28,8 @@ export default function Login() {
         });
 
         localStorage.setItem("token", data.access_token);
-
+        localStorage.setItem("email", formData.email);
+        localStorage.setItem("roles", JSON.stringify(data.roles));
         // Redirect after a short delay
         setTimeout(() => {
           window.location.href = "/";

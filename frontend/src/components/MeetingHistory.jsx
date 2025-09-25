@@ -1,21 +1,73 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 const MeetingHistory = ({
-  meetings,
-  searchQuery,
-  setSearchQuery,
-  participantFilter,
-  setParticipantFilter,
-  fetchMeetings,
   setCurrentMeeting,
   setTranscript,
   setSummary,
   setActiveTab,
 }) => {
+  const [meetings, setMeetings] = useState([]);
+  const [hostName, setHostName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [participantFilter, setParticipantFilter] = useState("");
+
+  const token = localStorage.getItem("token");
+
+  // Fetch meetings by host + optional search/participant filters
+  const fetchMeetings = async () => {
+    if (!hostName) return;
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("search", searchQuery);
+      if (participantFilter) params.append("participant", participantFilter);
+
+      const url = `http://127.0.0.1:8001/api/meetings/host/${hostName}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setMeetings(data);
+    } catch (err) {
+      console.error("Failed to fetch meetings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 1: set hostName from localStorage
+  useEffect(() => {
+    const storedEmail = localStorage.getItem("email");
+    if (storedEmail) {
+      setHostName(storedEmail);
+    }
+  }, []);
+
+  // Step 2: whenever hostName is set, fetch meetings by default
+  useEffect(() => {
+    if (hostName) {
+      fetchMeetings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hostName]);
+
   return (
     <div className="tab-content">
       <div className="history-header">
-        <h2>Meeting History</h2>
+        <h2>Meeting History (by Host)</h2>
         <div className="search-controls">
           <input
             type="text"
@@ -38,9 +90,11 @@ const MeetingHistory = ({
       </div>
 
       <div className="meetings-list">
-        {meetings.length > 0 ? (
+        {loading ? (
+          <p>Loading meetings...</p>
+        ) : meetings.length > 0 ? (
           meetings.map((meeting) => (
-            <div key={meeting.id} className="meeting-card">
+            <div key={meeting.id || meeting._id} className="meeting-card">
               <div className="card-header">
                 <h3>{meeting.title}</h3>
                 <span className="meeting-date">
@@ -53,7 +107,7 @@ const MeetingHistory = ({
                 </p>
                 <p>
                   <strong>Participants:</strong>{" "}
-                  {meeting.participants.join(", ") || "None listed"}
+                  {meeting.participants?.join(", ") || "None listed"}
                 </p>
                 <p>
                   <strong>Status:</strong> {meeting.status}
@@ -79,10 +133,7 @@ const MeetingHistory = ({
             </div>
           ))
         ) : (
-          <div className="empty-state">
-            No meetings found. Create your first meeting by recording or
-            uploading audio.
-          </div>
+          <div className="empty-state">No meetings found for this host.</div>
         )}
       </div>
     </div>

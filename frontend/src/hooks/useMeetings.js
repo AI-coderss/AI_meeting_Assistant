@@ -1,19 +1,28 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const BACKEND_URL = process.env.REACT_APP_API_BASE || "http://127.0.0.1:8001";
+const API = `${BACKEND_URL}/api`;
 
 export const useMeetings = () => {
   const [meetings, setMeetings] = useState([]);
   const [currentMeeting, setCurrentMeeting] = useState(null);
-
+  const token = localStorage.getItem("token"); 
   const fetchMeetings = useCallback(async (searchQuery = "", participant = "") => {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
       if (participant) params.append("participant", participant);
 
-      const response = await axios.get(`${API}/meetings?${params.toString()}`);
+      const response = await axios.get(
+        `${API}/meetings?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
       setMeetings(response.data);
     } catch (error) {
       console.error("Error fetching meetings:", error);
