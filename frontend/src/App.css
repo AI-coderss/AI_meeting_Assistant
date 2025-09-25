@@ -194,16 +194,23 @@ body {
 
 /* Navigation Tabs */
 .tabs {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: sticky;
-  top: 70px;
-  z-index: 90;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
+    /* max-width: 1200px; */
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 70px;
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    width: 100%;
+    justify-content: space-between;
+    max-width: 1136px;
+    align-items: center;
+}
+span.napbar__brandText {
+    color: #000;
 }
 
 .tab {
@@ -336,7 +343,17 @@ body {
   width: 100%;
   max-width: 400px;
 }
-
+.del-responsive {
+    position: absolute;
+    top: 10px;
+}
+button.btn.btn-delete {
+    background-color: white !important;
+    background: #fff;
+    /* color: black; */
+    /* border: none !important; */
+    box-shadow: none;
+}
 /* Buttons */
 .btn {
   position: relative;
@@ -554,7 +571,9 @@ body {
   transition: all 0.3s ease;
   cursor: pointer;
 }
-
+.btn-dan {
+    background: #c51515;
+}
 .meeting-card:hover {
   box-shadow: 0 10px 20px rgba(0,0,0,0.1);
   transform: translateY(-5px) scale(1.02);
@@ -734,7 +753,7 @@ body {
 .dark-theme .transcript-viewer {
   background: rgba(15, 23, 42, 0.7);
   border-color: #334155;
-}
+} 
 
 .dark-theme .transcript-segment {
   background: rgba(51, 65, 85, 0.7);
@@ -860,4 +879,94 @@ body {
   border-radius: 50%;
   animation: glitter 5s linear infinite;
   opacity: 0;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+}
+.modal-content {
+  position: relative; /* so the close button can be positioned absolutely */
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  width: 600px;
+  max-width: 95%;
+}
+.modal-close-btn {
+    position: absolute;
+    top: 25px;
+    right: 30px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background-color: #f5f5f5;
+    color: #333;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.modal-close-btn:hover {
+  background-color: #e0e0e0;
+}
+.modal-content {
+    width: 50% !important;
+}
+.action-buttons {
+  display: flex;
+  flex-direction: column; /* stack vertically */
+  gap: 10px;              /* spacing between buttons */
+  position: fixed;        /* keeps it fixed */
+  top: 50%;               /* vertically center */
+  left: 10px;             /* distance from left edge */
+  transform: translateY(-50%);
+  z-index: 1000;
+}
+
+.btn-export {
+  padding: 10px 15px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.btn-export:hover {
+  background: #0056b3;
+}
+button.btn.btn-export {
+    background-color: #3a54ec;
+    color: #fff;
+}
+.dark-theme span.napbar__brandText {
+    color: #fff;
+}
+.dark-theme .status-indicator {
+    color: #f1f5f9 !important;
+}
+.dark-theme .btn-record{
+  color: #f1f5f9 !important;
+}
+button.btn.btn-danger.btn-del.btn-sm {
+    background: red;
 }

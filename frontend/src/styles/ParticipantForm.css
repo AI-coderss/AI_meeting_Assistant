@@ -1,0 +1,225 @@
+/* Add to your App.css */
+.participant-form {
+  margin-bottom: 20px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.add-participant {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: center;
+}
+
+.participant-email-input {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex: 2;
+  min-width: 200px;
+}
+
+.role-select {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex: 1;
+}
+
+.add-participant-btn {
+  padding: 10px 15px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-participant-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.participant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #eee;
+}
+
+.participant-item.host {
+  background-color: #f0f7ff;
+  border-left: 4px solid #2196f3;
+}
+
+.participant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.participant-name {
+  font-weight: 600;
+}
+
+.participant-email {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.participant-role {
+  font-size: 0.8em;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #f1f1f1;
+  display: inline-block;
+  width: fit-content;
+}
+
+.participant-role.host {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.participant-role.participant {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.participant-role.viewer {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #f44336;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.remove-btn:hover {
+  background-color: #ffebee;
+}
+.speaker-assignment {
+  position: relative;
+  display: inline-block;
+}
+
+.assign-btn {
+  padding: 6px 12px;
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.assign-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.assign-btn.assigned {
+  background-color: #e3f2fd;
+  border-color: #1976d2;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.speaker-dropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+  min-width: 140px;
+}
+
+.speaker-option {
+  padding: 6px 10px;
+  border: none;
+  background: #fafafa;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+  font-size: 0.85em;
+}
+
+.speaker-option:hover {
+  background: #f0f0f0;
+}
+
+.speaker-option.active {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  font-weight: 500;
+}
+.actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #f44336;
+  cursor: pointer;
+  padding: 4px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.remove-btn:hover {
+  background-color: #ffebee;
+}
+
+.assign-btn {
+  padding: 6px 14px;
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85em;
+}

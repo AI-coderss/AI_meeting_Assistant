@@ -1,12 +1,11 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import MainApp from "./MainApp";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ProtectedRoute from "./ProtectedRoute";
 
 function App() {
-  const token = localStorage.getItem("token"); // Adjust if you store differently
-
   return (
     <Router>
       <Routes>
@@ -17,11 +16,10 @@ function App() {
         {/* Protected Routes */}
         <Route
           path="/*"
-          // element={
-          //   token ? <MainApp /> : <Navigate to="/login" replace />
-          // }
           element={
-            <MainApp />
+            <ProtectedRoute>
+              <MainApp />
+            </ProtectedRoute>
           }
         />
       </Routes>
