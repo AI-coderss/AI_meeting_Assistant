@@ -4,7 +4,11 @@ import { io } from "socket.io-client";
 
 const BACKEND_URL = "http://127.0.0.1:8001";
 
-export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, showToast }) => {
+export const useWebSocketTranscription = ({
+  currentMeeting,
+  setCurrentMeeting,
+  showToast,
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [transcript, setTranscript] = useState([]);
@@ -13,7 +17,6 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
   const processorRef = useRef(null);
   const streamRef = useRef(null);
 
-  // ✅ new ref to avoid stale closure issue
   const recordingRef = useRef(false);
 
   const safeToast = (msg, type = "info") =>
@@ -47,7 +50,9 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
       setTranscript([]);
 
       console.log("🎙 Requesting microphone access...");
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
       console.log("✅ Microphone access granted, stream:", mediaStream);
       streamRef.current = mediaStream;
 
@@ -86,7 +91,7 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
         console.log("📨 Sent join_meeting with sample_rate:", actualRate);
       });
 
-        wsRef.current.on("transcript_update", (data) => {
+      wsRef.current.on("transcript_update", (data) => {
         console.log("📝 Transcript event received:", data);
         if (!data?.text) return;
         const newSegment = {
@@ -111,7 +116,11 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
       });
 
       processor.onaudioprocess = (e) => {
-        if (!recordingRef.current || !wsRef.current || wsRef.current.disconnected) {
+        if (
+          !recordingRef.current ||
+          !wsRef.current ||
+          wsRef.current.disconnected
+        ) {
           return;
         }
         const input = e.inputBuffer.getChannelData(0);
@@ -126,7 +135,10 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
           base64Length: b64.length,
         });
 
-        wsRef.current.emit("audio_stream", { audio: b64, encoding: "linear16" });
+        wsRef.current.emit("audio_stream", {
+          audio: b64,
+          encoding: "linear16",
+        });
       };
     } catch (err) {
       console.error("startLiveRecording error:", err);
@@ -145,7 +157,7 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
   const stopLiveRecording = async () => {
     setIsRecording(false);
     recordingRef.current = false; // ✅ mark recording off
-    console.log("🛑 Stopping live recording...");
+    // console.log("🛑 Stopping live recording...");
 
     cleanupAudio();
 
@@ -158,14 +170,20 @@ export const useWebSocketTranscription = ({ currentMeeting, setCurrentMeeting, s
     if (transcript.length > 0 && currentMeeting) {
       try {
         const token = localStorage.getItem("token");
-        await fetch(`${BACKEND_URL}/api/meetings/${currentMeeting.id}/transcript`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ meeting_id: currentMeeting.id, segments: transcript }),
-        });
+        await fetch(
+          `${BACKEND_URL}/api/meetings/${currentMeeting.id}/transcript`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              meeting_id: currentMeeting.id,
+              segments: transcript,
+            }),
+          }
+        );
         safeToast("Recording saved successfully", "success");
       } catch (error) {
         console.error("Error saving transcript:", error);
@@ -228,6 +246,7 @@ function float32ToPCM16(float32Array) {
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i++)
+    binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }

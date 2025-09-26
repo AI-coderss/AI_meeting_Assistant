@@ -1,4 +1,3 @@
-// src/components/LiveMeeting.jsx
 import React, { useEffect } from "react";
 
 const LiveMeeting = ({
@@ -12,30 +11,53 @@ const LiveMeeting = ({
   setShowParticipantModal,
   language,
   setLanguage,
+  currentService,
 }) => {
-  // Debug: log transcript changes
-  useEffect(() => {
-    // console.log("Transcript updated:", transcript);
-  }, [transcript]);
+  const handleLanguageChange = (newLanguage) => {
+    if (isRecording) {
+      if (
+        window.confirm(
+          "Changing language will stop the current recording. Continue?"
+        )
+      ) {
+        stopLiveRecording();
+        setLanguage(newLanguage);
+      }
+    } else {
+      setLanguage(newLanguage);
+    }
+  };
 
   return (
     <div className="tab-content">
       <div className="meeting-controls">
         <h2>Live Meeting Recording</h2>
 
+        {/* Service Indicator */}
+        <div className="service-indicator">
+          <span
+            className={`service-badge ${
+              currentService === "Deepgram" ? "deepgram" : "google"
+            }`}
+          >
+            {isRecording && " • LIVE"}
+          </span>
+        </div>
+
         {/* Language Selector */}
-        {/* <div className="language-selector">
-          <label htmlFor="language">Language: </label>
+        <div className="language-selector">
+          <label htmlFor="language">Transcription Language:</label>
           <select
             id="language"
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) => handleLanguageChange(e.target.value)}
           >
-            <option value="en">English</option>
-            <option value="ar">Arabic</option>
+            <option value="en">English </option>
+            <option value="ar">Arabic </option>
           </select>
-        </div> */}
+        </div>
 
+        {/* Rest of your component remains the same */}
         <div className="recording-panel">
           <div className="status-indicator">
             <span
@@ -57,7 +79,15 @@ const LiveMeeting = ({
                 onClick={startLiveRecording}
                 disabled={isStreaming || participants.length === 0}
               >
-                {isStreaming ? "Connecting…" : "Start Recording"}
+                {isStreaming
+                  ? "Connecting…"
+                  : `Start ${
+                      language == "en"
+                        ? "English"
+                        : language == "ar"
+                        ? "Arabic"
+                        : ""
+                    } Recording`}
               </button>
             ) : (
               <button className="btn btn-stop" onClick={stopLiveRecording}>
@@ -76,9 +106,7 @@ const LiveMeeting = ({
             transcript.map((segment, index) => (
               <div key={segment.id || index} className="transcript-segment">
                 <div className="segment-header">
-                  <span className="speaker">
-                   {segment.speaker}
-                  </span>
+                  <span className="speaker">{segment.speaker}</span>
                   <span className="timestamp">
                     {segment.timestamp
                       ? `[${new Date(
@@ -96,7 +124,9 @@ const LiveMeeting = ({
           ) : (
             <div className="empty-state">
               {isRecording
-                ? "Listening for speech..."
+                ? `Listening for ${
+                    language === "ar" ? "Arabic" : "English"
+                  } speech...`
                 : "Start recording to see transcript"}
             </div>
           )}

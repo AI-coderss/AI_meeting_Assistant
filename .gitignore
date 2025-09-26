@@ -1,1 +1,4 @@
 node_modules
+/backend/venv/
+
+package-lock.json

@@ -10,15 +10,13 @@ import ExportActions from "./components/ExportActions";
 import Toast from "./components/Toast";
 import { useMeetings } from "./hooks/useMeetings";
 import { useTranscript } from "./hooks/useTranscript";
-import { useWebSocketTranscription } from "./hooks/useWebSocketTranscription";
-import { useDeepgramTranscription } from "./hooks/useDeepgramTranscription";
 import { useToast } from "./hooks/useToast";
 import ParticipantForm from "./components/ParticipantForm";
-import Navbar from "./components/Navbar";
 import UserList from "./components/admin/UserList";
 import "./App.css";
 import AllMeetings from "./components/AllMeetings";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
+import { useDeepgramTranscription } from "./hooks/useDeepgramTranscription";
 import { useGoogleSTTTranscription } from "./hooks/useGoogleSTTTranscription";
 
 function MainApp() {
@@ -27,16 +25,19 @@ function MainApp() {
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [roles, setRoles] = useState([]);
   const [language, setLanguage] = useState("en");
+
   useEffect(() => {
     const storedRoles = JSON.parse(localStorage.getItem("roles")) || [];
     setRoles(storedRoles);
   }, []);
+
   const isAdmin = roles.includes("admin");
-  // ✅ Load dark mode from localStorage
+
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
-    return saved === "true"; // default: false
+    return saved === "true";
   });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [participantFilter, setParticipantFilter] = useState("");
 
@@ -56,23 +57,9 @@ function MainApp() {
   } = useMeetings();
 
   // Transcript + Summary
-  // const {
-  //     transcript,
-  //     setTranscript,
-  //     summary,
-  //     setSummary,
-  //     isTranscribing,
-  //     isSummarizing,
-  //     handleFileUpload,
-  //     generateSummary,
-  //     exportToPDF,
-  //     exportToWord,
-  //     copyToClipboard,
-  // } = useTranscript({ currentMeeting, showToast });
-
   const {
     transcript,
-    setTranscript, // Make sure you're getting setTranscript from useTranscript
+    setTranscript,
     summary,
     setSummary,
     isTranscribing,
@@ -84,38 +71,72 @@ function MainApp() {
     copyToClipboard,
   } = useTranscript({ currentMeeting, showToast });
 
-  // Live Recording
-  // const { isRecording, isStreaming, startLiveRecording, stopLiveRecording } = useWebSocketTranscription({ currentMeeting, setCurrentMeeting, showToast });
-  // // In your component, use the actual function names:
-  const { isRecording, isStreaming, startLiveRecording, stopLiveRecording } =
-    useDeepgramTranscription({
-      currentMeeting,
-      setCurrentMeeting,
-      showToast,
-      transcript, // Pass the transcript state
-      setTranscript, // Pass the setTranscript function
-      participants,
-      language,
-    });
-  // const { isRecording, isStreaming, startLiveRecording, stopLiveRecording } =
-  //   useGoogleSTTTranscription({
-  //     currentMeeting,
-  //     setCurrentMeeting,
-  //     showToast,
-  //     transcript,
-  //     setTranscript,
-  //     participants,
-  //     language,
-  //   });
+  // ✅ Initialize both hooks but only use one based on language
+  const deepgramHook = useDeepgramTranscription({
+    currentMeeting,
+    setCurrentMeeting,
+    showToast,
+    transcript,
+    setTranscript,
+    participants,
+    language,
+  });
 
-  // ✅ Toggle dark mode and save to localStorage
+  const googleSTTHook = useGoogleSTTTranscription({
+    currentMeeting,
+    setCurrentMeeting,
+    showToast,
+    transcript,
+    setTranscript,
+    participants,
+    language,
+  });
+
+  // ✅ Properly isolate the active service
+  const getActiveTranscriptionService = () => {
+    if (language === "ar") {
+      console.log("🔤 Active service: Google STT (Arabic)");
+      return googleSTTHook;
+    } else {
+      console.log("🔤 Active service: Deepgram (English)");
+      return deepgramHook;
+    }
+  };
+
+  const activeService = getActiveTranscriptionService();
+  const { isRecording, isStreaming, startLiveRecording, stopLiveRecording } =
+    activeService;
+
+  // ✅ Stop the inactive service when language changes
+  useEffect(() => {
+    // Stop any ongoing recording when language changes
+    if (deepgramHook.isRecording && language === "ar") {
+      console.log("🛑 Stopping Deepgram (switching to Arabic)");
+      deepgramHook.stopLiveRecording();
+    }
+
+    if (googleSTTHook.isRecording && language === "en") {
+      console.log("🛑 Stopping Google STT (switching to English)");
+      googleSTTHook.stopLiveRecording();
+    }
+
+    // Clear transcript when language changes
+    setTranscript([]);
+    showToast(
+      `Language changed to ${
+        language === "ar" ? "Arabic" : "English"
+      }. Transcription service switched.`,
+      "info"
+    );
+  }, [language]);
+
+  // ✅ Toggle dark mode
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem("darkMode", newMode);
   };
 
-  // ✅ Update body class based on darkMode state
   useEffect(() => {
     document.body.className = darkMode ? "dark-theme" : "";
   }, [darkMode]);
@@ -127,7 +148,7 @@ function MainApp() {
     }
   }, [transcript]);
 
-  // Load meetings on mount or filter
+  // Load meetings
   useEffect(() => {
     fetchMeetings(searchQuery, participantFilter);
   }, [fetchMeetings, searchQuery, participantFilter]);
@@ -136,22 +157,19 @@ function MainApp() {
     <div className={`app ${darkMode ? "dark-theme" : ""}`}>
       <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
       <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
-      {/* <Navbar /> */}
+
       <main className="main-content">
         {activeTab === "live" && (
           <>
             {showParticipantModal && (
               <div className="modal-overlay">
                 <div className="modal-content">
-                  {/* Close Icon */}
                   <button
                     className="modal-close-btn"
                     onClick={() => setShowParticipantModal(false)}
                   >
                     ×
                   </button>
-
-                  {/* Participant Form */}
                   <ParticipantForm
                     participants={participants}
                     setParticipants={setParticipants}
@@ -170,14 +188,15 @@ function MainApp() {
               stopLiveRecording={stopLiveRecording}
               participants={participants}
               setShowParticipantModal={setShowParticipantModal}
-              language={language} // ✅ pass language
+              language={language}
               setLanguage={setLanguage}
+              currentService={language === "ar" ? "Google STT" : "Deepgram"}
             />
           </>
         )}
 
+        {/* Other tab contents remain the same */}
         {activeTab === "Analytics" && <AdminAnalytics />}
-
         {activeTab === "history" && (
           <MeetingHistory
             meetings={meetings}
@@ -186,8 +205,8 @@ function MainApp() {
             participantFilter={participantFilter}
             setParticipantFilter={setParticipantFilter}
             fetchMeetings={() => {
-              const hostEmail = localStorage.getItem("email"); // 👈 get email from localStorage
-              fetchMeetings(hostEmail); // 👈 pass it to your fetch function
+              const hostEmail = localStorage.getItem("email");
+              fetchMeetings(hostEmail);
             }}
             setCurrentMeeting={setCurrentMeeting}
             setTranscript={setTranscript}
@@ -195,7 +214,6 @@ function MainApp() {
             setActiveTab={setActiveTab}
           />
         )}
-
         {activeTab === "allMeetings" && (
           <AllMeetings
             meetings={meetings}
@@ -225,6 +243,7 @@ function MainApp() {
       </main>
 
       <Toast toast={toast} />
+
       {activeTab === "live" && (transcript.length > 0 || summary) && (
         <ExportActions
           exportToPDF={exportToPDF}
@@ -232,7 +251,6 @@ function MainApp() {
           copyToClipboard={copyToClipboard}
         />
       )}
-      {/* <button className="export">EXPORT</button> */}
     </div>
   );
 }

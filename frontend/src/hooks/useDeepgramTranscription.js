@@ -1,5 +1,5 @@
 // src/hooks/useDeepgramTranscription.js
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export const useDeepgramTranscription = ({
   currentMeeting,
@@ -212,11 +212,17 @@ export const useDeepgramTranscription = ({
       }
     }
   };
-
+  // Add this cleanup effect
+  useEffect(() => {
+    return () => {
+      stopLiveRecording();
+      cleanupAudio();
+    };
+  }, []);
   const stopLiveRecording = async () => {
     setIsRecording(false);
     recordingRef.current = false;
-    console.log("🛑 Stopping live recording...");
+    // console.log("🛑 Stopping live recording...");
 
     cleanupAudio();
 

@@ -1,30 +1,32 @@
 import os
 import json
 import threading
+import queue
 from flask import Flask
 from flask_sock import Sock
 from google.cloud import speech
+import time
 
-# Point to your Google Service Account JSON
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"E:\Medical Report\AI_meeting_Assistant\backend\meeting-assitent-doctor-7fca1bd4dcde.json"
+# Set Google credentials
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
 
 client = speech.SpeechClient()
-
 app = Flask(__name__)
 sock = Sock(app)
 
-
 @sock.route('/ws/transcribe')
 def transcribe(ws):
-    print("🔌 Client connected")
+    print("🔌 Client connected to Google STT")
 
-    requests = []
+    # Use thread-safe queue for audio chunks
+    audio_queue = queue.Queue()
+    streaming_active = True
 
-    # Define config once
+    # Configuration
     recognition_config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=16000,
-        language_code="ar-SA",
+        language_code="ar-SA",  # Arabic Saudi Arabia
         enable_automatic_punctuation=True,
     )
 
@@ -33,53 +35,76 @@ def transcribe(ws):
         interim_results=True,
     )
 
-    # Generator for audio chunks
     def request_generator():
-        while True:
-            if requests:
-                chunk = requests.pop(0)
+        while streaming_active:
+            try:
+                # Get audio chunk with timeout
+                chunk = audio_queue.get(timeout=1.0)
                 yield speech.StreamingRecognizeRequest(audio_content=chunk)
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print("Generator error:", e)
+                break
 
-    # Listen for responses in background thread
-    def listen_responses(call):
+    def listen_responses():
         try:
-            for response in call:
-                for result in response.results:
+            requests = request_generator()
+            responses = client.streaming_recognize(streaming_config, requests)
+            
+            for response in responses:
+                if not response.results:
+                    continue
+                    
+                result = response.results[0]
+                if result.alternatives:
                     transcript = result.alternatives[0].transcript
                     is_final = result.is_final
-                    ws.send(json.dumps({
-                        "transcript": transcript,
-                        "isFinal": is_final
-                    }))
+                    
+                    print(f"📝 Transcript: {transcript} (final: {is_final})")
+                    
+                    try:
+                        ws.send(json.dumps({
+                            "transcript": transcript,
+                            "isFinal": is_final
+                        }))
+                    except Exception as e:
+                        print("WebSocket send error:", e)
+                        break
+                        
         except Exception as e:
-            print("Google STT error:", e)
-            ws.close()
+            print("Google STT response error:", e)
+        finally:
+            nonlocal streaming_active
+            streaming_active = False
 
-    # ✅ FIXED: pass both config and request generator
-    call = client.streaming_recognize(config=streaming_config, requests=request_generator())
-
-    # Start response listener thread
-    response_thread = threading.Thread(target=listen_responses, args=(call,))
+    # Start response thread
+    response_thread = threading.Thread(target=listen_responses)
+    response_thread.daemon = True
     response_thread.start()
 
-    # Receive binary audio from frontend
     try:
+        # Receive audio from frontend
         while True:
             message = ws.receive()
-            if message is None:  # client disconnected
+            if message is None:
                 break
-            requests.append(message)
+                
+            # Add audio chunk to queue
+            audio_queue.put(message)
+            
     except Exception as e:
-        print("WebSocket closed:", e)
+        print("WebSocket receive error:", e)
     finally:
-        ws.close()
+        streaming_active = False
+        try:
+            ws.close()
+        except:
+            pass
         print("🔌 Client disconnected")
 
 
-if __name__ == "__main__":
-    from gevent import pywsgi
-    from geventwebsocket.handler import WebSocketHandler
 
-    server = pywsgi.WSGIServer(("0.0.0.0", 5001), app, handler_class=WebSocketHandler)
-    print("🚀 Server running on ws://localhost:5001/ws/transcribe")
-    server.serve_forever()
+if __name__ == "__main__":
+    print("🚀 Google STT Server starting on ws://localhost:5001/ws/transcribe")
+    app.run(host="0.0.0.0", port=5001, debug=True)
