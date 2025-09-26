@@ -1,13 +1,22 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 const SummaryPanel = ({
   transcript,
   summary,
   isSummarizing,
   generateSummary,
-  language, // Add language prop
+  language,
+  setSummary, // Add setSummary prop to clear the summary
 }) => {
+  // Clear summary when language changes
+  useEffect(() => {
+    if (summary) {
+      setSummary(null);
+    }
+  }, [language]); // This effect runs when language changes
+
   // Show message if summary exists but transcript language doesn't match
+  const showLanguageMismatch = summary && transcript.length > 0;
 
   return (
     <div className="summary-section">
@@ -26,9 +35,14 @@ const SummaryPanel = ({
         </button>
       </div>
 
+      {showLanguageMismatch && (
+        <div className="language-warning">
+          <p>⚠️ Language changed. Please generate a new summary.</p>
+        </div>
+      )}
+
       {summary && (
         <div className="summary-content">
-          {/* Add a header showing this might be from previous session */}
           <div className="summary-section-item">
             <h4>🔑 Key Points</h4>
             <ul>

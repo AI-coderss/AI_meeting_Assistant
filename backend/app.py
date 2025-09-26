@@ -2,10 +2,15 @@ import os
 import json
 import threading
 import queue
-from flask import Flask
+from flask import Flask, request
 from flask_sock import Sock
 from google.cloud import speech
 import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Set Google credentials
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
@@ -14,19 +19,46 @@ client = speech.SpeechClient()
 app = Flask(__name__)
 sock = Sock(app)
 
+# Language mapping
+LANGUAGE_MAP = {
+    'ar': 'ar-SA',
+    'english': 'en-US',
+    'french': 'fr-FR',
+    'spanish': 'es-ES'
+}
+
+class StreamManager:
+    def __init__(self):
+        self.active = True
+        self.lock = threading.Lock()
+    
+    def stop(self):
+        with self.lock:
+            self.active = False
+    
+    def is_active(self):
+        with self.lock:
+            return self.active
+
 @sock.route('/ws/transcribe')
 def transcribe(ws):
-    print("🔌 Client connected to Google STT")
+    logger.info("🔌 Client connected to Google STT")
 
-    # Use thread-safe queue for audio chunks
-    audio_queue = queue.Queue()
-    streaming_active = True
+    # Get language from query parameters or default to English
+    language = request.args.get('lang', 'english').lower()
+    language_code = LANGUAGE_MAP.get(language, 'en-US')
+    
+    logger.info(f"🎯 Using language: {language} (code: {language_code})")
 
-    # Configuration
+    # Use thread-safe queue for audio chunks with max size
+    audio_queue = queue.Queue(maxsize=100)
+    stream_manager = StreamManager()
+
+    # Configuration with dynamic language
     recognition_config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=16000,
-        language_code="ar-SA",  # Arabic Saudi Arabia
+        language_code=language_code,
         enable_automatic_punctuation=True,
     )
 
@@ -36,15 +68,21 @@ def transcribe(ws):
     )
 
     def request_generator():
-        while streaming_active:
+        while stream_manager.is_active():
             try:
-                # Get audio chunk with timeout
-                chunk = audio_queue.get(timeout=1.0)
+                # Get audio chunk with short timeout
+                chunk = audio_queue.get(timeout=0.5)
+                if chunk is None:  # Sentinel value to stop
+                    break
+                    
                 yield speech.StreamingRecognizeRequest(audio_content=chunk)
+                audio_queue.task_done()
+                
             except queue.Empty:
+                # Yield an empty request to keep the stream alive
                 continue
             except Exception as e:
-                print("Generator error:", e)
+                logger.error(f"Generator error: {e}")
                 break
 
     def listen_responses():
@@ -53,6 +91,9 @@ def transcribe(ws):
             responses = client.streaming_recognize(streaming_config, requests)
             
             for response in responses:
+                if not stream_manager.is_active():
+                    break
+                    
                 if not response.results:
                     continue
                     
@@ -61,22 +102,29 @@ def transcribe(ws):
                     transcript = result.alternatives[0].transcript
                     is_final = result.is_final
                     
-                    print(f"📝 Transcript: {transcript} (final: {is_final})")
+                    logger.info(f"📝 Transcript: {transcript} (final: {is_final})")
                     
                     try:
                         ws.send(json.dumps({
                             "transcript": transcript,
-                            "isFinal": is_final
+                            "isFinal": is_final,
+                            "language": language_code
                         }))
                     except Exception as e:
-                        print("WebSocket send error:", e)
+                        logger.error(f"WebSocket send error: {e}")
                         break
                         
         except Exception as e:
-            print("Google STT response error:", e)
+            logger.error(f"Google STT response error: {e}")
         finally:
-            nonlocal streaming_active
-            streaming_active = False
+            stream_manager.stop()
+            # Clear the queue to unblock any waiting puts
+            while not audio_queue.empty():
+                try:
+                    audio_queue.get_nowait()
+                    audio_queue.task_done()
+                except queue.Empty:
+                    break
 
     # Start response thread
     response_thread = threading.Thread(target=listen_responses)
@@ -85,26 +133,46 @@ def transcribe(ws):
 
     try:
         # Receive audio from frontend
-        while True:
-            message = ws.receive()
-            if message is None:
+        while stream_manager.is_active():
+            try:
+                message = ws.receive(timeout=1.0)  # Add timeout
+                if message is None:
+                    logger.info("Client sent None, closing connection")
+                    break
+                
+                # Add audio chunk to queue with timeout
+                try:
+                    audio_queue.put(message, timeout=1.0)
+                except queue.Full:
+                    logger.warning("Audio queue full, dropping chunk")
+                    
+            except Exception as e:
+                if "timeout" not in str(e).lower():
+                    logger.error(f"WebSocket receive error: {e}")
                 break
                 
-            # Add audio chunk to queue
-            audio_queue.put(message)
-            
     except Exception as e:
-        print("WebSocket receive error:", e)
+        logger.error(f"WebSocket main loop error: {e}")
     finally:
-        streaming_active = False
+        logger.info("🔌 Client disconnected, cleaning up...")
+        stream_manager.stop()
+        
+        # Add sentinel to unblock generator
+        try:
+            audio_queue.put(None, timeout=1.0)
+        except queue.Full:
+            pass
+            
+        # Wait for response thread to finish
+        response_thread.join(timeout=5.0)
+        
         try:
             ws.close()
         except:
             pass
-        print("🔌 Client disconnected")
-
-
+        logger.info("✅ Cleanup completed")
 
 if __name__ == "__main__":
-    print("🚀 Google STT Server starting on ws://localhost:5001/ws/transcribe")
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    logger.info("🚀 Google STT Server starting on ws://localhost:5001/ws/transcribe")
+    logger.info("🌍 Supported languages: %s", list(LANGUAGE_MAP.keys()))
+    app.run(host="0.0.0.0", port=5001, debug=False)  # debug=False for production

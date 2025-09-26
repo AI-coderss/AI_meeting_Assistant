@@ -11,6 +11,7 @@ const LiveMeeting = ({
   setLanguage,
   currentService,
 }) => {
+  console.log(transcript, "====");
   const handleLanguageChange = (newLanguage) => {
     if (isRecording) {
       if (

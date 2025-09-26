@@ -7,7 +7,7 @@ import { saveAs } from "file-saver";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export const useTranscript = ({ currentMeeting }) => {
+export const useTranscript = ({ currentMeeting, language }) => {
   const [transcript, setTranscript] = useState([]);
   const [summary, setSummary] = useState(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -168,6 +168,7 @@ export const useTranscript = ({ currentMeeting }) => {
         {
           meeting_id: currentMeeting.id,
           transcript_text: transcriptText,
+          language: language,
         },
         { headers: getAuthHeaders() }
       );

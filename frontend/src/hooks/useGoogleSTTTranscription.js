@@ -96,7 +96,9 @@ export const useGoogleSTTTranscription = ({
           wsRef.current = null;
         }
 
-        const uri = `ws://localhost:5001/ws/transcribe`;
+        const uri = `ws://localhost:5001/ws/transcribe?lang=${
+          language || "english"
+        }`;
         console.log(`🔌 Attempting to connect to ${uri}`);
 
         const ws = new WebSocket(uri);
@@ -266,6 +268,7 @@ export const useGoogleSTTTranscription = ({
     safeToast,
     stopLiveRecording,
     setIsStreaming,
+    language,
   ]);
 
   const startLiveRecording = async () => {

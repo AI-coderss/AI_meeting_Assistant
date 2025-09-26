@@ -69,7 +69,7 @@ function MainApp() {
     exportToPDF,
     exportToWord,
     copyToClipboard,
-  } = useTranscript({ currentMeeting, showToast });
+  } = useTranscript({ currentMeeting, showToast, language });
 
   // ✅ Initialize both hooks but only use one based on language
   const deepgramHook = useDeepgramTranscription({
@@ -235,6 +235,7 @@ function MainApp() {
             <SummaryPanel
               transcript={transcript}
               summary={summary}
+              setSummary={setSummary}
               isSummarizing={isSummarizing}
               generateSummary={generateSummary}
               language={language}
