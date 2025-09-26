@@ -1,5 +1,3 @@
-import React, { useEffect } from "react";
-
 const LiveMeeting = ({
   isRecording,
   isStreaming,
@@ -82,9 +80,9 @@ const LiveMeeting = ({
                 {isStreaming
                   ? "Connecting…"
                   : `Start ${
-                      language == "en"
+                      language === "en"
                         ? "English"
-                        : language == "ar"
+                        : language === "ar"
                         ? "Arabic"
                         : ""
                     } Recording`}

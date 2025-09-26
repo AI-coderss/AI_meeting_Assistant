@@ -2,3 +2,9 @@ node_modules
 /backend/venv/
 
 package-lock.json
+backend/meeting-assitent-doctor-*.json
+
+.env
+*.env
+frontend/.env
+backend/.env

@@ -237,6 +237,7 @@ function MainApp() {
               summary={summary}
               isSummarizing={isSummarizing}
               generateSummary={generateSummary}
+              language={language}
             />
           </div>
         )}

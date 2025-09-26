@@ -5,11 +5,18 @@ const SummaryPanel = ({
   summary,
   isSummarizing,
   generateSummary,
+  language, // Add language prop
 }) => {
+  // Show message if summary exists but transcript language doesn't match
+
   return (
     <div className="summary-section">
       <div className="summary-header">
-        <h3>Meeting Summary</h3>
+        <h3>
+          Meeting Summary{" "}
+          {language && `(${language === "ar" ? "Arabic" : "English"})`}
+        </h3>
+
         <button
           className="btn btn-generate"
           onClick={generateSummary}
@@ -21,6 +28,7 @@ const SummaryPanel = ({
 
       {summary && (
         <div className="summary-content">
+          {/* Add a header showing this might be from previous session */}
           <div className="summary-section-item">
             <h4>🔑 Key Points</h4>
             <ul>
@@ -65,6 +73,15 @@ const SummaryPanel = ({
               ))}
             </ul>
           </div>
+        </div>
+      )}
+
+      {!summary && transcript.length > 0 && (
+        <div className="summary-placeholder">
+          <p>
+            No summary generated yet. Click "Generate Summary" to create an AI
+            summary of your meeting.
+          </p>
         </div>
       )}
     </div>
