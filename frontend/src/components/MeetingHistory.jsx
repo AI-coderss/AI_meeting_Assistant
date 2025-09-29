@@ -27,7 +27,7 @@ const MeetingHistory = ({
       if (searchQuery) params.append("search", searchQuery);
       if (participantFilter) params.append("participant", participantFilter);
 
-      const url = `http://127.0.0.1:8001/api/meetings/host/${hostName}${
+      const url = `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/host/${hostName}${
         params.toString() ? `?${params.toString()}` : ""
       }`;
 

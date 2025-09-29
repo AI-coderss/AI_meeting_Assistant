@@ -656,5 +656,5 @@ def shutdown_db_client():
 # Main entry point for running the application
 if __name__ == "__main__":
     logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: http://127.0.0.1:8001")
+    print("Server running at: https://ai-meeting-assistant-backend-suu9.onrender.com")
     socketio.run(app, host="0.0.0.0", port=8001, allow_unsafe_werkzeug=True)

@@ -12,6 +12,7 @@ const LiveMeeting = ({
   currentService,
 }) => {
   console.log(transcript, "====");
+
   const handleLanguageChange = (newLanguage) => {
     if (isRecording) {
       if (
@@ -26,6 +27,43 @@ const LiveMeeting = ({
       setLanguage(newLanguage);
     }
   };
+
+  // Function to process transcript for display - preserves all segments
+  const getDisplayTranscript = () => {
+    if (!transcript || transcript.length === 0) return [];
+
+    const displaySegments = [];
+    let currentFinalIndex = -1;
+
+    // Find the last final segment to show all final segments + current interim
+    for (let i = transcript.length - 1; i >= 0; i--) {
+      if (transcript[i].is_final) {
+        currentFinalIndex = i;
+        break;
+      }
+    }
+
+    // If we found final segments, include all of them
+    if (currentFinalIndex >= 0) {
+      displaySegments.push(...transcript.slice(0, currentFinalIndex + 1));
+    }
+
+    // Add the most recent interim segment if it exists and is different from last final
+    const lastSegment = transcript[transcript.length - 1];
+    if (lastSegment && !lastSegment.is_final) {
+      // Only add if it's meaningfully different from the last final segment
+      if (
+        displaySegments.length === 0 ||
+        lastSegment.text !== displaySegments[displaySegments.length - 1].text
+      ) {
+        displaySegments.push(lastSegment);
+      }
+    }
+
+    return displaySegments;
+  };
+
+  const displayTranscript = getDisplayTranscript();
 
   return (
     <div className="tab-content">
@@ -52,7 +90,6 @@ const LiveMeeting = ({
             onChange={(e) => handleLanguageChange(e.target.value)}
           >
             <option value="en">English </option>
-            <option value="ar">Arabic </option>
           </select>
         </div>
 
@@ -101,8 +138,8 @@ const LiveMeeting = ({
       <div className="transcript-section">
         <h3>Live Transcript</h3>
         <div className="transcript-viewer" ref={transcriptRef}>
-          {transcript && transcript.length > 0 ? (
-            transcript.map((segment, index) => (
+          {displayTranscript && displayTranscript.length > 0 ? (
+            displayTranscript.map((segment, index) => (
               <div key={segment.id || index} className="transcript-segment">
                 <div className="segment-header">
                   <span className="speaker">{segment.speaker}</span>

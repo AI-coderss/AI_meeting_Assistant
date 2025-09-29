@@ -18,17 +18,17 @@ logger = logging.getLogger(__name__)
 # Set Google credentials
 # os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 
-# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"E:\Medical Report\AI_meeting_Assistant\backend\meeting-assitent-doctor-7fca1bd4dcde.json"
 
-google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-if google_creds:
-    # Write to a temp file
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
-    tmp.write(google_creds.encode())
-    tmp.flush()
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp.name
+# if google_creds:
+#     # Write to a temp file
+#     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+#     tmp.write(google_creds.encode())
+#     tmp.flush()
+#     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp.name
 
 # Initialize SpeechClient
 client = speech.SpeechClient()
