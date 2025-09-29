@@ -72,7 +72,7 @@ def transcribe(ws):
         while stream_manager.is_active():
             try:
                 # Get audio chunk with short timeout
-                chunk = audio_queue.get(timeout=0.5)
+                chunk = audio_queue.get(timeout=1.0)
                 if chunk is None:  # Sentinel value to stop
                     break
                     
@@ -80,7 +80,7 @@ def transcribe(ws):
                 audio_queue.task_done()
                 
             except queue.Empty:
-                # Yield an empty request to keep the stream alive
+                # Continue to check if stream is still active
                 continue
             except Exception as e:
                 logger.error(f"Generator error: {e}")
@@ -119,13 +119,6 @@ def transcribe(ws):
             logger.error(f"Google STT response error: {e}")
         finally:
             stream_manager.stop()
-            # Clear the queue to unblock any waiting puts
-            while not audio_queue.empty():
-                try:
-                    audio_queue.get_nowait()
-                    audio_queue.task_done()
-                except queue.Empty:
-                    break
 
     # Start response thread
     response_thread = threading.Thread(target=listen_responses)
@@ -136,7 +129,7 @@ def transcribe(ws):
         # Receive audio from frontend
         while stream_manager.is_active():
             try:
-                message = ws.receive(timeout=1.0)  # Add timeout
+                message = ws.receive(timeout=1.0)
                 if message is None:
                     logger.info("Client sent None, closing connection")
                     break
@@ -148,9 +141,10 @@ def transcribe(ws):
                     logger.warning("Audio queue full, dropping chunk")
                     
             except Exception as e:
-                if "timeout" not in str(e).lower():
+                # Check if it's a timeout (normal) or actual error
+                if "timeout" not in str(e).lower() and "2000" not in str(e):
                     logger.error(f"WebSocket receive error: {e}")
-                break
+                    break
                 
     except Exception as e:
         logger.error(f"WebSocket main loop error: {e}")
@@ -158,22 +152,17 @@ def transcribe(ws):
         logger.info("🔌 Client disconnected, cleaning up...")
         stream_manager.stop()
         
-        # Add sentinel to unblock generator
-        try:
-            audio_queue.put(None, timeout=1.0)
-        except queue.Full:
-            pass
-            
         # Wait for response thread to finish
-        response_thread.join(timeout=5.0)
+        response_thread.join(timeout=3.0)
         
-        try:
-            ws.close()
-        except:
-            pass
         logger.info("✅ Cleanup completed")
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return json.dumps({"status": "healthy", "service": "google_stt"})
 
 if __name__ == "__main__":
     logger.info("🚀 Google STT Server starting on ws://localhost:5001/ws/transcribe")
     logger.info("🌍 Supported languages: %s", list(LANGUAGE_MAP.keys()))
-    app.run(host="0.0.0.0", port=5001, debug=False)  # debug=False for production
+    app.run(host="0.0.0.0", port=5001, debug=False)

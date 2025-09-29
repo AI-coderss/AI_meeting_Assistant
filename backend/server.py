@@ -539,7 +539,6 @@ def summarize_meeting(meeting_id: str):
         abort(400, description="Invalid content type, expected application/json")
     try:
         data = request.get_json()
-        print(data, "====here is payload ============")
         transcript_text = data.get('transcript_text')
         if not transcript_text:
             abort(400, description="'transcript_text' is required.")
@@ -576,7 +575,6 @@ def summarize_meeting(meeting_id: str):
         )
 
         summary_text = response.choices[0].message.content.strip()
-        print(summary_text, "=====here is summary text =============")
 
         # 🛠️ Clean up if wrapped in ```json fences
         if summary_text.startswith("```"):

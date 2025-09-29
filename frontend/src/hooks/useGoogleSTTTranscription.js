@@ -119,6 +119,17 @@ export const useGoogleSTTTranscription = ({
     };
   }, []);
 
+  // Create meeting if needed when language is Arabic and no current meeting
+  useEffect(() => {
+    const createIfNeeded = async () => {
+      if (language === "ar" && !currentMeeting) {
+        console.log("🆕 No current meeting for Arabic, creating new one...");
+        await ensureMeetingExists();
+      }
+    };
+    createIfNeeded();
+  }, [language, currentMeeting, ensureMeetingExists]);
+
   const stopLiveRecording = useCallback(() => {
     // console.log("🛑 Stopping recording...");
     setIsRecording(false);
@@ -153,9 +164,7 @@ export const useGoogleSTTTranscription = ({
           wsRef.current = null;
         }
 
-        const uri = `ws://localhost:5001/ws/transcribe?lang=${
-          language || "english"
-        }`;
+        const uri = `ws://localhost:5001/ws/transcribe?lang=${language}`;
         console.log(`🔌 Attempting to connect to ${uri}`);
 
         const ws = new WebSocket(uri);
