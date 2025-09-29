@@ -7,21 +7,32 @@ from flask_sock import Sock
 from google.cloud import speech
 import time
 import logging
-from pathlib import Path
+import os
+import tempfile
+from google.cloud import speech
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = Path(__file__).parent
-from dotenv import load_dotenv
-load_dotenv(ROOT_DIR / ".env")
 # Set Google credentials
 # os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"E:\Medical Report\AI_meeting_Assistant\backend\meeting-assitent-doctor-7fca1bd4dcde.json"
+
+google_creds = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+if google_creds:
+    # Write to a temp file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
+    tmp.write(google_creds.encode())
+    tmp.flush()
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = tmp.name
+
+# Initialize SpeechClient
 client = speech.SpeechClient()
+
 
 
 app = Flask(__name__)
