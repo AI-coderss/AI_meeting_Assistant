@@ -19,7 +19,7 @@ load_dotenv(ROOT_DIR / ".env")
 # Set Google credentials
 # os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"D:\AI_meeting_Assistant\backend\meeting-assitent-doctor-4ba8ba3fe3f2.json"
 # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"E:\Medical Report\AI_meeting_Assistant\backend\meeting-assitent-doctor-7fca1bd4dcde.json"
 client = speech.SpeechClient()
 
