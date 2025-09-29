@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import axios from "axios";
 
 export const useGoogleSTTTranscription = ({
   currentMeeting,
@@ -22,6 +23,61 @@ export const useGoogleSTTTranscription = ({
 
   const safeToast = (msg, type = "info") =>
     showToast ? showToast(msg, type) : console.log(`[${type}]`, msg);
+
+  // ✅ Function to create a new meeting if none exists
+  const createNewMeeting = useCallback(async () => {
+    try {
+      console.log("📝 Creating new meeting for Arabic transcription...");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.post(
+        `${process.env.REACT_APP_BACKEND_URL}/api/meetings`,
+        {
+          title: `Arabic Meeting ${new Date().toLocaleString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          participants: participants.map((p) => p.email),
+          language: language,
+          status: "in_progress",
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("✅ Meeting created successfully:", response.data);
+      setCurrentMeeting(response.data);
+      safeToast("New Arabic meeting created", "success");
+
+      return response.data;
+    } catch (error) {
+      console.error("❌ Failed to create meeting:", error);
+      safeToast(`Failed to create meeting: ${error.message}`, "error");
+      throw error;
+    }
+  }, [participants, language, setCurrentMeeting, safeToast]);
+
+  // ✅ Function to ensure we have a valid meeting
+  const ensureMeetingExists = useCallback(async () => {
+    if (currentMeeting && currentMeeting.id) {
+      console.log("✅ Using existing meeting:", currentMeeting.id);
+      return currentMeeting;
+    }
+
+    console.log("🆕 No current meeting, creating new one...");
+    return await createNewMeeting();
+  }, [currentMeeting, createNewMeeting]);
 
   // Enhanced cleanup function
   const cleanupAudio = useCallback(() => {
@@ -54,6 +110,7 @@ export const useGoogleSTTTranscription = ({
       console.error("Error during cleanup:", error);
     }
   }, []);
+
   useEffect(() => {
     return () => {
       // Only cleanup audio resources, no state/toasts
@@ -81,7 +138,7 @@ export const useGoogleSTTTranscription = ({
   }, [cleanupAudio]); // removed safeToast dependency
 
   // Enhanced WebSocket connection with retry logic
-  const connectWebSocket = useCallback(() => {
+  const connectWebSocket = useCallback(async () => {
     return new Promise((resolve, reject) => {
       try {
         // Clean up any existing connection first
@@ -274,6 +331,10 @@ export const useGoogleSTTTranscription = ({
   const startLiveRecording = async () => {
     try {
       console.log("🎙 Starting live recording...");
+
+      // ✅ Ensure we have a meeting before starting
+      await ensureMeetingExists();
+
       setIsRecording(true);
       recordingRef.current = true;
       setTranscript([]);

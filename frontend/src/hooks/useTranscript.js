@@ -150,6 +150,11 @@ export const useTranscript = ({ currentMeeting, language }) => {
   };
 
   const generateSummary = async () => {
+    console.log(
+      "Generate summary: ++++++++++++++++++",
+      transcript,
+      currentMeeting
+    );
     if (!currentMeeting || transcript.length === 0) {
       showAlert("No transcript available to summarize", "warning");
       return;

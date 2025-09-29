@@ -35,12 +35,6 @@ const SummaryPanel = ({
         </button>
       </div>
 
-      {showLanguageMismatch && (
-        <div className="language-warning">
-          <p>⚠️ Language changed. Please generate a new summary.</p>
-        </div>
-      )}
-
       {summary && (
         <div className="summary-content">
           <div className="summary-section-item">

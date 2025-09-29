@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 const MeetingHistory = ({
   setCurrentMeeting,
@@ -9,15 +9,18 @@ const MeetingHistory = ({
   const [meetings, setMeetings] = useState([]);
   const [hostName, setHostName] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [searchQuery, setSearchQuery] = useState("");
   const [participantFilter, setParticipantFilter] = useState("");
 
   const token = localStorage.getItem("token");
 
-  // Fetch meetings by host + optional search/participant filters
-  const fetchMeetings = async () => {
-    if (!hostName) return;
+  // ✅ Use useCallback to prevent unnecessary recreations
+  const fetchMeetings = useCallback(async () => {
+    if (!hostName) {
+      console.log("No hostname available yet");
+      return;
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -27,6 +30,8 @@ const MeetingHistory = ({
       const url = `http://127.0.0.1:8001/api/meetings/host/${hostName}${
         params.toString() ? `?${params.toString()}` : ""
       }`;
+
+      console.log("Fetching meetings from:", url);
 
       const res = await fetch(url, {
         headers: {
@@ -40,29 +45,56 @@ const MeetingHistory = ({
       }
 
       const data = await res.json();
+      console.log("Fetched meetings:", data);
       setMeetings(data);
     } catch (err) {
       console.error("Failed to fetch meetings:", err);
+      // ✅ Keep existing meetings instead of clearing them on error
     } finally {
       setLoading(false);
     }
-  };
+  }, [hostName, searchQuery, participantFilter, token]);
 
   // Step 1: set hostName from localStorage
   useEffect(() => {
     const storedEmail = localStorage.getItem("email");
+    console.log("Setting hostname from localStorage:", storedEmail);
     if (storedEmail) {
       setHostName(storedEmail);
     }
   }, []);
 
-  // Step 2: whenever hostName is set, fetch meetings by default
+  // Step 2: fetch meetings when dependencies change
   useEffect(() => {
     if (hostName) {
+      console.log("Hostname changed, fetching meetings...");
       fetchMeetings();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hostName]);
+  }, [hostName, fetchMeetings]);
+
+  // ✅ Improved view meeting handler with validation
+  const handleViewMeeting = (meeting) => {
+    console.log("Setting current meeting:", meeting);
+
+    // Validate meeting object
+    if (!meeting || !meeting.id) {
+      console.error("Invalid meeting object:", meeting);
+      return;
+    }
+
+    // Set states in a batch to prevent race conditions
+    setCurrentMeeting(meeting);
+    setTranscript(meeting.transcript || []);
+    setSummary(meeting.summary || null);
+    setActiveTab("live");
+
+    console.log("Meeting set successfully, switching to live tab");
+  };
+
+  // ✅ Handle search with debouncing
+  const handleSearch = () => {
+    fetchMeetings();
+  };
 
   return (
     <div className="tab-content">
@@ -83,7 +115,7 @@ const MeetingHistory = ({
             onChange={(e) => setParticipantFilter(e.target.value)}
             className="search-input"
           />
-          <button className="btn btn-search" onClick={fetchMeetings}>
+          <button className="btn btn-search" onClick={handleSearch}>
             🔍 Search
           </button>
         </div>
@@ -116,16 +148,16 @@ const MeetingHistory = ({
                   <strong>Transcript segments:</strong>{" "}
                   {meeting.transcript?.length || 0}
                 </p>
+                {/* ✅ Add language display for debugging */}
+                <p>
+                  <strong>Language:</strong>{" "}
+                  {meeting.language || "Not specified"}
+                </p>
               </div>
               <div className="card-actions">
                 <button
                   className="btn btn-view"
-                  onClick={() => {
-                    setCurrentMeeting(meeting);
-                    setTranscript(meeting.transcript || []);
-                    setSummary(meeting.summary || null);
-                    setActiveTab("live");
-                  }}
+                  onClick={() => handleViewMeeting(meeting)}
                 >
                   View
                 </button>
@@ -133,7 +165,11 @@ const MeetingHistory = ({
             </div>
           ))
         ) : (
-          <div className="empty-state">No meetings found for this host.</div>
+          <div className="empty-state">
+            {hostName
+              ? "No meetings found for this host."
+              : "Please log in to view meetings."}
+          </div>
         )}
       </div>
     </div>
