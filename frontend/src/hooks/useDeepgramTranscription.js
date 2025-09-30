@@ -25,8 +25,7 @@ export const useDeepgramTranscription = ({
   const createMeetingIfNeeded = async () => {
     if (currentMeeting) return currentMeeting;
     const token = localStorage.getItem("token");
-    const BACKEND_URL =
-      "https://ai-meeting-assistant-backend-suu9.onrender.com";
+    const BACKEND_URL = "http://127.0.0.1:8001";
     const today = new Date();
     const formattedDate = today.toLocaleDateString("en-GB");
     const res = await fetch(`${BACKEND_URL}/api/meetings`, {
@@ -240,8 +239,7 @@ export const useDeepgramTranscription = ({
     if (transcript.length > 0 && currentMeeting) {
       try {
         const token = localStorage.getItem("token");
-        const BACKEND_URL =
-          "https://ai-meeting-assistant-backend-suu9.onrender.com";
+        const BACKEND_URL = "http://127.0.0.1:8001";
         await fetch(
           `${BACKEND_URL}/api/meetings/${currentMeeting.id}/transcript`,
           {

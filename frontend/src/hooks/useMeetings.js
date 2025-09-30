@@ -1,9 +1,7 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 
-const BACKEND_URL =
-  process.env.REACT_APP_API_BASE ||
-  "https://ai-meeting-assistant-backend-suu9.onrender.com";
+const BACKEND_URL = process.env.REACT_APP_API_BASE || "http://127.0.0.1:8001";
 const API = `${BACKEND_URL}/api`;
 
 export const useMeetings = () => {

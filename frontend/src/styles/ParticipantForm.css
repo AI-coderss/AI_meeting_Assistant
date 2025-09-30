@@ -1,48 +1,81 @@
-/* Add to your App.css */
+/* Container for the form */
 .participant-form {
   margin-bottom: 20px;
   padding: 20px;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 10px;
   background-color: #fafafa;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  position: relative;
 }
 
+/* Input row */
 .add-participant {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
-  align-items: center;
+  margin-bottom: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Inputs styling */
+.add-participant input,
+.add-participant select {
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.95em;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.add-participant input:focus,
+.add-participant select:focus {
+  border-color: #2196f3;
+  box-shadow: 0 0 5px rgba(33, 150, 243, 0.3);
+}
+
+/* Individual input widths */
+.participant-name-input {
+  width: 100%;
+}
+
+.participant-title-input {
+  width: 100%;
 }
 
 .participant-email-input {
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  flex: 2;
-  min-width: 200px;
+  width: 100%;
 }
 
 .role-select {
-  padding: 10px 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
   flex: 1;
+  min-width: 100px;
 }
 
+/* Add button */
 .add-participant-btn {
   padding: 10px 15px;
   background-color: #4caf50;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 18px;
   font-weight: bold;
-  width: 40px;
-  height: 40px;
+  width: 45px;
+  height: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.2s;
 }
 
 .add-participant-btn:disabled {
@@ -50,53 +83,82 @@
   cursor: not-allowed;
 }
 
+.add-participant-btn:hover:not(:disabled) {
+  background-color: #43a047;
+}
+
+/* Participants list */
 .participants-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Optional: style the scrollbar (Webkit browsers) */
+.participants-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.participants-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.participants-list::-webkit-scrollbar-track {
+  background-color: transparent;
 }
 
 .participant-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px;
+  padding: 14px 16px;
   background-color: white;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid #eee;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .participant-item.host {
-  background-color: #f0f7ff;
+  background-color: #e3f2fd;
   border-left: 4px solid #2196f3;
 }
 
+/* Participant info */
 .participant-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .participant-name {
   font-weight: 600;
+  font-size: 1em;
+}
+
+.participant-title {
+  font-size: 0.9em;
+  color: #555;
 }
 
 .participant-email {
+  font-size: 0.85em;
   color: #666;
-  font-size: 0.9em;
 }
 
 .participant-role {
   font-size: 0.8em;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 12px;
-  background-color: #f1f1f1;
   display: inline-block;
-  width: fit-content;
+  margin-top: 4px;
 }
 
 .participant-role.host {
-  background-color: #e3f2fd;
+  background-color: #bbdefb;
   color: #1976d2;
 }
 
@@ -110,96 +172,11 @@
   color: #f57c00;
 }
 
+/* Remove button */
 .remove-btn {
   background: none;
   border: none;
   font-size: 20px;
-  color: #f44336;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.remove-btn:hover {
-  background-color: #ffebee;
-}
-.speaker-assignment {
-  position: relative;
-  display: inline-block;
-}
-
-.assign-btn {
-  padding: 6px 12px;
-  background-color: #f1f1f1;
-  border: 1px solid #ccc;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.85em;
-  transition: background-color 0.2s, border-color 0.2s;
-}
-
-.assign-btn:hover {
-  background-color: #e0e0e0;
-}
-
-.assign-btn.assigned {
-  background-color: #e3f2fd;
-  border-color: #1976d2;
-  color: #1976d2;
-  font-weight: 500;
-}
-
-.speaker-dropdown {
-  position: absolute;
-  top: 110%;
-  left: 0;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 10;
-  min-width: 140px;
-}
-
-.speaker-option {
-  padding: 6px 10px;
-  border: none;
-  background: #fafafa;
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.2s;
-  font-size: 0.85em;
-}
-
-.speaker-option:hover {
-  background: #f0f0f0;
-}
-
-.speaker-option.active {
-  background-color: #e3f2fd;
-  color: #1976d2;
-  font-weight: 500;
-}
-.actions-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.remove-btn {
-  background: none;
-  border: none;
-  font-size: 18px;
   color: #f44336;
   cursor: pointer;
   padding: 4px;
@@ -209,17 +186,173 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
+  transition: background 0.2s;
 }
 
 .remove-btn:hover {
   background-color: #ffebee;
 }
 
-.assign-btn {
-  padding: 6px 14px;
-  background-color: #f1f1f1;
-  border: 1px solid #ccc;
-  border-radius: 20px;
+/* Error message styling */
+.participant-email-input.invalid,
+.participant-name-input.invalid {
+  border-color: #f44336;
+  background-color: #fff0f0;
+}
+
+.error-msg {
+  color: #f44336;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+
+/* Full-screen error modal */
+.error-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.error-modal {
+  background-color: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: modal-appear 0.3s ease-out;
+}
+
+@keyframes modal-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.error-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f44336;
+  color: white;
+}
+
+.error-modal-header h3 {
+  margin: 0;
+  font-size: 1.3em;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: white;
   cursor: pointer;
-  font-size: 0.85em;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.close-modal-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.error-modal-content {
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.error-modal-content p {
+  font-size: 1.1em;
+  margin: 0;
+  color: #333;
+  line-height: 1.5;
+}
+
+.error-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.confirm-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* Optional: make the row responsive */
+@media (max-width: 800px) {
+  .add-participant {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .input-group {
+    min-width: 100%;
+  }
+}
+
+
+.participant-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.participant-form-header h4 {
+  margin: 0;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+
+.form-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: #555;
+  transition: color 0.2s;
+}
+
+.form-close-btn:hover {
+  color: #f44336;
 }

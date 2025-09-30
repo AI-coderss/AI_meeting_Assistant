@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { io } from "socket.io-client";
 
-const BACKEND_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com";
+const BACKEND_URL = "http://127.0.0.1:8001";
 
 export const useWebSocketTranscription = ({
   currentMeeting,

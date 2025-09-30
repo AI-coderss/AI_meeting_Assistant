@@ -21,7 +21,7 @@ export default function UserList() {
       setUpdating(userId);
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}/status`,
+        `http://127.0.0.1:8001/api/users/${userId}/status`,
         {
           method: "PUT",
           headers: {
@@ -61,15 +61,12 @@ export default function UserList() {
     try {
       setUpdating(userId);
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch(`http://127.0.0.1:8001/api/users/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await res.json();
       if (res.ok) {
@@ -90,12 +87,9 @@ export default function UserList() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch(
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/users",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await fetch("http://127.0.0.1:8001/api/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       const data = await res.json();
       if (res.ok) {
@@ -115,7 +109,7 @@ export default function UserList() {
       setUpdating(userId);
       const token = localStorage.getItem("token");
       const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}/roles`,
+        `http://127.0.0.1:8001/api/users/${userId}/roles`,
         {
           method: "PUT",
           headers: {

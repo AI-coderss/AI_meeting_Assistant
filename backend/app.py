@@ -148,6 +148,7 @@ def transcribe(ws):
         while stream_manager.is_active():
             try:
                 message = ws.receive(timeout=1.0)
+                print(f"Received type: {type(message)}, len={len(message) if message else 0}")
                 if message is None:
                     logger.info("Client sent None, closing connection")
                     break
@@ -174,6 +175,7 @@ def transcribe(ws):
         response_thread.join(timeout=3.0)
         
         logger.info("✅ Cleanup completed")
+
 
 @app.route('/health', methods=['GET'])
 def health_check():

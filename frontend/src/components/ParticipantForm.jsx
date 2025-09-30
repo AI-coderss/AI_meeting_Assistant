@@ -1,37 +1,37 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/ParticipantForm.css";
 
-const ParticipantForm = ({ participants, setParticipants, currentMeeting }) => {
+const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
   const [newParticipant, setNewParticipant] = useState({
+    name: "",
+    meetingTitle: "",
     email: "",
-    role: "participant", // default role
+    category: "Business Meeting",
+    role: "participant",
   });
-  const [assigningSpeaker, setAssigningSpeaker] = useState(null);
 
-  const handleAssignSpeaker = (participantId, speakerId) => {
-    setParticipants((prev) =>
-      prev.map((p) => (p.id === participantId ? { ...p, speakerId } : p))
-    );
-    setAssigningSpeaker(null);
-  };
+  const [emailError, setEmailError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  // Get current user from localStorage
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-  // Add host as first participant if not already added
-  React.useEffect(() => {
+  // Add host if not already added
+  useEffect(() => {
     if (
       currentUser.email &&
       !participants.some((p) => p.email === currentUser.email)
     ) {
       const hostParticipant = {
         id: "host",
-        email: currentUser.email,
         name: currentUser.name || "Host",
+        meetingTitle: "",
+        email: currentUser.email,
+        category: "Business Meeting",
         role: "host",
         isHost: true,
       };
-
       setParticipants([
         hostParticipant,
         ...participants.filter((p) => p.id !== "host"),
@@ -39,48 +39,140 @@ const ParticipantForm = ({ participants, setParticipants, currentMeeting }) => {
     }
   }, [currentUser.email, participants, setParticipants]);
 
+  // Validate name: only letters and spaces
+  const handleNameChange = (name) => {
+    const namePattern = /^[A-Za-z\s]*$/;
+    const error = !namePattern.test(name)
+      ? "Name can only contain letters and spaces"
+      : "";
+    setNameError(error);
+
+    // Show full-screen error if validation fails
+    if (error) {
+      setModalError(error);
+      setShowErrorModal(true);
+    }
+
+    setNewParticipant({ ...newParticipant, name });
+  };
+
+  // Validate email in real-time
+  const handleEmailChange = (email) => {
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const error =
+      email && !emailPattern.test(email) ? "Invalid email address" : "";
+    setEmailError(error);
+
+    // Show full-screen error if validation fails
+    if (error) {
+      setModalError(error);
+      setShowErrorModal(true);
+    }
+
+    setNewParticipant({ ...newParticipant, email });
+  };
+
   const handleAddParticipant = () => {
-    if (!newParticipant.email.trim()) return;
+    if (!newParticipant.email.trim()) {
+      setModalError("Email is required");
+      setShowErrorModal(true);
+      return;
+    }
+
+    if (emailError) {
+      setModalError(emailError);
+      setShowErrorModal(true);
+      return;
+    }
+
+    if (nameError) {
+      setModalError(nameError);
+      setShowErrorModal(true);
+      return;
+    }
 
     const participant = {
       id: Date.now().toString(),
+      name: newParticipant.name || newParticipant.email.split("@")[0],
+      meetingTitle: newParticipant.meetingTitle,
       email: newParticipant.email.trim(),
-      name: newParticipant.email.split("@")[0], // Default name from email
+      category: newParticipant.category,
       role: newParticipant.role,
       isHost: false,
     };
 
     setParticipants([...participants, participant]);
-    setNewParticipant({ email: "", role: "participant" });
+    setNewParticipant({
+      name: "",
+      meetingTitle: "",
+      email: "",
+      category: "Business Meeting",
+      role: "participant",
+    });
   };
 
   const handleRemoveParticipant = (id) => {
-    // Don't allow removing the host
     if (id === "host") return;
     setParticipants(participants.filter((p) => p.id !== id));
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") {
-      handleAddParticipant();
-    }
-  };
-
   return (
     <div className="participant-form">
-      <h4>Meeting Participants</h4>
+      <div className="participant-form-header">
+        <h4>Meeting Participants</h4>
+        <button className="form-close-btn" onClick={closeForm}>
+          ×
+        </button>
+      </div>
 
       <div className="add-participant">
-        <input
-          type="email"
-          placeholder="Participant Email"
-          value={newParticipant.email}
+        <div className="input-group">
+          <input
+            type="text"
+            placeholder="Name"
+            value={newParticipant.name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            className={`participant-name-input ${nameError ? "invalid" : ""}`}
+          />
+          {nameError && <span className="error-msg">{nameError}</span>}
+        </div>
+
+        <div className="input-group">
+          <input
+            type="text"
+            placeholder="Title of Meeting"
+            value={newParticipant.meetingTitle}
+            onChange={(e) =>
+              setNewParticipant({
+                ...newParticipant,
+                meetingTitle: e.target.value,
+              })
+            }
+            className="participant-title-input"
+          />
+        </div>
+
+        <div className="input-group">
+          <input
+            type="email"
+            placeholder="Participant Email"
+            value={newParticipant.email}
+            onChange={(e) => handleEmailChange(e.target.value)}
+            className={`participant-email-input ${emailError ? "invalid" : ""}`}
+          />
+          {emailError && <span className="error-msg">{emailError}</span>}
+        </div>
+
+        <select
+          value={newParticipant.category}
           onChange={(e) =>
-            setNewParticipant({ ...newParticipant, email: e.target.value })
+            setNewParticipant({ ...newParticipant, category: e.target.value })
           }
-          onKeyPress={handleKeyPress}
-          className="participant-email-input"
-        />
+          className="category-select"
+        >
+          <option value="Business Meeting">Business Meeting</option>
+          <option value="Medical Meeting">Medical Meeting</option>
+        </select>
 
         <select
           value={newParticipant.role}
@@ -95,7 +187,7 @@ const ParticipantForm = ({ participants, setParticipants, currentMeeting }) => {
 
         <button
           onClick={handleAddParticipant}
-          disabled={!newParticipant.email}
+          disabled={!newParticipant.email || emailError || nameError}
           className="add-participant-btn"
         >
           +
@@ -103,33 +195,37 @@ const ParticipantForm = ({ participants, setParticipants, currentMeeting }) => {
       </div>
 
       <div className="participants-list">
-        {participants.map((participant) => (
+        {participants.map((p) => (
           <div
-            key={participant.id}
-            className={`participant-item ${participant.isHost ? "host" : ""}`}
+            key={p.id}
+            className={`participant-item ${p.isHost ? "host" : ""}`}
           >
             <div className="participant-info">
-              <span className="participant-name">{participant.name}</span>
-              <span className="participant-email">({participant.email})</span>
-              <span className={`participant-role ${participant.role}`}>
-                {participant.role} {participant.isHost && "(Host)"}
+              <span className="participant-name">{p.name}</span>
+              <span className="participant-title">{p.meetingTitle}</span>
+              <span className="participant-category">{p.category}</span>
+              <span className="participant-email">({p.email})</span>
+              <span className={`participant-role ${p.role}`}>
+                {p.role} {p.isHost && "(Host)"}
               </span>
             </div>
-
-            <div className="participant-actions">
-              {!participant.isHost && (
-                <div className="actions-row">
-                  <button
-                    onClick={() => handleRemoveParticipant(participant.id)}
-                    className="remove-btn"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-            </div>
+            {!p.isHost && (
+              <div className="participant-actions">
+                <button
+                  onClick={() => handleRemoveParticipant(p.id)}
+                  className="remove-btn"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </div>
         ))}
+
+        {/* Total Participants Div */}
+        <div className="total-participants">
+          Total Participants: {participants.length}
+        </div>
       </div>
     </div>
   );

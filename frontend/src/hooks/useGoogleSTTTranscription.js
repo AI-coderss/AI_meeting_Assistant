@@ -341,7 +341,7 @@ export const useGoogleSTTTranscription = ({
     try {
       console.log("🎙 Starting live recording...");
 
-      // ✅ Ensure we have a meeting before starting
+      // Ensure we have a meeting before starting
       await ensureMeetingExists();
 
       setIsRecording(true);
@@ -372,7 +372,6 @@ export const useGoogleSTTTranscription = ({
       });
       audioCtxRef.current = audioCtx;
 
-      // Resume audio context if suspended
       if (audioCtx.state === "suspended") {
         await audioCtx.resume();
       }
@@ -389,21 +388,32 @@ export const useGoogleSTTTranscription = ({
           !recordingRef.current ||
           !wsRef.current ||
           wsRef.current.readyState !== WebSocket.OPEN
-        )
+        ) {
           return;
+        }
 
-        const input = e.inputBuffer.getChannelData(0);
+        const input = e.inputBuffer.getChannelData(0); // Float32Array
 
-        // Compute volume
-        const volume = Math.sqrt(
+        // Skip completely silent frames
+        const isSilentFrame = input.every((sample) => sample === 0);
+        if (isSilentFrame) return;
+
+        // Compute RMS volume to skip near-silence
+        const rms = Math.sqrt(
           input.reduce((sum, sample) => sum + sample * sample, 0) / input.length
         );
+        if (rms < 0.001) return;
 
-        // Skip very silent frames but still send small frames to prevent timeout
-        if (volume < 0.001) return;
+        // Downsample to 16kHz if needed
+        const resampled = downsampleBuffer(input, audioCtx.sampleRate, 16000);
 
-        const pcm16buf = float32ToPCM16(input);
-        wsRef.current.send(pcm16buf);
+        // Convert to PCM16
+        const pcm16buf = float32ToPCM16(resampled);
+
+        // Only send if valid buffer
+        if (pcm16buf && pcm16buf.byteLength > 0) {
+          wsRef.current.send(pcm16buf);
+        }
       };
 
       safeToast("Recording started", "success");
@@ -451,4 +461,28 @@ function float32ToPCM16(float32Array) {
     console.error("Error converting audio format:", error);
     return new ArrayBuffer(0);
   }
+}
+
+function downsampleBuffer(buffer, fromSampleRate, toSampleRate) {
+  if (fromSampleRate === toSampleRate) return buffer;
+  const ratio = fromSampleRate / toSampleRate;
+  const newLength = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLength);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    // Average samples between offsets
+    let accum = 0,
+      count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    result[offsetResult] = accum / count;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
 }

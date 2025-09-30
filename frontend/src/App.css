@@ -1032,3 +1032,33 @@ button.btn.btn-danger.btn-del.btn-sm {
   top: 50%;
   transform: translateY(-50%);
 }
+
+
+/* Add to your CSS */
+.service-badge.connecting {
+  background: #ffa500;
+  color: #000;
+}
+
+.connection-status.connecting {
+  color: #ffa500;
+}
+
+.status-dot.connecting {
+  background: #ffa500;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
