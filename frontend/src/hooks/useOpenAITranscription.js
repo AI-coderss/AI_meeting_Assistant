@@ -23,6 +23,7 @@ export const useOpenAITranscription = ({
   const socketRef = useRef(null);
   const cleanupRequestedRef = useRef(false);
   const componentMountedRef = useRef(true); // Add this ref
+  const connectingRef = useRef(false); // Prevent cleanup while connecting
 
   // Set component as mounted on initial render
   useEffect(() => {
@@ -34,74 +35,83 @@ export const useOpenAITranscription = ({
 
   const initializeSocket = useCallback(() => {
     if (cleanupRequestedRef.current || !componentMountedRef.current) {
-      console.log(
-        "🚫 Cleanup requested or component unmounted, skipping socket initialization"
-      );
+      console.log("🚫 Cleanup requested, skipping socket initialization");
       return null;
     }
 
-    if (socketRef.current?.connected) {
-      console.log("✅ Socket already connected");
-      return socketRef.current;
-    }
-
-    console.log("🔄 Initializing socket connection to backend...");
-    setIsConnecting(true);
-
-    // Clean up existing socket
+    // Clean up existing socket first
     if (socketRef.current) {
+      console.log("🔄 Cleaning up existing socket...");
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
-    const newSocket = io("http://localhost:5001", {
-      transports: ["websocket", "polling"],
-      timeout: 10000,
+    console.log("🔄 Initializing new socket connection...");
+    setIsConnecting(true);
+    connectingRef.current = true;
+
+    const socketUrl = "http://localhost:5001";
+    console.log(`🔗 Connecting to: ${socketUrl}`);
+
+    const newSocket = io(socketUrl, {
+      transports: ["polling"],
+      timeout: 15000,
       reconnection: true,
-      reconnectionAttempts: 3,
+      reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      forceNew: true, // Important: create new connection
     });
 
     socketRef.current = newSocket;
 
+    // Clear any existing timeout
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
 
+    // Set connection timeout
     connectionTimeoutRef.current = setTimeout(() => {
-      if (
-        !newSocket.connected &&
-        !cleanupRequestedRef.current &&
-        componentMountedRef.current
-      ) {
-        console.error("❌ Connection timeout");
+      if (newSocket && !newSocket.connected && componentMountedRef.current) {
+        console.error("❌ Connection timeout after 15 seconds");
         setIsConnecting(false);
         setIsConnected(false);
         showToast(
-          "Connection timeout - backend is running but connection failed",
+          "Connection timeout - check if backend server is running",
           "error"
         );
-      }
-    }, 10000);
 
+        // Clean up the stuck socket
+        if (socketRef.current === newSocket) {
+          newSocket.removeAllListeners();
+          newSocket.disconnect();
+          socketRef.current = null;
+        }
+      }
+    }, 15000);
+
+    // Socket event handlers
     newSocket.on("connect", () => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
-      console.log("✅ Connected to backend server");
+      if (!componentMountedRef.current) return;
+
+      console.log("✅ Socket connected successfully");
       clearTimeout(connectionTimeoutRef.current);
       setIsConnected(true);
       setIsConnecting(false);
+      connectingRef.current = false;
       showToast("Connected to transcription service", "success");
     });
 
     newSocket.on("connected", (data) => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      if (!componentMountedRef.current) return;
       console.log("✅ Server acknowledged connection:", data);
     });
 
     newSocket.on("transcript", (data) => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      if (!componentMountedRef.current) return;
       console.log("📝 Received transcript:", data);
 
+      // Your existing transcript handling code...
       if (data.text && data.text.trim() !== "") {
         const newSegment = {
           id: `segment-${Date.now()}-${Math.random()
@@ -127,7 +137,7 @@ export const useOpenAITranscription = ({
           };
 
           setTimeout(() => {
-            if (!cleanupRequestedRef.current && componentMountedRef.current) {
+            if (componentMountedRef.current) {
               setTranscript((prev) => [...prev, aiSegment]);
             }
           }, 500);
@@ -135,32 +145,46 @@ export const useOpenAITranscription = ({
       }
     });
 
-    newSocket.on("error", (error) => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
-      console.error("❌ Transcription error:", error);
-      clearTimeout(connectionTimeoutRef.current);
-      setIsConnecting(false);
-      showToast(`Transcription error: ${error.error}`, "error");
-    });
-
     newSocket.on("disconnect", (reason) => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
-      console.log("🔌 Disconnected from server:", reason);
+      if (!componentMountedRef.current) return;
+      console.log("🔌 Socket disconnected:", reason);
       clearTimeout(connectionTimeoutRef.current);
       setIsConnected(false);
       setIsConnecting(false);
       setIsRecording(false);
       isRecordingRef.current = false;
-      showToast("Disconnected from server", "warning");
+
+      if (reason === "io server disconnect") {
+        showToast("Server disconnected the connection", "warning");
+      } else {
+        showToast("Connection lost", "warning");
+      }
     });
 
     newSocket.on("connect_error", (error) => {
-      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
-      console.error("❌ Connection error:", error);
+      if (!componentMountedRef.current) return;
+      console.error("❌ Socket connection error:", error);
       clearTimeout(connectionTimeoutRef.current);
       setIsConnected(false);
       setIsConnecting(false);
-      showToast(`Connection failed: ${error.message}`, "error");
+      connectingRef.current = false;
+
+      let errorMessage = error.message;
+      if (error.message.includes("ECONNREFUSED")) {
+        errorMessage =
+          "Cannot connect to server. Please ensure the backend is running on localhost:5001";
+      }
+
+      showToast(`Connection failed: ${errorMessage}`, "error");
+    });
+
+    newSocket.on("error", (error) => {
+      if (!componentMountedRef.current) return;
+      console.error("❌ Socket error:", error);
+      showToast(
+        `Socket error: ${error.message || JSON.stringify(error)}`,
+        "error"
+      );
     });
 
     return newSocket;
@@ -239,17 +263,16 @@ export const useOpenAITranscription = ({
           const timeout = setTimeout(() => {
             reject(
               new Error(
-                "Connection timeout - ensure backend is running on localhost:5000"
+                "Connection timeout - ensure backend is running on localhost:5001"
               )
             );
           }, 5000);
 
           socket.once("connect", () => {
-            console.log("✅ Socket connected, now starting recording...");
-            mediaRecorder.start(1000); // 1 second chunks
-            isRecordingRef.current = true;
-            setIsRecording(true);
-            setIsStreaming(true);
+            console.log(
+              "✅ Socket connected, proceeding with recording setup..."
+            );
+            resolve();
           });
 
           socket.once("connect_error", (error) => {
@@ -291,16 +314,23 @@ export const useOpenAITranscription = ({
 
         if (event.data.size > 0) {
           if (socket && socket.connected) {
-            // ✅ Only emit if connected
             const reader = new FileReader();
+
             reader.onload = () => {
               if (
                 socket.connected &&
                 !cleanupRequestedRef.current &&
                 componentMountedRef.current
               ) {
+                const audioData = reader.result;
+                console.log("📤 Sending audio chunk:", {
+                  dataLength: audioData.length,
+                  dataPreview: audioData.substring(0, 100),
+                  language: participants[0]?.language || "en",
+                });
+
                 socket.emit("audio_chunk", {
-                  audio: reader.result,
+                  data: audioData,
                   language: participants[0]?.language || "en",
                   translate: false,
                 });
@@ -358,7 +388,7 @@ export const useOpenAITranscription = ({
         error.message.includes("ECONNREFUSED")
       ) {
         errorMessage =
-          "Cannot connect to server. Please ensure the backend server is running on localhost:5000";
+          "Cannot connect to server. Please ensure the backend server is running on localhost:5001";
       }
 
       showToast(`Error: ${errorMessage}`, "error");
@@ -387,7 +417,9 @@ export const useOpenAITranscription = ({
 
     stopLiveRecording();
 
-    if (socketRef.current) {
+    if (connectingRef.current) {
+      console.log("⏳ Skipping socket disconnect while connecting...");
+    } else if (socketRef.current) {
       console.log("🔌 Disconnecting socket...");
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();

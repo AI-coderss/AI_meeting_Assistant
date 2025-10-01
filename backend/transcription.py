@@ -161,6 +161,9 @@ def handle_start_audio(data):
 def handle_audio_chunk(data):
     try:
         client_id = request.sid
+        logger.info(f"🎯 Received audio_chunk from {client_id}")
+        logger.info(f"📦 Data keys: {list(data.keys())}")
+        logger.info(f"📦 Audio data type: {type(data.get('data') if data.get('data') else type(data.get('audio')))}")
         if client_id not in get_all_clients():
             emit('error', {'error': 'Client not properly connected'})
             return

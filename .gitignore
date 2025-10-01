@@ -7,4 +7,10 @@ backend/meeting-assitent-doctor-*.json
 .env
 *.env
 frontend/.env
+backend/token.json
 backend/.env
+backend/client_secret*.json
+
+# Python cache
+__pycache__/
+*.pyc
