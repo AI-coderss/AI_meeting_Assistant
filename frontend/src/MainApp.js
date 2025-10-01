@@ -17,9 +17,10 @@ import "./App.css";
 import AllMeetings from "./components/AllMeetings";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
 import { useOpenAITranscription } from "./hooks/useOpenAITranscription";
+import ScheduleMeetingForm from "./components/ScheduleMeetingForm";
 
 function MainApp() {
-  const [activeTab, setActiveTab] = useState("live");
+  const [activeTab, setActiveTab] = useState("schedule");
   const [participants, setParticipants] = useState([]);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -79,12 +80,12 @@ function MainApp() {
     participants,
   });
 
-  // ✅ Destructure ALL properties including isConnected
+  // ✅ FIXED: Destructure ALL properties including isStreaming and isConnecting
   const {
     isRecording,
     isStreaming,
+    isConnected,
     isConnecting,
-    isConnected, // Add this line
     startLiveRecording,
     stopLiveRecording,
     cleanup,
@@ -96,14 +97,16 @@ function MainApp() {
     setDarkMode(newMode);
     localStorage.setItem("darkMode", newMode);
   };
-  useEffect(() => {
-    return () => {
-      if (cleanup) {
-        console.log("🔄 Cleaning up MainApp...");
-        cleanup();
-      }
-    };
-  }, [cleanup]);
+
+  // Remove the problematic cleanup effect that was causing constant re-renders
+  // useEffect(() => {
+  //   return () => {
+  //     if (cleanup) {
+  //       console.log("🔄 Cleaning up MainApp...");
+  //       cleanup();
+  //     }
+  //   };
+  // }, [cleanup]);
 
   useEffect(() => {
     document.body.className = darkMode ? "dark-theme" : "";
@@ -121,9 +124,10 @@ function MainApp() {
     fetchMeetings(searchQuery, participantFilter);
   }, [fetchMeetings, searchQuery, participantFilter]);
 
-  // Cleanup on unmount
+  // Only cleanup when component actually unmounts
   useEffect(() => {
     return () => {
+      console.log("🔴 MainApp unmounting - performing final cleanup");
       openAIHook.cleanup?.();
     };
   }, [openAIHook]);
@@ -205,6 +209,7 @@ function MainApp() {
           />
         )}
         {isAdmin && activeTab === "userlist" && <UserList />}
+        {activeTab === "schedule" && <ScheduleMeetingForm />}
 
         {(transcript.length > 0 || summary) && (
           <div className="actions-panel">

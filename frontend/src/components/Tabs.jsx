@@ -14,12 +14,21 @@ const Tabs = ({ activeTab, setActiveTab }) => {
     <nav className="tabs">
       <div className="brand">
         <a className="napbar__brand" href="/">
-          <span className="napbar__logo" aria-hidden="true">🤖</span>
+          <span className="napbar__logo" aria-hidden="true">
+            🤖
+          </span>
           <span className="napbar__brandText">AI Meeting Assistant</span>
         </a>
       </div>
 
       <div className="button-left">
+        <button
+          className={`tab ${activeTab === "schedule" ? "active" : ""}`}
+          onClick={() => setActiveTab("schedule")}
+        >
+          📅 Meeting Schedule
+        </button>
+
         <button
           className={`tab ${activeTab === "live" ? "active" : ""}`}
           onClick={() => setActiveTab("live")}
@@ -37,24 +46,24 @@ const Tabs = ({ activeTab, setActiveTab }) => {
         {/* ✅ Show UserList tab only for Admins */}
         {isAdmin && (
           <>
-          <button
-            className={`tab ${activeTab === "userlist" ? "active" : ""}`}
-            onClick={() => setActiveTab("userlist")}
-          >
-            👥 User List
-          </button>
-          <button
-            className={`tab ${activeTab === "allMeetings" ? "active" : ""}`}
-            onClick={() => setActiveTab("allMeetings")}
-          >
-            📚 All Meetings
-          </button>
-           <button
-            className={`tab ${activeTab === "Analytics" ? "active" : ""}`}
-            onClick={() => setActiveTab("Analytics")}
-          >
-            📊 Analytics
-          </button>
+            <button
+              className={`tab ${activeTab === "userlist" ? "active" : ""}`}
+              onClick={() => setActiveTab("userlist")}
+            >
+              👥 User List
+            </button>
+            <button
+              className={`tab ${activeTab === "allMeetings" ? "active" : ""}`}
+              onClick={() => setActiveTab("allMeetings")}
+            >
+              📚 All Meetings
+            </button>
+            <button
+              className={`tab ${activeTab === "Analytics" ? "active" : ""}`}
+              onClick={() => setActiveTab("Analytics")}
+            >
+              📊 Analytics
+            </button>
           </>
         )}
       </div>

@@ -5,7 +5,7 @@ import json
 import tempfile
 import atexit
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from functools import wraps
 import logging
@@ -13,7 +13,7 @@ import logging
 from flask import Flask, Blueprint, request, jsonify, abort
 from flask_cors import CORS, cross_origin
 from flask_socketio import SocketIO, join_room, leave_room
-
+from google_calendar_service import GoogleCalendarService
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
 
@@ -895,6 +895,100 @@ app.register_blueprint(api_bp)
 def shutdown_db_client():
     logger.info("Closing MongoDB client...")
     client.close()
+
+
+
+
+# @app.route('/api/schedule_meeting', methods=['POST'])
+# def schedule_meeting():
+#     data = request.get_json()
+#     required_fields = ['name', 'email', 'demo_date', 'timezone', 'duration_minutes']
+#     missing_fields = [field for field in required_fields if field not in data]
+#     if missing_fields:
+#         return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+
+#     try:
+#         # Parse demo_date as datetime object
+#         demo_date = datetime.datetime.fromisoformat(data['demo_date'])
+#     except Exception as e:
+#         return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format.'}), 400
+
+#     # Create a simple demo_booking object as a dict
+#     demo_booking = type('DemoBooking', (), {})()
+#     demo_booking.name = data['name']
+#     demo_booking.email = data['email']
+#     demo_booking.demo_date = demo_date
+#     demo_booking.timezone = data['timezone']
+#     demo_booking.duration_minutes = int(data['duration_minutes'])
+#     demo_booking.company = data.get('company')
+#     demo_booking.phone = data.get('phone')
+#     demo_booking.message = data.get('message')
+#     demo_booking.id = data.get('id', 1)  # fallback id for requestId in event
+
+#     calendar_service = GoogleCalendarService()
+#     event_info = calendar_service.create_demo_event(demo_booking)
+
+#     if event_info is None:
+#         return jsonify({'error': 'Failed to create calendar event'}), 500
+
+#     return jsonify({
+#         'event_id': event_info['event_id'],
+#         'meet_link': event_info['meet_link'],
+#         'calendar_link': event_info['calendar_link']
+#     })
+
+@app.route('/api/schedule_meeting', methods=['POST'])
+def schedule_meeting():
+    data = request.get_json()
+    required_fields = ['name', 'email', 'demo_date', 'duration_minutes']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+
+    try:
+        iso_str = data['demo_date'].strip()
+        demo_date_utc = datetime.fromisoformat(iso_str)
+        if demo_date_utc.tzinfo is None:
+            demo_date_utc = demo_date_utc.replace(tzinfo=timezone.utc)
+    except ValueError:
+        # Try adding UTC timezone if parsing failed due to missing timezone
+        try:
+            if not iso_str.endswith("+00:00") and not iso_str.endswith("Z"):
+                iso_str += "+00:00"
+            elif iso_str.endswith("Z"):
+                iso_str = iso_str[:-1] + "+00:00"
+            demo_date_utc = datetime.fromisoformat(iso_str)
+            if demo_date_utc.tzinfo is None:
+                demo_date_utc = demo_date_utc.replace(tzinfo=timezone.utc)
+        except Exception:
+            return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format like 2025-10-03T05:13:00.000Z'}), 400
+    except Exception:
+        return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format like 2025-10-03T05:13:00.000Z'}), 400
+
+    # Create a simple demo_booking object
+    demo_booking = type('DemoBooking', (), {})()
+    demo_booking.name = data['name']
+    demo_booking.email = data['email']
+    demo_booking.demo_date = demo_date_utc  # store UTC datetime
+    demo_booking.duration_minutes = int(data['duration_minutes'])
+    demo_booking.company = data.get('company')
+    demo_booking.phone = data.get('phone')
+    demo_booking.message = data.get('message')
+    demo_booking.id = data.get('id', 1)
+
+    calendar_service = GoogleCalendarService()
+    event_info = calendar_service.create_demo_event(demo_booking)
+
+    if event_info is None:
+        return jsonify({'error': 'Failed to create calendar event'}), 500
+
+    return jsonify({
+        'event_id': event_info['event_id'],
+        'meet_link': event_info['meet_link'],
+        'calendar_link': event_info['calendar_link']
+    })
+
+
 
 if __name__ == "__main__":
     logger.info("Starting Flask-SocketIO development server...")

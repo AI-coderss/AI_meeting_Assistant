@@ -1,9 +1,3 @@
-# ---------------------------------
-# eventlet must be first
-import eventlet
-eventlet.monkey_patch()
-# ---------------------------------
-
 import os
 import base64
 import requests
@@ -24,11 +18,20 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-TRANSCRIBE_MODEL = "gpt-4o-transcribe"
+TRANSCRIBE_MODEL = "whisper-1"
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Initialize Redis
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+# Check Redis availability
+try:
+    r.ping()
+    message_queue = REDIS_URL
+    logger.info("Redis connected, using message queue")
+except Exception as e:
+    message_queue = None
+    logger.warning(f"Redis not available or error: {e}, running without message queue")
 
 # Flask app
 app = Flask(__name__)
@@ -39,14 +42,16 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(
     app,
     cors_allowed_origins="*",
-    async_mode='eventlet',
+    async_mode='threading',
     ping_timeout=120,
     ping_interval=30,
-    max_http_buffer_size=int(2e8),  # 200 MB
+    max_http_buffer_size=int(2e8), # 200 MB
     logger=True,
     engineio_logger=True,
-    message_queue=REDIS_URL,
+    message_queue=message_queue,
     engineio_options={
+        'ping_timeout': 120,
+        'ping_interval': 30,
         'cors_allowed_origins': '*',
         'cors_credentials': False
     }
@@ -112,6 +117,7 @@ def get_ai_response(transcript: str, language: str) -> str:
             'en': "You are a helpful assistant. Respond naturally and helpfully in English to the following:",
             'ar': "أنت مساعد مفيد. رد بطريقة طبيعية ومفيدة باللغة العربية على ما يلي:"
         }
+        # Default to English if language is None or not supported
         prompt = prompts.get(language, prompts['en'])
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
@@ -119,7 +125,7 @@ def get_ai_response(transcript: str, language: str) -> str:
             "Content-Type": "application/json"
         }
         data = {
-            "model": "gpt-3.5-turbo",
+            "model": "gpt-4o",
             "messages": [
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": transcript}
@@ -139,6 +145,18 @@ def get_ai_response(transcript: str, language: str) -> str:
 # ---------------------------------
 # SocketIO events
 # ---------------------------------
+@socketio.on('start_audio')
+def handle_start_audio(data):
+    try:
+        if not data or 'audio_length' not in data:
+            emit('error', {'error': 'Missing audio length in start_audio message'})
+            return
+        # Optionally, initialize or store audio_length for the session
+        emit('ready', {'status': 'Ready for audio chunks'})
+    except Exception as e:
+        logger.error(f"Start audio handling error: {str(e)}")
+        emit('error', {'error': f'Start audio error: {str(e)}'})
+
 @socketio.on('audio_chunk')
 def handle_audio_chunk(data):
     try:
@@ -172,7 +190,7 @@ def handle_audio_chunk(data):
             logger.info(f"Detected language: {detected_language}")
 
             try:
-                result = transcribe_audio(temp_audio.name, language=None, translate=translate)
+                result = transcribe_audio(temp_audio.name, language=detected_language, translate=translate)
                 transcript_text = result.get("text", "").strip()
             except Exception as e:
                 emit('error', {'error': f'Transcription failed: {str(e)}'})
@@ -222,5 +240,5 @@ def default_error_handler(e):
 # Run server
 # ---------------------------------
 if __name__ == '__main__':
-    logger.info("🚀 Starting Socket.IO server on port 5000...")
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    logger.info("🚀 Starting Socket.IO server on port 5001...")
+    socketio.run(app, host='0.0.0.0', port=5001, debug=False)

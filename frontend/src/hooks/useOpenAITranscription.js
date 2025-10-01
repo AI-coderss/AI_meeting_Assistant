@@ -12,7 +12,6 @@ export const useOpenAITranscription = ({
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -21,153 +20,163 @@ export const useOpenAITranscription = ({
   const streamRef = useRef(null);
   const isRecordingRef = useRef(false);
   const connectionTimeoutRef = useRef(null);
+  const socketRef = useRef(null);
+  const cleanupRequestedRef = useRef(false);
+  const componentMountedRef = useRef(true); // Add this ref
 
-  // Initialize Socket.io connection - only once
+  // Set component as mounted on initial render
+  useEffect(() => {
+    componentMountedRef.current = true;
+    return () => {
+      componentMountedRef.current = false;
+    };
+  }, []);
+
   const initializeSocket = useCallback(() => {
-    // Don't reinitialize if already connecting or connected
-    if (isConnecting || (socket && socket.connected)) {
-      return socket;
-    }
-
-    try {
-      console.log("🔄 Initializing socket connection...");
-      setIsConnecting(true);
-
-      // Clear any existing timeout
-      if (connectionTimeoutRef.current) {
-        clearTimeout(connectionTimeoutRef.current);
-      }
-
-      const newSocket = io("http://localhost:5000", {
-        transports: ["websocket"],
-        timeout: 15000, // Increased timeout
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
-        forceNew: true, // Important: create new connection
-        autoConnect: false, // Prevent immediate connection
-      });
-
-      // Set connection timeout
-      connectionTimeoutRef.current = setTimeout(() => {
-        if (!newSocket.connected) {
-          console.error("❌ Connection timeout");
-          newSocket.disconnect();
-          setIsConnecting(false);
-          setIsConnected(false);
-          showToast("Connection timeout - please try again", "error");
-        }
-      }, 15000);
-
-      newSocket.on("connect", () => {
-        console.log("✅ Connected to OpenAI transcription server");
-        clearTimeout(connectionTimeoutRef.current);
-        setIsConnected(true);
-        setIsConnecting(false);
-        showToast("Connected to transcription service", "success");
-      });
-
-      newSocket.on("transcript", (data) => {
-        console.log("📝 Received transcript:", data);
-
-        if (data.text && data.text.trim() !== "") {
-          const newSegment = {
-            id: `segment-${Date.now()}-${Math.random()
-              .toString(36)
-              .substr(2, 9)}`,
-            text: data.text,
-            speaker: "Speaker",
-            timestamp: new Date().toLocaleTimeString(),
-            language: data.language || "en",
-            isAI: false,
-          };
-
-          setTranscript((prev) => [...prev, newSegment]);
-
-          // Add AI response if available
-          if (data.ai_response && data.ai_response.trim() !== "") {
-            const aiSegment = {
-              id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              text: data.ai_response,
-              speaker: "AI Assistant",
-              timestamp: new Date().toLocaleTimeString(),
-              language: data.language || "en",
-              isAI: true,
-            };
-
-            setTimeout(() => {
-              setTranscript((prev) => [...prev, aiSegment]);
-            }, 500);
-          }
-        }
-      });
-
-      newSocket.on("error", (error) => {
-        console.error("❌ Transcription error:", error);
-        clearTimeout(connectionTimeoutRef.current);
-        setIsConnecting(false);
-        showToast(`Transcription error: ${error.error}`, "error");
-      });
-
-      newSocket.on("disconnect", (reason) => {
-        console.log("🔌 Disconnected from transcription server:", reason);
-        clearTimeout(connectionTimeoutRef.current);
-        setIsConnected(false);
-        setIsConnecting(false);
-        setIsRecording(false);
-        isRecordingRef.current = false;
-
-        if (reason === "io server disconnect") {
-          showToast("Server disconnected", "warning");
-        } else {
-          showToast("Connection lost", "warning");
-        }
-      });
-
-      newSocket.on("connect_error", (error) => {
-        console.error("❌ Connection error:", error);
-        clearTimeout(connectionTimeoutRef.current);
-        setIsConnected(false);
-        setIsConnecting(false);
-        showToast("Failed to connect to transcription service", "error");
-      });
-
-      newSocket.on("reconnect_attempt", (attempt) => {
-        console.log(`🔄 Reconnection attempt ${attempt}`);
-      });
-
-      newSocket.on("reconnect_failed", () => {
-        console.error("❌ Reconnection failed");
-        showToast("Failed to reconnect to service", "error");
-      });
-
-      setSocket(newSocket);
-      return newSocket;
-    } catch (error) {
-      console.error("❌ Socket initialization error:", error);
-      clearTimeout(connectionTimeoutRef.current);
-      setIsConnecting(false);
-      showToast("Failed to initialize connection", "error");
+    if (cleanupRequestedRef.current || !componentMountedRef.current) {
+      console.log(
+        "🚫 Cleanup requested or component unmounted, skipping socket initialization"
+      );
       return null;
     }
-  }, [showToast, setTranscript, isConnecting, socket]);
 
-  // Initialize socket on component mount
-  // useEffect(() => {
-  //   const socketInstance = initializeSocket();
+    if (socketRef.current?.connected) {
+      console.log("✅ Socket already connected");
+      return socketRef.current;
+    }
 
-  //   return () => {
-  //     cleanup();
-  //   };
-  // }, []); // Empty dependency array - only run once
+    console.log("🔄 Initializing socket connection to backend...");
+    setIsConnecting(true);
+
+    // Clean up existing socket
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+    }
+
+    const newSocket = io("http://localhost:5001", {
+      transports: ["websocket", "polling"],
+      timeout: 10000,
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 1000,
+    });
+
+    socketRef.current = newSocket;
+
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+    }
+
+    connectionTimeoutRef.current = setTimeout(() => {
+      if (
+        !newSocket.connected &&
+        !cleanupRequestedRef.current &&
+        componentMountedRef.current
+      ) {
+        console.error("❌ Connection timeout");
+        setIsConnecting(false);
+        setIsConnected(false);
+        showToast(
+          "Connection timeout - backend is running but connection failed",
+          "error"
+        );
+      }
+    }, 10000);
+
+    newSocket.on("connect", () => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.log("✅ Connected to backend server");
+      clearTimeout(connectionTimeoutRef.current);
+      setIsConnected(true);
+      setIsConnecting(false);
+      showToast("Connected to transcription service", "success");
+    });
+
+    newSocket.on("connected", (data) => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.log("✅ Server acknowledged connection:", data);
+    });
+
+    newSocket.on("transcript", (data) => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.log("📝 Received transcript:", data);
+
+      if (data.text && data.text.trim() !== "") {
+        const newSegment = {
+          id: `segment-${Date.now()}-${Math.random()
+            .toString(36)
+            .substr(2, 9)}`,
+          text: data.text,
+          speaker: "Speaker",
+          timestamp: new Date().toLocaleTimeString(),
+          language: data.language || "en",
+          isAI: false,
+        };
+
+        setTranscript((prev) => [...prev, newSegment]);
+
+        if (data.ai_response && data.ai_response.trim() !== "") {
+          const aiSegment = {
+            id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            text: data.ai_response,
+            speaker: "AI Assistant",
+            timestamp: new Date().toLocaleTimeString(),
+            language: data.language || "en",
+            isAI: true,
+          };
+
+          setTimeout(() => {
+            if (!cleanupRequestedRef.current && componentMountedRef.current) {
+              setTranscript((prev) => [...prev, aiSegment]);
+            }
+          }, 500);
+        }
+      }
+    });
+
+    newSocket.on("error", (error) => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.error("❌ Transcription error:", error);
+      clearTimeout(connectionTimeoutRef.current);
+      setIsConnecting(false);
+      showToast(`Transcription error: ${error.error}`, "error");
+    });
+
+    newSocket.on("disconnect", (reason) => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.log("🔌 Disconnected from server:", reason);
+      clearTimeout(connectionTimeoutRef.current);
+      setIsConnected(false);
+      setIsConnecting(false);
+      setIsRecording(false);
+      isRecordingRef.current = false;
+      showToast("Disconnected from server", "warning");
+    });
+
+    newSocket.on("connect_error", (error) => {
+      if (cleanupRequestedRef.current || !componentMountedRef.current) return;
+      console.error("❌ Connection error:", error);
+      clearTimeout(connectionTimeoutRef.current);
+      setIsConnected(false);
+      setIsConnecting(false);
+      showToast(`Connection failed: ${error.message}`, "error");
+    });
+
+    return newSocket;
+  }, [showToast, setTranscript]);
+
   const stopLiveRecording = useCallback(() => {
     if (!isRecordingRef.current) {
       return;
     }
 
     console.log("🛑 Stopping recording...");
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    setIsStreaming(false);
 
-    // Stop media recorder first
+    // Stop media recorder
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "recording"
@@ -177,14 +186,14 @@ export const useOpenAITranscription = ({
       } catch (error) {
         console.error("Error stopping media recorder:", error);
       }
+      mediaRecorderRef.current = null;
     }
 
-    // Stop all audio tracks
+    // Stop audio tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
           track.stop();
-          track.enabled = false;
         } catch (error) {
           console.error("Error stopping track:", error);
         }
@@ -192,24 +201,21 @@ export const useOpenAITranscription = ({
       streamRef.current = null;
     }
 
-    // Reset states
-    setIsRecording(false);
-    isRecordingRef.current = false;
-    setIsStreaming(false);
     audioChunksRef.current = [];
-
     console.log("✅ Recording stopped");
     showToast("Recording stopped", "info");
   }, [showToast]);
 
   const startLiveRecording = useCallback(async () => {
+    // Reset cleanup flag when starting recording
+    cleanupRequestedRef.current = false;
+
     try {
       if (isRecordingRef.current) {
         console.log("⚠️ Already recording, skipping...");
         return;
       }
 
-      // Ensure participants exist
       if (participants.length === 0) {
         showToast(
           "Please add participants before starting recording",
@@ -218,54 +224,42 @@ export const useOpenAITranscription = ({
         return;
       }
 
-      let currentSocket = socket;
-
-      // Initialize socket if missing
-      if (!currentSocket) {
-        console.log("🔄 Establishing new connection...");
-        currentSocket = initializeSocket();
-        if (!currentSocket)
-          throw new Error("Failed to initialize socket connection");
+      console.log("🎤 Step 1: Initializing socket connection...");
+      const socket = initializeSocket();
+      if (!socket) {
+        throw new Error("Socket initialization failed");
       }
 
-      if (!currentSocket.connected) {
-        currentSocket.connect();
+      // Simple connection wait
+      if (!socket.connected) {
+        console.log("🔌 Waiting for socket connection...");
+        setIsConnecting(true);
+
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(
+              new Error(
+                "Connection timeout - ensure backend is running on localhost:5000"
+              )
+            );
+          }, 5000);
+
+          socket.once("connect", () => {
+            console.log("✅ Socket connected, now starting recording...");
+            mediaRecorder.start(1000); // 1 second chunks
+            isRecordingRef.current = true;
+            setIsRecording(true);
+            setIsStreaming(true);
+          });
+
+          socket.once("connect_error", (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        });
       }
 
-      // Wait for connection
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(
-            new Error(
-              "Connection timeout - please check if the server is running"
-            )
-          );
-        }, 10000);
-
-        if (currentSocket.connected) {
-          clearTimeout(timeout);
-          resolve();
-          return;
-        }
-
-        const onConnect = () => {
-          clearTimeout(timeout);
-          currentSocket.off("connect_error", onError);
-          resolve();
-        };
-
-        const onError = (err) => {
-          clearTimeout(timeout);
-          currentSocket.off("connect", onConnect);
-          reject(err);
-        };
-
-        currentSocket.once("connect", onConnect);
-        currentSocket.once("connect_error", onError);
-      });
-
-      // 🎤 Get audio stream
-      console.log("🎤 Requesting audio permissions...");
+      console.log("🎤 Step 2: Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -274,49 +268,68 @@ export const useOpenAITranscription = ({
           noiseSuppression: true,
         },
       });
+
+      if (cleanupRequestedRef.current || !componentMountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       streamRef.current = stream;
 
-      // 🎙️ Setup MediaRecorder
+      console.log("🎤 Step 3: Setting up MediaRecorder...");
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm;codecs=opus",
       });
       mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
       mediaRecorder.ondataavailable = (event) => {
         if (
-          event.data.size > 0 &&
-          isRecordingRef.current &&
-          currentSocket?.connected
-        ) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (currentSocket.connected) {
-              currentSocket.emit("audio_chunk", {
-                audio: reader.result,
-                language: participants[0]?.language || "en",
-                translate: false,
-              });
-            }
-          };
-          reader.readAsDataURL(event.data);
+          cleanupRequestedRef.current ||
+          !componentMountedRef.current ||
+          !isRecordingRef.current
+        )
+          return;
+
+        if (event.data.size > 0) {
+          if (socket && socket.connected) {
+            // ✅ Only emit if connected
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (
+                socket.connected &&
+                !cleanupRequestedRef.current &&
+                componentMountedRef.current
+              ) {
+                socket.emit("audio_chunk", {
+                  audio: reader.result,
+                  language: participants[0]?.language || "en",
+                  translate: false,
+                });
+              }
+            };
+            reader.readAsDataURL(event.data);
+          } else {
+            console.warn("⚠️ Tried to send audio but socket not connected");
+          }
         }
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error("MediaRecorder error:", event.error);
+        console.error("❌ MediaRecorder error:", event.error);
         showToast("Recording error occurred", "error");
         stopLiveRecording();
       };
 
-      // Start recording with 1s chunks
-      console.log("🎙️ Starting media recorder...");
-      mediaRecorder.start(1000);
-      setIsRecording(true);
+      mediaRecorder.onstop = () => {
+        console.log("🛑 MediaRecorder stopped");
+      };
+
+      console.log("🎤 Step 4: Starting recording...");
+      mediaRecorder.start(1000); // 1 second chunks
+
       isRecordingRef.current = true;
+      setIsRecording(true);
       setIsStreaming(true);
 
-      // Ensure meeting is created
       if (!currentMeeting) {
         setCurrentMeeting({
           title: `Meeting ${new Date().toLocaleString()}`,
@@ -326,10 +339,8 @@ export const useOpenAITranscription = ({
         });
       }
 
-      showToast(
-        "Started recording with OpenAI transcription - Auto-detects English & Arabic",
-        "success"
-      );
+      console.log("✅ Recording started successfully");
+      showToast("Recording started - Speak now!", "success");
     } catch (error) {
       console.error("❌ Error starting recording:", error);
       setIsConnecting(false);
@@ -342,18 +353,22 @@ export const useOpenAITranscription = ({
           "Microphone permission denied. Please allow microphone access.";
       } else if (error.name === "NotFoundError") {
         errorMessage = "No microphone found. Please check your audio device.";
+      } else if (
+        error.message.includes("timeout") ||
+        error.message.includes("ECONNREFUSED")
+      ) {
+        errorMessage =
+          "Cannot connect to server. Please ensure the backend server is running on localhost:5000";
       }
 
-      showToast(`Error starting recording: ${errorMessage}`, "error");
+      showToast(`Error: ${errorMessage}`, "error");
 
-      // Cleanup stream if failed
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
     }
   }, [
-    socket,
     initializeSocket,
     currentMeeting,
     setCurrentMeeting,
@@ -363,39 +378,33 @@ export const useOpenAITranscription = ({
   ]);
 
   const cleanup = useCallback(() => {
-    console.log("🧹 Cleaning up resources...");
+    console.log("🧹 Cleanup requested...");
+    cleanupRequestedRef.current = true;
 
-    // Clear timeout
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
 
-    // Stop recording first
-    if (isRecordingRef.current) {
-      stopLiveRecording();
-    }
+    stopLiveRecording();
 
-    // Disconnect socket
-    if (socket) {
+    if (socketRef.current) {
       console.log("🔌 Disconnecting socket...");
-      socket.removeAllListeners(); // Remove all listeners first
-      socket.disconnect();
-      setSocket(null);
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
-    // Clean up media
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
           track.stop();
         } catch (error) {
-          console.error("Error stopping track during cleanup:", error);
+          console.error("Error stopping track:", error);
         }
       });
       streamRef.current = null;
     }
 
-    // Reset all states
     setIsConnected(false);
     setIsConnecting(false);
     setIsRecording(false);
@@ -403,18 +412,15 @@ export const useOpenAITranscription = ({
     setIsStreaming(false);
 
     console.log("✅ Cleanup completed");
-  }, [socket, stopLiveRecording]);
+  }, [stopLiveRecording]);
 
-  // Store cleanup in ref to avoid useEffect dependency issues
-  const cleanupRef = useRef(cleanup);
-  cleanupRef.current = cleanup;
-
-  // Auto-cleanup on unmount
+  // Only cleanup on unmount, not on re-renders
   useEffect(() => {
     return () => {
-      cleanupRef.current();
+      console.log("🔴 Component unmounting - performing final cleanup");
+      cleanup();
     };
-  }, []); // Empty dependency array - only run on unmount
+  }, [cleanup]);
 
   return {
     isRecording,
