@@ -16,6 +16,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import redis
 import threading
+import subprocess
+from io import BytesIO
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -88,6 +90,181 @@ processing_clients = set()
 last_request_time = {}
 MIN_REQUEST_INTERVAL = 0.5
 
+def detect_audio_format(audio_bytes):
+    """Simple audio format detection based on magic bytes"""
+    if len(audio_bytes) < 4:
+        return "audio/webm"
+    
+    # Check for WebM (starts with 0x1A45DFA3)
+    if audio_bytes[0:4] == b'\x1a\x45\xdf\xa3':
+        return "audio/webm"
+    # Check for OGG (starts with OggS)
+    elif audio_bytes[0:4] == b'OggS':
+        return "audio/ogg"
+    # Check for WAV (starts with RIFF)
+    elif audio_bytes[0:4] == b'RIFF':
+        return "audio/wav"
+    # Check for MP3 (starts with ID3)
+    elif audio_bytes[0:3] == b'ID3':
+        return "audio/mpeg"
+    else:
+        return "audio/webm"  # Default assumption
+
+def get_file_extension(mime_type):
+    """Map MIME type to file extension"""
+    mime_to_ext = {
+        'audio/webm': '.webm',
+        'audio/ogg': '.ogg',
+        'audio/wav': '.wav',
+        'audio/mpeg': '.mp3',
+        'audio/flac': '.flac',
+        'audio/mp4': '.m4a',
+        'audio/x-wav': '.wav'
+    }
+    return mime_to_ext.get(mime_type, '.webm')
+
+def convert_webm_to_wav(webm_data):
+    """Convert WebM/Opus to WAV format using ffmpeg"""
+    try:
+        # Create temporary files
+        with NamedTemporaryFile(suffix='.webm', delete=False) as webm_file:
+            webm_file.write(webm_data)
+            webm_path = webm_file.name
+        
+        wav_path = webm_path.replace('.webm', '.wav')
+        
+        # Convert using ffmpeg
+        cmd = [
+            'ffmpeg', '-i', webm_path,
+            '-acodec', 'pcm_s16le',  # 16-bit PCM
+            '-ac', '1',              # Mono
+            '-ar', '16000',          # 16kHz sample rate
+            '-y',                    # Overwrite output
+            wav_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        # Clean up webm file
+        try:
+            os.unlink(webm_path)
+        except:
+            pass
+        
+        if result.returncode == 0:
+            # Read the converted WAV file
+            with open(wav_path, 'rb') as wav_file:
+                wav_data = wav_file.read()
+            
+            # Clean up WAV file
+            try:
+                os.unlink(wav_path)
+            except:
+                pass
+            
+            logger.info(f"✅ Successfully converted WebM to WAV: {len(webm_data)} -> {len(wav_data)} bytes")
+            return wav_data
+        else:
+            logger.error(f"❌ FFmpeg conversion failed: {result.stderr}")
+            return webm_data  # Fallback to original data
+            
+    except Exception as e:
+        logger.error(f"❌ WebM to WAV conversion error: {str(e)}")
+        return webm_data  # Fallback to original data
+
+def convert_audio_to_wav(input_path, output_path):
+    """Convert any audio format to WAV using ffmpeg"""
+    try:
+        cmd = [
+            'ffmpeg', '-i', input_path,
+            '-acodec', 'pcm_s16le',  # 16-bit PCM
+            '-ac', '1',              # Mono
+            '-ar', '16000',          # 16kHz sample rate
+            '-y',                    # Overwrite output
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            logger.info(f"✅ Successfully converted audio to WAV")
+            return True
+        else:
+            logger.error(f"❌ FFmpeg conversion failed: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"❌ Conversion error: {str(e)}")
+        return False
+
+def transcribe_audio_with_openai(audio_bytes, language=None):
+    """Transcribe audio using OpenAI API with proper format handling"""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # Convert WebM to WAV for better compatibility
+        mime_type = detect_audio_format(audio_bytes)
+        if mime_type == 'audio/webm':
+            logger.info("🔄 Converting WebM to WAV for better compatibility...")
+            audio_bytes = convert_webm_to_wav(audio_bytes)
+            mime_type = 'audio/wav'
+        
+        # Create audio file with correct extension
+        audio_file = BytesIO(audio_bytes)
+        if mime_type == 'audio/wav':
+            audio_file.name = "audio.wav"
+        elif mime_type == 'audio/webm':
+            audio_file.name = "audio.webm"
+        elif mime_type == 'audio/mpeg':
+            audio_file.name = "audio.mp3"
+        else:
+            audio_file.name = "audio.ogg"
+        
+        logger.info(f"📤 Sending to OpenAI: {len(audio_bytes)} bytes as {audio_file.name}")
+        
+        transcript = client.audio.transcriptions.create(
+            model=TRANSCRIBE_MODEL,
+            file=audio_file,
+            language=language,
+            response_format="text"
+        )
+        return transcript
+        
+    except Exception as e:
+        logger.error(f"❌ OpenAI transcription error: {str(e)}")
+        return ""
+
+def transcribe_audio_direct(file_path: str, language: str = None, translate: bool = False) -> dict:
+    """Transcribe audio directly without conversion - let OpenAI handle format detection"""
+    try:
+        url = "https://api.openai.com/v1/audio/transcriptions"
+        headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+        
+        with open(file_path, "rb") as audio_file:
+            files = {"file": audio_file}
+            data = {"model": TRANSCRIBE_MODEL}
+            if language:
+                data["language"] = language
+            if translate:
+                data["prompt"] = "Translate to English"
+            
+            file_size = os.path.getsize(file_path)
+            logger.info(f"📤 Sending to OpenAI: {file_size} bytes")
+            
+            response = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                text = result.get("text", "").strip()
+                logger.info(f"✅ Transcription successful: '{text}'")
+                return {"text": text}
+            else:
+                logger.error(f"❌ OpenAI API error: {response.status_code} - {response.text}")
+                return {"text": ""}
+                
+    except Exception as e:
+        logger.error(f"Transcription error: {str(e)}")
+        return {"text": ""}
+
 def detect_language(audio_file_path: str) -> str:
     """Detect language from audio - returns 'en' on any error"""
     try:
@@ -126,33 +303,6 @@ def detect_language(audio_file_path: str) -> str:
     except Exception as e:
         logger.error(f"Language detection error: {str(e)}")
         return "en"
-
-def transcribe_audio(file_path: str, language: str = None, translate: bool = False) -> dict:
-    """Transcribe audio - returns dict with text key, never raises"""
-    try:
-        url = "https://api.openai.com/v1/audio/transcriptions"
-        headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-        
-        with open(file_path, "rb") as audio_file:
-            files = {"file": audio_file}
-            data = {"model": TRANSCRIBE_MODEL}
-            if language:
-                data["language"] = language
-            if translate:
-                data["prompt"] = "Translate to English"
-            
-            response = requests.post(url, headers=headers, files=files, data=data, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                return {"text": result.get("text", "")}
-            else:
-                logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
-                return {"text": ""}
-                
-    except Exception as e:
-        logger.error(f"Transcription error: {str(e)}")
-        return {"text": ""}
 
 def get_ai_response(transcript: str, language: str) -> str:
     """Get AI response - returns empty string on error"""
@@ -226,9 +376,8 @@ def handle_audio_chunk(data):
         
         last_request_time[client_id] = current_time
         logger.info(f"🎯 Processing audio_chunk from {client_id}")
-        logger.info(f"📦 Received data type: {type(data)}")
         
-        # CRITICAL: Validate data structure
+        # Validate data structure
         if not isinstance(data, dict):
             logger.error(f"❌ Invalid data type: {type(data)}")
             emit('error', {'error': 'Invalid data format - expected dict'})
@@ -236,12 +385,9 @@ def handle_audio_chunk(data):
                 processing_clients.discard(client_id)
             return
         
-        logger.info(f"📦 Data keys: {list(data.keys())}")
-        
-        # Extract audio data with validation
+        # Extract audio data
         audio_data = data.get('audio') or data.get('data')
         
-        # CRITICAL: Check if audio_data is actually data, not a type
         if audio_data is None:
             logger.error("❌ No audio data in payload")
             emit('error', {'error': 'No audio data received'})
@@ -249,25 +395,11 @@ def handle_audio_chunk(data):
                 processing_clients.discard(client_id)
             return
         
-        # Log the actual type we received
-        logger.info(f"📦 Audio data type: {type(audio_data).__name__}")
-        logger.info(f"📦 Audio data length: {len(audio_data) if isinstance(audio_data, (str, bytes)) else 'N/A'}")
-        
-        # Reject if it's not a string or bytes
-        if not isinstance(audio_data, (str, bytes)):
-            logger.error(f"❌ Audio data is type {type(audio_data).__name__}, expected str or bytes")
-            emit('error', {'error': f'Invalid audio data type: {type(audio_data).__name__}'})
-            with processing_lock:
-                processing_clients.discard(client_id)
-            return
-
-        translate = data.get('translate', False)
-
-        # Handle base64 decoding for string data
+        # Handle base64 decoding
+        audio_bytes = None
         if isinstance(audio_data, str):
             if audio_data.startswith('data:audio'):
                 try:
-                    # Extract base64 part after comma
                     base64_data = audio_data.split(',', 1)[1]
                     audio_bytes = base64.b64decode(base64_data)
                     logger.info(f"✅ Decoded base64 audio: {len(audio_bytes)} bytes")
@@ -278,7 +410,6 @@ def handle_audio_chunk(data):
                         processing_clients.discard(client_id)
                     return
             else:
-                # Try to decode as raw base64
                 try:
                     audio_bytes = base64.b64decode(audio_data)
                     logger.info(f"✅ Decoded raw base64: {len(audio_bytes)} bytes")
@@ -300,49 +431,73 @@ def handle_audio_chunk(data):
                 processing_clients.discard(client_id)
             return
 
-        # Process audio with temporary file
-        with NamedTemporaryFile(delete=True, suffix=".ogg") as temp_audio:  # Changed from .webm to .ogg
-            temp_audio.write(audio_bytes)
-            temp_audio.flush()
+        # Try the new OpenAI client method first (with WebM conversion)
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=OPENAI_API_KEY)
             
-            logger.info(f"💾 Saved temp file: {temp_audio.name} ({len(audio_bytes)} bytes)")
+            logger.info("🔄 Using new OpenAI client with format conversion...")
+            transcript_text = transcribe_audio_with_openai(audio_bytes, language=None)
+            
+        except ImportError:
+            logger.warning("⚠️ OpenAI package not available, falling back to requests method")
+            # Fallback to the original method
+            mime_type = detect_audio_format(audio_bytes)
+            file_extension = get_file_extension(mime_type)
+            
+            # Save with correct extension
+            with NamedTemporaryFile(delete=False, suffix=file_extension) as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_audio.flush()
+                temp_path = temp_audio.name
+                
+                logger.info(f"💾 Saved temp file: {temp_path} ({len(audio_bytes)} bytes, {mime_type})")
 
-            # Detect language
-            logger.info(f"🌍 Detecting language...")
-            detected_language = detect_language(temp_audio.name)
-            logger.info(f"🌍 Detected language: {detected_language}")
+                try:
+                    # Try direct transcription first (WebM is supported by OpenAI)
+                    logger.info(f"📝 Starting transcription...")
+                    result = transcribe_audio_direct(temp_path, language=None, translate=False)
+                    transcript_text = result.get("text", "").strip()
+                    
+                    if not transcript_text:
+                        logger.info("🔄 Direct transcription failed, trying with language detection...")
+                        # If direct fails, try with language detection
+                        logger.info(f"🌍 Detecting language...")
+                        detected_language = detect_language(temp_path)
+                        logger.info(f"🌍 Detected language: {detected_language}")
+                        
+                        result = transcribe_audio_direct(temp_path, language=detected_language, translate=False)
+                        transcript_text = result.get("text", "").strip()
+                
+                finally:
+                    # Always clean up the temporary file
+                    try:
+                        os.unlink(temp_path)
+                    except Exception as e:
+                        logger.warning(f"Could not delete temp file: {e}")
 
-            # Transcribe
-            logger.info(f"📝 Starting transcription...")
-            result = transcribe_audio(temp_audio.name, language=detected_language, translate=translate)
-            transcript_text = result.get("text", "").strip()
-            logger.info(f"📝 Transcription result: '{transcript_text[:100] if transcript_text else '(empty)'}...'")
+        logger.info(f"📝 Transcription result: '{transcript_text if transcript_text else '(empty)'}'")
 
-            if not transcript_text:
-                logger.info("📝 No transcript text, sending empty response")
-                emit('transcript', {
-                    'text': '', 
-                    'language': detected_language, 
-                    'ai_response': ''
-                })
-                with processing_lock:
-                    processing_clients.discard(client_id)
-                return
-
-            # AI response disabled - only showing transcription
-            logger.info(f"✅ Transcription complete - sending to client")
-
-            # Send successful response (no AI response)
-            emit('transcript', {
-                'text': transcript_text,
-                'language': detected_language,
-                'ai_response': ''  # Empty - no AI response
-            })
+        # Send response
+        emit('transcript', {
+            'text': transcript_text,
+            'language': 'en',  # Default for now
+            'ai_response': ''  # Empty - no AI response
+        })
+        
+        if transcript_text:
             logger.info(f"✅ Successfully processed audio for {client_id}")
+        else:
+            logger.info("📝 No transcript text, sent empty response")
 
     except Exception as e:
         logger.error(f"❌ Audio chunk processing error: {str(e)}", exc_info=True)
         emit('error', {'error': f'Processing error: {str(e)}'})
+        emit('transcript', {
+            'text': '',
+            'language': 'en',
+            'ai_response': ''
+        })
     finally:
         # Always remove from processing set
         with processing_lock:

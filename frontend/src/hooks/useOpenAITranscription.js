@@ -219,13 +219,13 @@ export const useOpenAITranscription = ({
   const startLiveRecording = useCallback(async () => {
     console.log("🎤 startLiveRecording called");
     cleanupRequestedRef.current = false;
-
+  
     try {
       if (isRecordingRef.current) {
         console.log("⚠️ Already recording, skipping...");
         return;
       }
-
+  
       if (participants.length === 0) {
         showToast(
           "Please add participants before starting recording",
@@ -233,17 +233,17 @@ export const useOpenAITranscription = ({
         );
         return;
       }
-
+  
       console.log("🎤 Step 1: Initializing socket connection...");
       const socket = initializeSocket();
       if (!socket) {
         throw new Error("Socket initialization failed");
       }
-
+  
       if (!socket.connected) {
         console.log("🔌 Waiting for socket connection...");
         setIsConnecting(true);
-
+  
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             reject(
@@ -252,7 +252,7 @@ export const useOpenAITranscription = ({
               )
             );
           }, 5000);
-
+  
           socket.once("connect", () => {
             clearTimeout(timeout);
             console.log(
@@ -260,14 +260,14 @@ export const useOpenAITranscription = ({
             );
             resolve();
           });
-
+  
           socket.once("connect_error", (error) => {
             clearTimeout(timeout);
             reject(error);
           });
         });
       }
-
+  
       console.log("🎤 Step 2: Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -277,20 +277,54 @@ export const useOpenAITranscription = ({
           noiseSuppression: true,
         },
       });
-
+  
       if (cleanupRequestedRef.current || !componentMountedRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-
+  
       streamRef.current = stream;
-
+  
       console.log("🎤 Step 3: Setting up MediaRecorder...");
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/wav",
-      });
+      
+      // FIXED: Use supported MIME types - try different options
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus', 
+        'audio/mp4',
+        '' // Let browser choose default
+      ];
+      
+      let mediaRecorder;
+      let selectedMimeType = '';
+      
+      for (const mimeType of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+          try {
+            mediaRecorder = new MediaRecorder(stream, {
+              mimeType: mimeType
+            });
+            selectedMimeType = mimeType;
+            console.log(`✅ Using MIME type: ${mimeType}`);
+            break;
+          } catch (e) {
+            console.warn(`❌ Failed with ${mimeType}:`, e);
+            continue;
+          }
+        } else {
+          console.warn(`❌ MIME type not supported: ${mimeType}`);
+        }
+      }
+      
+      // Fallback: Let browser choose
+      if (!mediaRecorder) {
+        console.log("🔄 No specific MIME type worked, using browser default");
+        mediaRecorder = new MediaRecorder(stream);
+      }
+      
       mediaRecorderRef.current = mediaRecorder;
-
+  
       // FIXED: Properly handle audio data conversion
       mediaRecorder.ondataavailable = (event) => {
         // Early exit checks
@@ -301,21 +335,21 @@ export const useOpenAITranscription = ({
         ) {
           return;
         }
-
+  
         if (event.data.size === 0) {
           console.warn("⚠️ Received empty audio chunk");
           return;
         }
-
+  
         // Check socket connection before processing
         if (!socket || !socket.connected) {
           console.warn("⚠️ Socket not connected, skipping audio chunk");
           return;
         }
-
-        // Convert Blob to base64 data URL
+  
+        // Convert Blob to base64 data URL with proper MIME type
         const reader = new FileReader();
-
+  
         reader.onloadend = () => {
           // Double-check conditions after async operation
           if (
@@ -326,54 +360,56 @@ export const useOpenAITranscription = ({
             console.warn("⚠️ Conditions changed during file read, skipping");
             return;
           }
-
+  
           const audioData = reader.result;
-
+  
           // Validate the data format
-          if (typeof audioData !== 'string' || !audioData.startsWith('data:audio')) {
+          if (typeof audioData !== 'string' || !audioData.startsWith('data:')) {
             console.error("❌ Invalid audio data format:", typeof audioData);
             return;
           }
-
+  
           console.log("📤 Sending audio chunk:", {
             size: event.data.size,
             type: event.data.type,
             dataLength: audioData.length,
+            mimeType: selectedMimeType,
             dataPreview: audioData.substring(0, 100),
           });
-
-          // Send to backend - data is now a proper base64 string
+  
+          // Send to backend with format info
           socket.emit("audio_chunk", {
             audio: audioData,
+            mimeType: event.data.type || selectedMimeType,
             translate: false,
           });
         };
-
+  
         reader.onerror = (error) => {
           console.error("❌ FileReader error:", error);
         };
-
+  
         // Start reading the blob as data URL
         reader.readAsDataURL(event.data);
       };
-
+  
       mediaRecorder.onerror = (event) => {
         console.error("❌ MediaRecorder error:", event.error);
         showToast("Recording error occurred", "error");
         stopLiveRecording();
       };
-
+  
       mediaRecorder.onstop = () => {
         console.log("🛑 MediaRecorder stopped");
       };
-
+  
       console.log("🎤 Step 4: Starting recording...");
       mediaRecorder.start(1000); // 1 second chunks
-
+  
       isRecordingRef.current = true;
       setIsRecording(true);
       setIsStreaming(true);
-
+  
       if (!currentMeeting) {
         setCurrentMeeting({
           title: `Meeting ${new Date().toLocaleString()}`,
@@ -382,7 +418,7 @@ export const useOpenAITranscription = ({
           transcript: [],
         });
       }
-
+  
       console.log("✅ Recording started successfully");
       showToast("Recording started - Speak now!", "success");
     } catch (error) {
@@ -390,13 +426,18 @@ export const useOpenAITranscription = ({
       setIsConnecting(false);
       setIsRecording(false);
       isRecordingRef.current = false;
-
+  
       let errorMessage = error.message;
       if (error.name === "NotAllowedError") {
         errorMessage =
           "Microphone permission denied. Please allow microphone access.";
       } else if (error.name === "NotFoundError") {
         errorMessage = "No microphone found. Please check your audio device.";
+      } else if (error.name === "NotSupportedError") {
+        errorMessage = "Browser doesn't support the requested audio format. Using default format.";
+        // Try again with default format
+        setTimeout(() => startLiveRecording(), 100);
+        return;
       } else if (
         error.message.includes("timeout") ||
         error.message.includes("ECONNREFUSED")
@@ -404,9 +445,9 @@ export const useOpenAITranscription = ({
         errorMessage =
           "Cannot connect to server. Please ensure the backend server is running on localhost:5001";
       }
-
+  
       showToast(`Error: ${errorMessage}`, "error");
-
+  
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -420,7 +461,6 @@ export const useOpenAITranscription = ({
     showToast,
     stopLiveRecording,
   ]);
-
   const cleanup = useCallback(() => {
     // Prevent cleanup during active operations
     if (isRecordingRef.current || connectingRef.current) {
