@@ -22,10 +22,9 @@ export const useOpenAITranscription = ({
   const connectionTimeoutRef = useRef(null);
   const socketRef = useRef(null);
   const cleanupRequestedRef = useRef(false);
-  const componentMountedRef = useRef(true); // Add this ref
-  const connectingRef = useRef(false); // Prevent cleanup while connecting
+  const componentMountedRef = useRef(true);
+  const connectingRef = useRef(false);
 
-  // Set component as mounted on initial render
   useEffect(() => {
     componentMountedRef.current = true;
     return () => {
@@ -39,7 +38,6 @@ export const useOpenAITranscription = ({
       return null;
     }
 
-    // Clean up existing socket first
     if (socketRef.current) {
       console.log("🔄 Cleaning up existing socket...");
       socketRef.current.removeAllListeners();
@@ -57,20 +55,15 @@ export const useOpenAITranscription = ({
     const newSocket = io(socketUrl, {
       transports: ["polling"],
       timeout: 15000,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      forceNew: true, // Important: create new connection
+      forceNew: true,
     });
 
     socketRef.current = newSocket;
 
-    // Clear any existing timeout
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
 
-    // Set connection timeout
     connectionTimeoutRef.current = setTimeout(() => {
       if (newSocket && !newSocket.connected && componentMountedRef.current) {
         console.error("❌ Connection timeout after 15 seconds");
@@ -81,7 +74,6 @@ export const useOpenAITranscription = ({
           "error"
         );
 
-        // Clean up the stuck socket
         if (socketRef.current === newSocket) {
           newSocket.removeAllListeners();
           newSocket.disconnect();
@@ -90,7 +82,6 @@ export const useOpenAITranscription = ({
       }
     }, 15000);
 
-    // Socket event handlers
     newSocket.on("connect", () => {
       if (!componentMountedRef.current) return;
 
@@ -111,7 +102,6 @@ export const useOpenAITranscription = ({
       if (!componentMountedRef.current) return;
       console.log("📝 Received transcript:", data);
 
-      // Your existing transcript handling code...
       if (data.text && data.text.trim() !== "") {
         const newSegment = {
           id: `segment-${Date.now()}-${Math.random()
@@ -120,7 +110,6 @@ export const useOpenAITranscription = ({
           text: data.text,
           speaker: "Speaker",
           timestamp: new Date().toLocaleTimeString(),
-          language: data.language || "en",
           isAI: false,
         };
 
@@ -132,7 +121,6 @@ export const useOpenAITranscription = ({
             text: data.ai_response,
             speaker: "AI Assistant",
             timestamp: new Date().toLocaleTimeString(),
-            language: data.language || "en",
             isAI: true,
           };
 
@@ -200,7 +188,6 @@ export const useOpenAITranscription = ({
     setIsRecording(false);
     setIsStreaming(false);
 
-    // Stop media recorder
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state === "recording"
@@ -213,7 +200,6 @@ export const useOpenAITranscription = ({
       mediaRecorderRef.current = null;
     }
 
-    // Stop audio tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
@@ -231,7 +217,7 @@ export const useOpenAITranscription = ({
   }, [showToast]);
 
   const startLiveRecording = useCallback(async () => {
-    // Reset cleanup flag when starting recording
+    console.log("🎤 startLiveRecording called");
     cleanupRequestedRef.current = false;
 
     try {
@@ -254,7 +240,6 @@ export const useOpenAITranscription = ({
         throw new Error("Socket initialization failed");
       }
 
-      // Simple connection wait
       if (!socket.connected) {
         console.log("🔌 Waiting for socket connection...");
         setIsConnecting(true);
@@ -269,6 +254,7 @@ export const useOpenAITranscription = ({
           }, 5000);
 
           socket.once("connect", () => {
+            clearTimeout(timeout);
             console.log(
               "✅ Socket connected, proceeding with recording setup..."
             );
@@ -301,46 +287,74 @@ export const useOpenAITranscription = ({
 
       console.log("🎤 Step 3: Setting up MediaRecorder...");
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
+        mimeType: "audio/wav",
       });
       mediaRecorderRef.current = mediaRecorder;
+
+      // FIXED: Properly handle audio data conversion
       mediaRecorder.ondataavailable = (event) => {
+        // Early exit checks
         if (
           cleanupRequestedRef.current ||
           !componentMountedRef.current ||
           !isRecordingRef.current
-        )
+        ) {
           return;
-
-        if (event.data.size > 0) {
-          if (socket && socket.connected) {
-            const reader = new FileReader();
-
-            reader.onload = () => {
-              if (
-                socket.connected &&
-                !cleanupRequestedRef.current &&
-                componentMountedRef.current
-              ) {
-                const audioData = reader.result;
-                console.log("📤 Sending audio chunk:", {
-                  dataLength: audioData.length,
-                  dataPreview: audioData.substring(0, 100),
-                  language: participants[0]?.language || "en",
-                });
-
-                socket.emit("audio_chunk", {
-                  data: audioData,
-                  language: participants[0]?.language || "en",
-                  translate: false,
-                });
-              }
-            };
-            reader.readAsDataURL(event.data);
-          } else {
-            console.warn("⚠️ Tried to send audio but socket not connected");
-          }
         }
+
+        if (event.data.size === 0) {
+          console.warn("⚠️ Received empty audio chunk");
+          return;
+        }
+
+        // Check socket connection before processing
+        if (!socket || !socket.connected) {
+          console.warn("⚠️ Socket not connected, skipping audio chunk");
+          return;
+        }
+
+        // Convert Blob to base64 data URL
+        const reader = new FileReader();
+
+        reader.onloadend = () => {
+          // Double-check conditions after async operation
+          if (
+            !socket.connected ||
+            cleanupRequestedRef.current ||
+            !componentMountedRef.current
+          ) {
+            console.warn("⚠️ Conditions changed during file read, skipping");
+            return;
+          }
+
+          const audioData = reader.result;
+
+          // Validate the data format
+          if (typeof audioData !== 'string' || !audioData.startsWith('data:audio')) {
+            console.error("❌ Invalid audio data format:", typeof audioData);
+            return;
+          }
+
+          console.log("📤 Sending audio chunk:", {
+            size: event.data.size,
+            type: event.data.type,
+            dataLength: audioData.length,
+            dataPreview: audioData.substring(0, 100),
+          });
+
+          // Send to backend - data is now a proper base64 string
+          socket.emit("audio_chunk", {
+            audio: audioData,
+            translate: false,
+          });
+        };
+
+        reader.onerror = (error) => {
+          console.error("❌ FileReader error:", error);
+        };
+
+        // Start reading the blob as data URL
+        reader.readAsDataURL(event.data);
       };
 
       mediaRecorder.onerror = (event) => {
@@ -408,24 +422,36 @@ export const useOpenAITranscription = ({
   ]);
 
   const cleanup = useCallback(() => {
+    // Prevent cleanup during active operations
+    if (isRecordingRef.current || connectingRef.current) {
+      console.log("⚠️ Ignoring cleanup - active recording session");
+      return;
+    }
+  
     console.log("🧹 Cleanup requested...");
     cleanupRequestedRef.current = true;
-
+  
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
-
-    stopLiveRecording();
-
-    if (connectingRef.current) {
-      console.log("⏳ Skipping socket disconnect while connecting...");
-    } else if (socketRef.current) {
+  
+    // Inline stopLiveRecording logic to avoid dependency
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping media recorder:", error);
+      }
+      mediaRecorderRef.current = null;
+    }
+  
+    if (socketRef.current) {
       console.log("🔌 Disconnecting socket...");
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-
+  
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
@@ -436,23 +462,22 @@ export const useOpenAITranscription = ({
       });
       streamRef.current = null;
     }
-
+  
     setIsConnected(false);
     setIsConnecting(false);
     setIsRecording(false);
     isRecordingRef.current = false;
     setIsStreaming(false);
-
+  
     console.log("✅ Cleanup completed");
-  }, [stopLiveRecording]);
-
-  // Only cleanup on unmount, not on re-renders
+  }, []); // ← EMPTY DEPENDENCIES - THIS IS KEY
+  
   useEffect(() => {
     return () => {
       console.log("🔴 Component unmounting - performing final cleanup");
       cleanup();
     };
-  }, [cleanup]);
+  }, []); // ← EMPTY DEPENDENCIES - THIS IS KEY
 
   return {
     isRecording,

@@ -66,7 +66,7 @@ CORS(
     resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3001", "*"]}},
     supports_credentials=True,
 )
-socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")  # keep your original
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # keep your original
 
 # Logging
 logging.basicConfig(level=logging.INFO)

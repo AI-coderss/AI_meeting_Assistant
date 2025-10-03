@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useRef, useEffect, useState } from "react";
 import Header from "./components/Header";
 import Tabs from "./components/Tabs";
@@ -16,7 +15,6 @@ import UserList from "./components/admin/UserList";
 import "./App.css";
 import AllMeetings from "./components/AllMeetings";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
-import { useOpenAITranscription } from "./hooks/useOpenAITranscription";
 import ScheduleMeetingForm from "./components/ScheduleMeetingForm";
 
 function MainApp() {
@@ -70,67 +68,27 @@ function MainApp() {
     copyToClipboard,
   } = useTranscript({ currentMeeting, showToast });
 
-  // ✅ Use OpenAI Transcription Hook
-  const openAIHook = useOpenAITranscription({
-    currentMeeting,
-    setCurrentMeeting,
-    showToast,
-    transcript,
-    setTranscript,
-    participants,
-  });
+  // REMOVED: useOpenAITranscription hook - now in LiveMeeting component
 
-  // ✅ FIXED: Destructure ALL properties including isStreaming and isConnecting
-  const {
-    isRecording,
-    isStreaming,
-    isConnected,
-    isConnecting,
-    startLiveRecording,
-    stopLiveRecording,
-    cleanup,
-  } = openAIHook;
-
-  // ✅ Toggle dark mode
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem("darkMode", newMode);
   };
 
-  // Remove the problematic cleanup effect that was causing constant re-renders
-  // useEffect(() => {
-  //   return () => {
-  //     if (cleanup) {
-  //       console.log("🔄 Cleaning up MainApp...");
-  //       cleanup();
-  //     }
-  //   };
-  // }, [cleanup]);
-
   useEffect(() => {
     document.body.className = darkMode ? "dark-theme" : "";
   }, [darkMode]);
 
-  // Scroll to bottom of transcript
   useEffect(() => {
     if (transcriptRef.current) {
       transcriptRef.current.scrollTop = transcriptRef.current.scrollHeight;
     }
   }, [transcript]);
 
-  // Load meetings
   useEffect(() => {
     fetchMeetings(searchQuery, participantFilter);
   }, [fetchMeetings, searchQuery, participantFilter]);
-
-  // Only cleanup when component actually unmounts
-  useEffect(() => {
-    return () => {
-      console.log("🔴 MainApp unmounting - performing final cleanup");
-      openAIHook.cleanup?.();
-    };
-  }, [openAIHook]);
 
   return (
     <div className={`app ${darkMode ? "dark-theme" : ""}`}>
@@ -160,14 +118,12 @@ function MainApp() {
             )}
 
             <LiveMeeting
-              isRecording={isRecording}
-              isStreaming={isStreaming}
-              isConnected={isConnected}
-              isConnecting={isConnecting}
+              currentMeeting={currentMeeting}
+              setCurrentMeeting={setCurrentMeeting}
+              showToast={showToast}
               transcript={transcript}
+              setTranscript={setTranscript}
               transcriptRef={transcriptRef}
-              startLiveRecording={startLiveRecording}
-              stopLiveRecording={stopLiveRecording}
               participants={participants}
               setShowParticipantModal={setShowParticipantModal}
               currentService="gpt-40-transcribe"
@@ -175,8 +131,8 @@ function MainApp() {
           </>
         )}
 
-        {/* Other tab contents remain the same */}
         {activeTab === "Analytics" && <AdminAnalytics />}
+        
         {activeTab === "history" && (
           <MeetingHistory
             meetings={meetings}
@@ -194,6 +150,7 @@ function MainApp() {
             setActiveTab={setActiveTab}
           />
         )}
+        
         {activeTab === "allMeetings" && (
           <AllMeetings
             meetings={meetings}
@@ -208,6 +165,7 @@ function MainApp() {
             setActiveTab={setActiveTab}
           />
         )}
+        
         {isAdmin && activeTab === "userlist" && <UserList />}
         {activeTab === "schedule" && <ScheduleMeetingForm />}
 
