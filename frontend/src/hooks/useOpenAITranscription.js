@@ -1,4 +1,3 @@
-// hooks/useOpenAITranscription.js
 import { useState, useRef, useCallback, useEffect } from "react";
 import io from "socket.io-client";
 
@@ -24,6 +23,9 @@ export const useOpenAITranscription = ({
   const cleanupRequestedRef = useRef(false);
   const componentMountedRef = useRef(true);
   const connectingRef = useRef(false);
+  const chunkBufferRef = useRef([]);
+  const sendIntervalRef = useRef(null);
+  const lastSendTimeRef = useRef(0);
 
   useEffect(() => {
     componentMountedRef.current = true;
@@ -102,7 +104,11 @@ export const useOpenAITranscription = ({
       if (!componentMountedRef.current) return;
       console.log("📝 Received transcript:", data);
 
-      if (data.text && data.text.trim() !== "") {
+      if (
+        data.text &&
+        data.text.trim() !== "" &&
+        (data.language === "en" || data.language === "ar")
+      ) {
         const newSegment = {
           id: `segment-${Date.now()}-${Math.random()
             .toString(36)
@@ -111,24 +117,35 @@ export const useOpenAITranscription = ({
           speaker: "Speaker",
           timestamp: new Date().toLocaleTimeString(),
           isAI: false,
+          language: data.language,
+          languageName:
+            data.language_name ||
+            (data.language === "en" ? "English" : "Arabic"),
         };
 
         setTranscript((prev) => [...prev, newSegment]);
 
-        if (data.ai_response && data.ai_response.trim() !== "") {
+        // Add AI response if available
+        if (data.ai_response && data.ai_response.trim()) {
           const aiSegment = {
-            id: `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: `segment-${Date.now()}-${Math.random()
+              .toString(36)
+              .substr(2, 9)}`,
             text: data.ai_response,
-            speaker: "AI Assistant",
+            speaker: "AI",
             timestamp: new Date().toLocaleTimeString(),
             isAI: true,
+            language: data.language,
+            languageName:
+              data.language_name ||
+              (data.language === "en" ? "English" : "Arabic"),
           };
+          setTranscript((prev) => [...prev, aiSegment]);
+        }
 
-          setTimeout(() => {
-            if (componentMountedRef.current) {
-              setTranscript((prev) => [...prev, aiSegment]);
-            }
-          }, 500);
+        // Show language detection toast briefly
+        if (data.languageName) {
+          showToast(`Detected: ${data.languageName}`, "info", 1500);
         }
       }
     });
@@ -178,6 +195,70 @@ export const useOpenAITranscription = ({
     return newSocket;
   }, [showToast, setTranscript]);
 
+  // Function to send accumulated audio chunks
+  const sendAccumulatedAudio = useCallback(() => {
+    if (!socketRef.current || !socketRef.current.connected) {
+      console.log("⚠️ Socket not connected, skipping send");
+      return;
+    }
+
+    if (chunkBufferRef.current.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    // Send more frequently - every 1.5 seconds minimum
+    if (now - lastSendTimeRef.current < 1500) {
+      return;
+    }
+
+    // Combine all chunks into one blob
+    const combinedBlob = new Blob(chunkBufferRef.current, {
+      type: "audio/webm;codecs=opus",
+    });
+
+    // Reduced minimum size for faster response
+    if (combinedBlob.size < 5000) {
+      // Reduced from 30000
+      console.log(
+        `⚠️ Audio too small (${combinedBlob.size} bytes), waiting for more`
+      );
+      return;
+    }
+
+    console.log("📤 Sending accumulated audio:", {
+      chunks: chunkBufferRef.current.length,
+      totalSize: combinedBlob.size,
+      duration: `${(combinedBlob.size / 16000).toFixed(2)}s estimated`,
+    });
+
+    // Convert to base64 and send
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const audioData = reader.result;
+
+      if (socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit("audio_chunk", {
+          audio: audioData,
+          mimeType: "audio/webm;codecs=opus",
+          translate: false,
+        });
+
+        lastSendTimeRef.current = Date.now();
+        // Clear buffer after successful send
+        chunkBufferRef.current = [];
+      }
+    };
+
+    reader.onerror = (error) => {
+      console.error("❌ FileReader error:", error);
+      chunkBufferRef.current = [];
+    };
+
+    reader.readAsDataURL(combinedBlob);
+  }, []);
+
   const stopLiveRecording = useCallback(() => {
     if (!isRecordingRef.current) {
       return;
@@ -187,6 +268,32 @@ export const useOpenAITranscription = ({
     isRecordingRef.current = false;
     setIsRecording(false);
     setIsStreaming(false);
+
+    // Clear the send interval
+    if (sendIntervalRef.current) {
+      clearInterval(sendIntervalRef.current);
+      sendIntervalRef.current = null;
+    }
+
+    // Send any remaining buffered audio before stopping
+    if (chunkBufferRef.current.length > 0) {
+      const combinedBlob = new Blob(chunkBufferRef.current, {
+        type: "audio/webm;codecs=opus",
+      });
+
+      if (combinedBlob.size > 1000 && socketRef.current?.connected) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          socketRef.current.emit("audio_chunk", {
+            audio: reader.result,
+            mimeType: "audio/webm;codecs=opus",
+            translate: false,
+          });
+        };
+        reader.readAsDataURL(combinedBlob);
+      }
+      chunkBufferRef.current = [];
+    }
 
     if (
       mediaRecorderRef.current &&
@@ -219,13 +326,15 @@ export const useOpenAITranscription = ({
   const startLiveRecording = useCallback(async () => {
     console.log("🎤 startLiveRecording called");
     cleanupRequestedRef.current = false;
-  
+    chunkBufferRef.current = [];
+    lastSendTimeRef.current = 0;
+
     try {
       if (isRecordingRef.current) {
         console.log("⚠️ Already recording, skipping...");
         return;
       }
-  
+
       if (participants.length === 0) {
         showToast(
           "Please add participants before starting recording",
@@ -233,17 +342,17 @@ export const useOpenAITranscription = ({
         );
         return;
       }
-  
+
       console.log("🎤 Step 1: Initializing socket connection...");
       const socket = initializeSocket();
       if (!socket) {
         throw new Error("Socket initialization failed");
       }
-  
+
       if (!socket.connected) {
         console.log("🔌 Waiting for socket connection...");
         setIsConnecting(true);
-  
+
         await new Promise((resolve, reject) => {
           const timeout = setTimeout(() => {
             reject(
@@ -252,7 +361,7 @@ export const useOpenAITranscription = ({
               )
             );
           }, 5000);
-  
+
           socket.once("connect", () => {
             clearTimeout(timeout);
             console.log(
@@ -260,14 +369,14 @@ export const useOpenAITranscription = ({
             );
             resolve();
           });
-  
+
           socket.once("connect_error", (error) => {
             clearTimeout(timeout);
             reject(error);
           });
         });
       }
-  
+
       console.log("🎤 Step 2: Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -275,59 +384,35 @@ export const useOpenAITranscription = ({
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       });
-  
+
       if (cleanupRequestedRef.current || !componentMountedRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
-  
+
       streamRef.current = stream;
-  
+
       console.log("🎤 Step 3: Setting up MediaRecorder...");
-      
-      // FIXED: Use supported MIME types - try different options
-      const mimeTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus', 
-        'audio/mp4',
-        '' // Let browser choose default
-      ];
-      
-      let mediaRecorder;
-      let selectedMimeType = '';
-      
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          try {
-            mediaRecorder = new MediaRecorder(stream, {
-              mimeType: mimeType
-            });
-            selectedMimeType = mimeType;
-            console.log(`✅ Using MIME type: ${mimeType}`);
-            break;
-          } catch (e) {
-            console.warn(`❌ Failed with ${mimeType}:`, e);
-            continue;
-          }
-        } else {
-          console.warn(`❌ MIME type not supported: ${mimeType}`);
-        }
+
+      let mimeType = "";
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+        mimeType = "audio/webm;codecs=opus";
+      } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+        mimeType = "audio/webm";
       }
-      
-      // Fallback: Let browser choose
-      if (!mediaRecorder) {
-        console.log("🔄 No specific MIME type worked, using browser default");
-        mediaRecorder = new MediaRecorder(stream);
-      }
-      
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType || undefined,
+        audioBitsPerSecond: 128000,
+      });
+
       mediaRecorderRef.current = mediaRecorder;
-  
-      // FIXED: Properly handle audio data conversion
+
+      // Handle incoming audio data - accumulate chunks
       mediaRecorder.ondataavailable = (event) => {
-        // Early exit checks
         if (
           cleanupRequestedRef.current ||
           !componentMountedRef.current ||
@@ -335,81 +420,34 @@ export const useOpenAITranscription = ({
         ) {
           return;
         }
-  
-        if (event.data.size === 0) {
-          console.warn("⚠️ Received empty audio chunk");
-          return;
+
+        if (event.data && event.data.size > 0) {
+          chunkBufferRef.current.push(event.data);
         }
-  
-        // Check socket connection before processing
-        if (!socket || !socket.connected) {
-          console.warn("⚠️ Socket not connected, skipping audio chunk");
-          return;
-        }
-  
-        // Convert Blob to base64 data URL with proper MIME type
-        const reader = new FileReader();
-  
-        reader.onloadend = () => {
-          // Double-check conditions after async operation
-          if (
-            !socket.connected ||
-            cleanupRequestedRef.current ||
-            !componentMountedRef.current
-          ) {
-            console.warn("⚠️ Conditions changed during file read, skipping");
-            return;
-          }
-  
-          const audioData = reader.result;
-  
-          // Validate the data format
-          if (typeof audioData !== 'string' || !audioData.startsWith('data:')) {
-            console.error("❌ Invalid audio data format:", typeof audioData);
-            return;
-          }
-  
-          console.log("📤 Sending audio chunk:", {
-            size: event.data.size,
-            type: event.data.type,
-            dataLength: audioData.length,
-            mimeType: selectedMimeType,
-            dataPreview: audioData.substring(0, 100),
-          });
-  
-          // Send to backend with format info
-          socket.emit("audio_chunk", {
-            audio: audioData,
-            mimeType: event.data.type || selectedMimeType,
-            translate: false,
-          });
-        };
-  
-        reader.onerror = (error) => {
-          console.error("❌ FileReader error:", error);
-        };
-  
-        // Start reading the blob as data URL
-        reader.readAsDataURL(event.data);
       };
-  
+
       mediaRecorder.onerror = (event) => {
         console.error("❌ MediaRecorder error:", event.error);
         showToast("Recording error occurred", "error");
         stopLiveRecording();
       };
-  
-      mediaRecorder.onstop = () => {
-        console.log("🛑 MediaRecorder stopped");
-      };
-  
+
       console.log("🎤 Step 4: Starting recording...");
-      mediaRecorder.start(1000); // 1 second chunks
-  
+
+      // Start recording with smaller chunks for faster processing
+      mediaRecorder.start(500); // Reduced from 1000ms to 500ms
+
+      // Set up more frequent sending (every 2 seconds)
+      sendIntervalRef.current = setInterval(() => {
+        if (isRecordingRef.current) {
+          sendAccumulatedAudio();
+        }
+      }, 2000); // Reduced from 4000ms to 2000ms
+
       isRecordingRef.current = true;
       setIsRecording(true);
       setIsStreaming(true);
-  
+
       if (!currentMeeting) {
         setCurrentMeeting({
           title: `Meeting ${new Date().toLocaleString()}`,
@@ -418,26 +456,29 @@ export const useOpenAITranscription = ({
           transcript: [],
         });
       }
-  
+
       console.log("✅ Recording started successfully");
-      showToast("Recording started - Speak now!", "success");
+      showToast(
+        "Recording started - Speak now! (English or Arabic)",
+        "success"
+      );
     } catch (error) {
       console.error("❌ Error starting recording:", error);
       setIsConnecting(false);
       setIsRecording(false);
       isRecordingRef.current = false;
-  
+
+      if (sendIntervalRef.current) {
+        clearInterval(sendIntervalRef.current);
+        sendIntervalRef.current = null;
+      }
+
       let errorMessage = error.message;
       if (error.name === "NotAllowedError") {
         errorMessage =
           "Microphone permission denied. Please allow microphone access.";
       } else if (error.name === "NotFoundError") {
         errorMessage = "No microphone found. Please check your audio device.";
-      } else if (error.name === "NotSupportedError") {
-        errorMessage = "Browser doesn't support the requested audio format. Using default format.";
-        // Try again with default format
-        setTimeout(() => startLiveRecording(), 100);
-        return;
       } else if (
         error.message.includes("timeout") ||
         error.message.includes("ECONNREFUSED")
@@ -445,9 +486,9 @@ export const useOpenAITranscription = ({
         errorMessage =
           "Cannot connect to server. Please ensure the backend server is running on localhost:5001";
       }
-  
+
       showToast(`Error: ${errorMessage}`, "error");
-  
+
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
@@ -460,23 +501,31 @@ export const useOpenAITranscription = ({
     participants,
     showToast,
     stopLiveRecording,
+    sendAccumulatedAudio,
   ]);
+
   const cleanup = useCallback(() => {
-    // Prevent cleanup during active operations
     if (isRecordingRef.current || connectingRef.current) {
       console.log("⚠️ Ignoring cleanup - active recording session");
       return;
     }
-  
+
     console.log("🧹 Cleanup requested...");
     cleanupRequestedRef.current = true;
-  
+
     if (connectionTimeoutRef.current) {
       clearTimeout(connectionTimeoutRef.current);
     }
-  
-    // Inline stopLiveRecording logic to avoid dependency
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+
+    if (sendIntervalRef.current) {
+      clearInterval(sendIntervalRef.current);
+      sendIntervalRef.current = null;
+    }
+
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
       try {
         mediaRecorderRef.current.stop();
       } catch (error) {
@@ -484,14 +533,14 @@ export const useOpenAITranscription = ({
       }
       mediaRecorderRef.current = null;
     }
-  
+
     if (socketRef.current) {
       console.log("🔌 Disconnecting socket...");
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-  
+
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
@@ -502,22 +551,23 @@ export const useOpenAITranscription = ({
       });
       streamRef.current = null;
     }
-  
+
+    chunkBufferRef.current = [];
     setIsConnected(false);
     setIsConnecting(false);
     setIsRecording(false);
     isRecordingRef.current = false;
     setIsStreaming(false);
-  
+
     console.log("✅ Cleanup completed");
-  }, []); // ← EMPTY DEPENDENCIES - THIS IS KEY
-  
+  }, []);
+
   useEffect(() => {
     return () => {
       console.log("🔴 Component unmounting - performing final cleanup");
       cleanup();
     };
-  }, []); // ← EMPTY DEPENDENCIES - THIS IS KEY
+  }, [cleanup]);
 
   return {
     isRecording,

@@ -49,39 +49,6 @@ const LiveMeeting = ({
         <h2>Live Meeting Recording</h2>
 
         {/* Enhanced Connection Status */}
-        <div className="service-indicator">
-          <span
-            className={`service-badge openai ${
-              isConnected ? "connected" : "disconnected"
-            } ${isConnecting ? "connecting" : ""}`}
-          >
-            {isConnecting ? "🔄" : isConnected ? "🔗" : "🔌"} {currentService}
-            {isRecording && " • LIVE"}
-            {isConnecting && " • Connecting..."}
-          </span>
-          <span className="service-info">
-            {isConnected
-              ? "Auto-detects English & Arabic - Speaks in same language"
-              : isConnecting
-              ? "Establishing connection to transcription service..."
-              : "Click 'Start Recording' to connect"}
-          </span>
-          <span
-            className={`connection-status ${
-              isConnected
-                ? "connected"
-                : isConnecting
-                ? "connecting"
-                : "disconnected"
-            }`}
-          >
-            {isConnected
-              ? "Connected"
-              : isConnecting
-              ? "Connecting..."
-              : "Disconnected"}
-          </span>
-        </div>
 
         <div className="recording-panel">
           <div className="status-indicator">
@@ -364,8 +331,6 @@ export default LiveMeeting;
 // };
 
 // export default LiveMeeting;
-
-
 
 // const LiveMeeting = ({
 // isRecording,

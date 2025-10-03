@@ -63,7 +63,7 @@ app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "a_secure_random_s
 # CORS for API + SocketIO
 CORS(
     app,
-    resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3001", "*"]}},
+    resources={r"/*": {"origins": ["http://localhost:3000", 'https://9a86c1d2a8db.ngrok-free.app',"http://127.0.0.1:3001", "*"]}},
     supports_credentials=True,
 )
 socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # keep your original
