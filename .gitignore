@@ -4,7 +4,6 @@ node_modules
 package-lock.json
 backend/meeting-assitent-doctor-*.json
 
-.env
 *.env
 frontend/.env
 backend/token.json
@@ -14,3 +13,4 @@ backend/client_secret*.json
 # Python cache
 __pycache__/
 *.pyc
+config.bat
