@@ -380,6 +380,37 @@ def create_meeting():
         logger.error(f"Error creating meeting: {str(e)}")
         abort(500, description=str(e))
 
+@api_bp.route("/meetings/<meeting_id>", methods=["PUT"])
+@auth_required
+def update_meeting(meeting_id):
+    if not request.is_json:
+        abort(400, description="Invalid content type, expected application/json")
+
+    try:
+        data = request.get_json()
+        transcript = data.get("transcript")
+
+        if transcript is None:
+            abort(400, description="Missing 'transcript' field in request body")
+
+        # Update the meeting in the database
+        result = db.meetings.update_one(
+            {"id": meeting_id},
+            {"$set": {"transcript": transcript}}
+        )
+
+        if result.matched_count == 0:
+            abort(404, description=f"Meeting with ID {meeting_id} not found")
+
+        updated_meeting = db.meetings.find_one({"_id": meeting_id})
+        logger.info(f"✅ Updated meeting {meeting_id} with transcript")
+
+        return jsonify(updated_meeting), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
+        abort(500, description=str(e))
+
 @api_bp.route("/meetings", methods=['GET'])
 @auth_required
 def get_meetings():

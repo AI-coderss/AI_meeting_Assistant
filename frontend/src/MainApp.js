@@ -91,9 +91,11 @@ function MainApp() {
 
 useEffect(() => {
   fetchMeetings(searchQuery, participantFilter).then((data) => {
-    if (data && data.length > 0 && !currentMeeting) {
-      setCurrentMeeting(data[0]);
-    }
+  if (!currentMeeting && data && data.length > 0) {
+  const active = data.find((m) => m.status === "active");
+  if (active) setCurrentMeeting(active);
+}
+
   });
 }, [fetchMeetings, searchQuery, participantFilter]);
 
@@ -108,12 +110,6 @@ useEffect(() => {
             {showParticipantModal && (
               <div className="modal-overlay">
                 <div className="modal-content">
-                  <button
-                    className="modal-close-btn"
-                    onClick={() => setShowParticipantModal(false)}
-                  >
-                    ×
-                  </button>
                   <ParticipantForm
                     participants={participants}
                     setParticipants={setParticipants}

@@ -904,28 +904,6 @@ button.btn.btn-delete {
   width: 600px;
   max-width: 95%;
 }
-.modal-close-btn {
-    position: absolute;
-    top: 25px;
-    right: 30px;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: none;
-    background-color: #f5f5f5;
-    color: #333;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.modal-close-btn:hover {
-  background-color: #e0e0e0;
-}
 .modal-content {
     width: 50% !important;
 }

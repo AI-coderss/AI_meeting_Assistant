@@ -184,11 +184,47 @@ export const useTranscript = ({ currentMeeting, language }) => {
 
       // ✅ Auto-send email after summary is created
       await sendSummaryEmail(generatedSummary);
+      // await saveMeetingToDB();
     } catch (error) {
       console.error("Error generating summary:", error);
       showAlert("Failed to generate summary", "error");
     } finally {
       setIsSummarizing(false);
+    }
+  };
+
+  const saveMeetingToDB = async () => {
+    if (!currentMeeting) {
+      showAlert("No meeting found to save", "warning");
+      return;
+    }
+
+    try {
+      const payload = {
+        id: currentMeeting.id,
+        title: currentMeeting.title || "Untitled Meeting",
+        timestamp: new Date().toISOString(),
+        host: localStorage.getItem("email") || "Unknown",
+        participants: currentMeeting.participants || [],
+        transcript: transcript || [],
+        summary: summary || null,
+        duration: currentMeeting.duration || null,
+        status: "completed",
+      };
+      console.log(currentMeeting.participants);
+
+      const response = await axios.post(`${API}/meetings`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      showAlert("Meeting saved successfully", "success");
+      console.log("Meeting saved:", response.data);
+    } catch (error) {
+      console.error("Error saving meeting:", error);
+      showAlert("Failed to save meeting", "error");
     }
   };
 
