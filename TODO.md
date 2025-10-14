@@ -1,0 +1,11 @@
+- [x] Add global variables for current_time and buffer_start_time
+- [x] Modify handle_audio_chunk to calculate chunk duration, set buffer_start_time, and update current_time
+- [x] Fix speaker assignment and timestamp emission in transcription
+- [x] Update diarize_audio to use absolute timestamps for speaker segments
+- [x] Reduce diarization worker sleep interval to 2 seconds
+- [x] Add HF_TOKEN environment variable
+- [x] Replace NeMo with pyannote pipeline for diarization
+- [x] Update diarize_audio to handle pyannote output
+- [x] Emit diarization segments from backend
+- [x] Add frontend listener for diarization segments
+- [x] Display segments in LiveMeeting component

@@ -1,0 +1,134 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.table thead {
+  background-color: #f8f9ff;
+}
+
+.table th {
+  color: #324c8a;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table tr:hover {
+  background-color: #f5f7ff;
+  transition: 0.25s ease;
+}
+
+.btn {
+  border-radius: 8px !important;
+  font-size: 0.85rem !important;
+  padding: 6px 12px !important;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border: none;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border: none;
+}
+
+.btn-outline-secondary {
+  background-color: #324c8a;
+  color: white;
+  border: none;
+  font-size: 0.8rem;
+  border-radius: 8px;
+  transition: 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #243b6b;
+}
+
+.position-absolute {
+  min-width: 140px;
+}
+
+label {
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+label input {
+  accent-color: #324c8a;
+}
+
+.p-4 {
+  color: #444;
+}
+
+.swal2-popup {
+  font-family: "Inter", sans-serif;
+  border-radius: 12px;
+}
+
+/* Dark theme for main-content table */
+.dark-theme .main-content {
+  /* background-color: #121212; */
+  color: #eaeaea;
+}
+
+/* Table container */
+.dark-theme .main-content .table,
+.dark-theme .main-content .table.table-light {
+  background-color: #1e1e1e !important; /* table body bg */
+  color: #eaeaea;
+  border-color: #333;
+}
+
+/* Table head */
+.dark-theme .main-content .table th,
+.dark-theme .main-content .table.table-light th {
+  background-color: #2b2b2b !important;
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid #333;
+}
+
+/* Table body cells */
+.dark-theme .main-content .table td {
+  background-color: #1d1d2e !important; /* ensures tbody cells are dark */
+  color: #e5e5e5;
+  border-bottom: 1px solid #333;
+}
+
+/* Table row hover */
+.dark-theme .main-content .table tr:hover td {
+  background-color: #2a2a2a !important;
+}
+
+/* Buttons inside table */
+.dark-theme .main-content .btn-outline-secondary {
+  background-color: #3c4a6b;
+  color: #eaeaea;
+  border: none;
+}
+
+.dark-theme .main-content .btn-outline-secondary:hover {
+  background-color: #56658f;
+}
+
+.dark-theme .main-content .btn-danger {
+  background-color: #c82333;
+  border: none;
+}
+
+.dark-theme .main-content .btn-danger:hover {
+  background-color: #a71d2a;
+}

@@ -1,0 +1,82 @@
+.upcoming-container {
+  max-width: 900px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+  font-family: "Inter", sans-serif;
+  transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.upcoming-container h2 {
+  color: #324c8a;
+  font-size: 1.6rem;
+  margin-bottom: 24px;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.upcoming-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.upcoming-table th,
+.upcoming-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e5e5;
+  text-align: left;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.upcoming-table th {
+  background-color: #f8f9ff;
+  color: #324c8a;
+  font-weight: 600;
+}
+
+.upcoming-table tr:hover {
+  background-color: #f1f4ff;
+  transition: 0.2s;
+}
+
+p {
+  text-align: center;
+  color: #777;
+  font-size: 0.95rem;
+  transition: color 0.3s ease;
+}
+
+/* 🌙 Dark Theme Overrides */
+body.dark-theme .upcoming-container {
+  background: #1d1d2e;
+  color: #e0e0e0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme .upcoming-container h2 {
+  color: #9fc4ff;
+}
+
+body.dark-theme .upcoming-table th {
+  background-color: #2a2a3d;
+  color: #9fc4ff;
+  border-bottom: 1px solid #3c3c55;
+}
+
+body.dark-theme .upcoming-table td {
+  border-bottom: 1px solid #3c3c55;
+  color: #d5d5e1;
+  background: #1e1e2e;
+}
+
+body.dark-theme .upcoming-table tr:hover {
+  background-color: #2b2b45;
+}
+
+body.dark-theme p {
+  color: #a8a8b8;
+}
