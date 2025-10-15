@@ -309,7 +309,7 @@ const updateMeetingWithTranscript = async () => {
   }
 
   const token = localStorage.getItem("token");
-  const BACKEND_URL = "http://localhost:8001";
+  const BACKEND_URL = " https://ai-meeting-assistant-backend-suu9.onrender.com";
 
   try {
     console.log("📝 Updating meeting with transcripts...");
@@ -429,7 +429,7 @@ const stopLiveRecording = useCallback(async () => {
 
 const createMeetingIfNeeded = async () => {
   const token = localStorage.getItem("token");
-  const BACKEND_URL = "http://localhost:8001";
+  const BACKEND_URL = " https://ai-meeting-assistant-backend-suu9.onrender.com";
   const today = new Date();
   const formattedDate = today.toLocaleDateString("en-GB");
 

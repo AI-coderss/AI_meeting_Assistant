@@ -25,9 +25,9 @@ def error(data):
 def disconnect():
     print("Disconnected from server")
 
-# Connect to the server (env: SOCKET_URL, default http://localhost:8001)
+# Connect to the server (env: SOCKET_URL, default  https://ai-meeting-assistant-backend-suu9.onrender.com)
 import os
-socket_url = os.environ.get('SOCKET_URL', 'http://localhost:8001')
+socket_url = os.environ.get('SOCKET_URL', ' https://ai-meeting-assistant-backend-suu9.onrender.com')
 print(f"Connecting to {socket_url}")
 sio.connect(socket_url)
 
