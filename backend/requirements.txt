@@ -252,3 +252,4 @@ xxhash
 yarl
 zope.event
 zope.interface
+apscheduler
