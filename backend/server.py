@@ -1210,5 +1210,5 @@ async def test_home():
 
 if __name__ == "__main__":
     logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: http://127.0.0.1:8001")
-    socketio.run(app, host="0.0.0.0", port=8001, allow_unsafe_werkzeug=True)
+    print("Server running at: http://127.0.0.1:10000")
+    socketio.run(app, host="0.0.0.0", port=10000, allow_unsafe_werkzeug=True)
