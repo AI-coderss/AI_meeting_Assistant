@@ -325,7 +325,43 @@ if __name__ == '__main__':
     import time
     import os
 
-    # Start diarization thread
+    # Start Flask/SocketIO server FIRST so Render detects the port
+    port = int(os.environ.get("PORT", 5001))
+    logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port} ...")
+
+    # Start the server in a background thread
+    def start_server():
+        socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+
+    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread.start()
+
+    # Delay heavy initialization to avoid blocking Render’s port check
+    def init_services():
+        global diarizer, diarization_available, r, message_queue
+        try:
+            from pyannote.audio import Pipeline
+            diarizer = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=HF_TOKEN)
+            diarization_available = True
+            logger.info("✅ Pyannote diarization pipeline loaded")
+        except Exception as e:
+            diarizer = None
+            diarization_available = False
+            logger.warning(f"❌ Pyannote diarization init failed: {e}")
+
+        # Redis reconnect if needed
+        if not r:
+            try:
+                r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+                r.ping()
+                message_queue = REDIS_URL
+                logger.info("✅ Redis reconnected")
+            except Exception as e:
+                logger.warning(f"⚠️ Redis reconnect failed: {e}")
+
+    threading.Thread(target=init_services, daemon=True).start()
+
+    # Diarization worker
     def diarization_worker():
         while True:
             time.sleep(2)
@@ -333,12 +369,6 @@ if __name__ == '__main__':
 
     threading.Thread(target=diarization_worker, daemon=True).start()
 
-    # Use Render-assigned port
-    port = int(os.environ.get("PORT", 5001))
-    logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
-    logger.info("🤖 Using OpenAI Whisper API for transcription")
-    logger.info("👥 Speaker identification enabled")
-
-    # Start Flask-SocketIO app
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
-
+    # Keep process alive
+    while True:
+        time.sleep(60)
