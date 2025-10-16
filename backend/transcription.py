@@ -326,7 +326,7 @@ if __name__ == '__main__':
     import os
 
     # Start Flask/SocketIO server FIRST so Render detects the port
-    port = int(os.environ.get("PORT", 5001))
+    port = int(os.environ.get("PORT", 5000))
     logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port} ...")
 
     # Start the server in a background thread
