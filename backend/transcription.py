@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+# REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://default:ASFVAAImcDJjZjIwOWEzNTkxZmQ0MTQ1OGY1ODBiM2ZhNWE1MDkzY3AyODUzMw@relevant-stingray-8533.upstash.io:6379")
 
 # Initialize Redis
 try:

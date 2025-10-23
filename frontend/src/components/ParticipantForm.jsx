@@ -175,21 +175,17 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
           {emailError && <span className="error-msg">{emailError}</span>}
         </div>
 
-        <div className="input-group">
+          <div className="input-group">
           <label>Role</label>
-          <select
+          <input
+            type="text"
             value={newParticipant.role}
             onChange={(e) =>
               setNewParticipant({ ...newParticipant, role: e.target.value })
             }
-            className="role-select"
-          >
-            <option value="participant">Participant</option>
-            <option value="viewer">Viewer</option>
-            <option value="doctor">Doctor</option>
-            <option value="nurse">Nurse</option>
-            <option value="patient">Patient</option>
-          </select>
+            className="role-input"
+            placeholder="Enter role (e.g., doctor, nurse, patient)"
+          />
         </div>
 
         <button
