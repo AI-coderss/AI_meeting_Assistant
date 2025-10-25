@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()  # MUST be first
+
 import os
 import logging
 import uuid
@@ -26,8 +29,7 @@ import openai
 from deepgram import DeepgramClient, PrerecordedOptions, LiveTranscriptionEvents, LiveOptions
 import sendgrid
 from sendgrid.helpers.mail import Mail
-import eventlet
-eventlet.monkey_patch()  # MUST be first
+
 # --- Configuration and Initialization ---
 
 # Load environment variables
