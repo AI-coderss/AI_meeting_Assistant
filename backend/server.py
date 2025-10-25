@@ -1079,7 +1079,7 @@ notified_meetings = set()
 def meeting_reminder_cron():
     global notified_meetings
     try:
-        res = requests.get("http://127.0.0.1:8001/api/get_medical_meetings")
+        res = requests.get("https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings")
         meetings = res.json()
         now = datetime.utcnow()
 
@@ -1291,6 +1291,7 @@ except Exception as e:
     diarization_available = False
 
 def diarize_audio():
+    logging.info("coming inside the diarize funtion")
     global audio_buffer, speakers_list, buffer_start_time, participants
     if not audio_buffer or not diarization_available:
         return
@@ -1515,6 +1516,7 @@ def handle_disconnect():
 
 
 if __name__ == "__main__":
+    logging.info("coming inside the server.py file initilization")
     import threading
     import time
     import os
