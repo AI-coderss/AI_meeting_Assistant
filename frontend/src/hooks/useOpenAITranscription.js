@@ -52,7 +52,9 @@ export const useOpenAITranscription = ({
     setIsConnecting(true);
     connectingRef.current = true;
 
-    const socketUrl = "http://localhost:8001";
+    const socketUrl = "https://ai-meeting-assistant-backend-suu9.onrender.com";
+    // const socketUrl = "http://localhost:8001";
+
     console.log(`🔗 Connecting to: ${socketUrl}`);
 
     const newSocket = io(socketUrl, {
