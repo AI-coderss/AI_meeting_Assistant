@@ -52,7 +52,7 @@ export const useOpenAITranscription = ({
     setIsConnecting(true);
     connectingRef.current = true;
 
-    const socketUrl = "http://localhost:5001";
+    const socketUrl = "http://localhost:8001";
     console.log(`🔗 Connecting to: ${socketUrl}`);
 
     const newSocket = io(socketUrl, {
