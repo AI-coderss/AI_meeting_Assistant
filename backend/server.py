@@ -438,4 +438,11 @@ if __name__ == "__main__":
     # Example: uvicorn your_app_file:app --host 0.0.0.0 --port 8001
     logger.info("Starting Flask-SocketIO development server...")
     port = int(os.environ.get("PORT", 8001))
-    socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
+    import sys
+    if "gunicorn" in sys.argv[0]:
+        # Running under Gunicorn on Render — do nothing, Gunicorn handles the server
+        pass
+    else:
+        # Local development
+        logger.info(f"Starting Flask-SocketIO development server on port {port}...")
+        socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)
