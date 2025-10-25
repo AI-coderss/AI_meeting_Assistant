@@ -1,5 +1,3 @@
-import eventlet
-eventlet.monkey_patch()
 import os
 import uuid
 import json
@@ -37,7 +35,8 @@ import requests
 from sendgrid.helpers.mail import Mail
 # from google_speech import google_bp
 from apscheduler.schedulers.background import BackgroundScheduler
-
+import eventlet
+eventlet.monkey_patch()
 
 from dotenv import load_dotenv
 import redis
@@ -1079,7 +1078,7 @@ notified_meetings = set()
 def meeting_reminder_cron():
     global notified_meetings
     try:
-        res = requests.get("https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings")
+        res = requests.get("http://127.0.0.1:8001/api/get_medical_meetings")
         meetings = res.json()
         now = datetime.utcnow()
 
@@ -1291,7 +1290,6 @@ except Exception as e:
     diarization_available = False
 
 def diarize_audio():
-    logging.info("coming inside the diarize funtion")
     global audio_buffer, speakers_list, buffer_start_time, participants
     if not audio_buffer or not diarization_available:
         return
@@ -1516,7 +1514,6 @@ def handle_disconnect():
 
 
 if __name__ == "__main__":
-    logging.info("coming inside the server.py file initilization")
     import threading
     import time
     import os
@@ -1531,21 +1528,9 @@ if __name__ == "__main__":
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
 
-    # print(f"Render PORT variable: {os.environ.get('PORT')}")
+    print(f"Render PORT variable: {os.environ.get('PORT')}")
 
     logger.info("Starting Flask-SocketIO development server...")
-    # print("Server running at: http://127.0.0.1:10000")
+    print("Server running at: http://127.0.0.1:10000")
     socketio.run(app, host="0.0.0.0", port=10000, debug = False, allow_unsafe_werkzeug=True)
-
-
-# from flask import Flask
-
-# app = Flask(__name__)
-
-
-# @app.route("home")
-# def home():
-#     return "This is home page."
-
-# if __name__ == "__main__":
-#     app.run(debug=True)
+    
