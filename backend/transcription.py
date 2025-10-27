@@ -324,7 +324,8 @@ if __name__ == '__main__':
     logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
-    import sys
-    print(f"🚀 Listening on 0.0.0.0:{port}")
-    sys.stdout.flush()
+
+    print(f"Render PORT variable: {os.environ.get('PORT')}")
+
+    # Start Flask-SocketIO app
     socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
