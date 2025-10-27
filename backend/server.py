@@ -1534,5 +1534,6 @@ if __name__ == "__main__":
 
     logger.info("Starting Flask-SocketIO development server...")
     print("Server running at: http://127.0.0.1:8001")
-    socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True)
+    # uncomment below like to run on local
+    # socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
     
