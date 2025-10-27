@@ -354,3 +354,9 @@ application = socketio
 @app.before_first_request
 def before_first_request():
     start_background_worker()
+
+    # Main entry
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    print(f"🚀 Starting Eventlet SocketIO server on port {port}")
+    socketio.run(app, host="0.0.0.0", port=port,debug = False, allow_unsafe_werkzeug=True)
