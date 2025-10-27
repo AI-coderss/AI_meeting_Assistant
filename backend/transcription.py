@@ -318,25 +318,33 @@ def diarization_worker():
         time.sleep(2)
         # placeholder for diarization logic
         diarize_audio()
-        pass
-
+        
+# Start the background thread ONCE per Gunicorn worker
+def start_background_worker():
+    if not getattr(app, "_diarization_thread_started", False):
+        threading.Thread(target=diarization_worker, daemon=True).start()
+        app._diarization_thread_started = True
+        print("✅ Diarization worker started")
 # ========== Entry Points ==========
 
-if __name__ == "__main__":
-    threading.Thread(target=diarization_worker, daemon=True).start()
-    port =int(os.environ.get("PORT", 8001))
-    # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
-    logger.info("🤖 Using OpenAI Whisper API for transcription")
-    logger.info("👥 Speaker identification enabled")
+# if __name__ == "__main__":
+#     threading.Thread(target=diarization_worker, daemon=True).start()
+#     port =int(os.environ.get("PORT", 8001))
+#     # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
+#     logger.info("🤖 Using OpenAI Whisper API for transcription")
+#     logger.info("👥 Speaker identification enabled")
 
-    print(f"Render PORT variable: {os.environ.get('PORT')}")
+#     print(f"Render PORT variable: {os.environ.get('PORT')}")
 
-    logger.info("Starting Flask-SocketIO development server...")
-    # uncomment below like to run on local
-    socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
-else:
-    # Production (Render / Gunicorn)
-    threading.Thread(target=diarization_worker, daemon=True).start()
-    logger.info("🚀 Running in production mode via Gunicorn")
-    application = app  # expose for Gunicorn
+#     logger.info("Starting Flask-SocketIO development server...")
+#     # uncomment below like to run on local
+#     socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
+# else:
+#     # Production (Render / Gunicorn)
+#     threading.Thread(target=diarization_worker, daemon=True).start()
+#     logger.info("🚀 Running in production mode via Gunicorn")
+#     application = app  # expose for Gunicorn
     
+@app.before_first_request
+def before_first_request():
+    start_background_worker()
