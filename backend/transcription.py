@@ -315,6 +315,8 @@ def handle_disconnect():
     logger.info(f'🔌 Client disconnected: {client_id}')
 
     
+application = app
+
 # ========== Background Worker ==========
 
 def diarization_worker():
@@ -322,13 +324,17 @@ def diarization_worker():
         time.sleep(2)
         # placeholder for diarization logic
         diarize_audio()
-        
+
+
+print("✅ Starting Diarization worker...")      
+socketio.start_background_task(diarization_worker)
+
 # Start the background thread ONCE per Gunicorn worker
-def start_background_worker():
-    if not getattr(app, "_diarization_thread_started", False):
-        threading.Thread(target=diarization_worker, daemon=True).start()
-        app._diarization_thread_started = True
-        print("✅ Diarization worker started")
+# def start_background_worker():
+#     if not getattr(app, "_diarization_thread_started", False):
+#         socketio.start_background_task(diarization_worker)
+#         app._diarization_thread_started = True
+#         print("✅ Diarization worker started")
 # ========== Entry Points ==========
 
 # if __name__ == "__main__":
@@ -349,11 +355,6 @@ def start_background_worker():
 #     logger.info("🚀 Running in production mode via Gunicorn")
 #     application = app  # expose for Gunicorn
     
-application = app
-
-@app.before_first_request
-def before_first_request():
-    start_background_worker()
 
     # Main entry
 if __name__ == "__main__":
