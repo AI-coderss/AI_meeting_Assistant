@@ -345,6 +345,8 @@ def start_background_worker():
 #     logger.info("🚀 Running in production mode via Gunicorn")
 #     application = app  # expose for Gunicorn
     
+application = app
+
 @app.before_first_request
 def before_first_request():
     start_background_worker()
