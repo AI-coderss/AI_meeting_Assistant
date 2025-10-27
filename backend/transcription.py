@@ -322,7 +322,7 @@ if __name__ == '__main__':
             time.sleep(2)
             diarize_audio()
 
-    threading.Thread(target=diarization_worker, daemon=True).start()
+    # threading.Thread(target=diarization_worker, daemon=True).start()
 
     # Use Render-assigned port
     port =int(os.environ.get("PORT", 0000))
@@ -334,4 +334,3 @@ if __name__ == '__main__':
 
     # Start Flask-SocketIO app
     socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
-
