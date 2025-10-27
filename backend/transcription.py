@@ -75,18 +75,30 @@ speakers_list = []  # List of (start, end, speaker)
 # OpenAI client
 client = OpenAI()
 
-# Initialize pyannote speaker diarization pipeline
-try:
-    from pyannote.audio import Pipeline
+diarizer = None
+diarization_available = False
 
-    # Initialize the pipeline with Hugging Face token
-    diarizer = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=HF_TOKEN)
-    diarization_available = True
-    logger.info("✅ Pyannote speaker diarization pipeline loaded")
-except Exception as e:
-    logger.warning(f"❌ Failed to load pyannote diarization pipeline: {e}")
-    diarizer = None
-    diarization_available = False
+def initialize_diarizer():
+    """Initializes the heavy Pyannote pipeline outside of import time."""
+    global diarizer, diarization_available
+    try:
+        from pyannote.audio import Pipeline
+        # Check for CUDA/GPU if you intend to use it, otherwise keep it simple
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Initialize the pipeline with Hugging Face token
+        # NOTE: Pyannote models are large and this is where it might be crashing.
+        diarizer = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1", 
+            use_auth_token=HF_TOKEN
+        ).to(torch.device(device)) # Explicitly move to CPU/GPU
+        
+        diarization_available = True
+        logger.info("✅ Pyannote speaker diarization pipeline loaded")
+    except Exception as e:
+        logger.warning(f"❌ Failed to load pyannote diarization pipeline: {e}")
+        diarizer = None
+        diarization_available = False
 
 def diarize_audio():
     global audio_buffer, speakers_list, buffer_start_time, participants
@@ -320,6 +332,7 @@ application = app
 # ========== Background Worker ==========
 
 def diarization_worker():
+    initialize_diarizer()
     while True:
         time.sleep(2)
         # placeholder for diarization logic
