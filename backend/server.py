@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import uuid
 import json
@@ -35,8 +38,7 @@ import requests
 from sendgrid.helpers.mail import Mail
 # from google_speech import google_bp
 from apscheduler.schedulers.background import BackgroundScheduler
-import eventlet
-eventlet.monkey_patch()
+
 
 from dotenv import load_dotenv
 import redis
