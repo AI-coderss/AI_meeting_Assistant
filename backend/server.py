@@ -46,7 +46,8 @@ from pyannote.audio import Pipeline
 import numpy as np
 import io
 from openai import OpenAI
-
+import threading
+import time
 # ---------- Configuration ----------
 
 ROOT_DIR = Path(__file__).parent
@@ -1513,17 +1514,18 @@ def handle_disconnect():
     client_id = request.sid
     logger.info(f'🔌 Client disconnected: {client_id}')
 
+# ========== Background Worker ==========
 
+def diarization_worker():
+    while True:
+        time.sleep(2)
+        # placeholder for diarization logic
+        diarize_audio()
+        pass
+
+# ========== Entry Points ==========
 
 if __name__ == "__main__":
-    import threading
-    import time
-    import os
-    def diarization_worker():
-        while True:
-            time.sleep(2)
-            diarize_audio()
-
     threading.Thread(target=diarization_worker, daemon=True).start()
     port =int(os.environ.get("PORT", 8001))
     # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
@@ -1533,7 +1535,11 @@ if __name__ == "__main__":
     print(f"Render PORT variable: {os.environ.get('PORT')}")
 
     logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: http://127.0.0.1:8001")
     # uncomment below like to run on local
-    # socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
+    socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
+else:
+    # Production (Render / Gunicorn)
+    threading.Thread(target=diarization_worker, daemon=True).start()
+    logger.info("🚀 Running in production mode via Gunicorn")
+    application = app  # expose for Gunicorn
     
