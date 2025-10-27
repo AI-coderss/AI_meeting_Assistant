@@ -15,7 +15,7 @@ import torch
 import numpy as np
 import io
 from openai import OpenAI
-
+import threading, time
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -312,17 +312,16 @@ def handle_disconnect():
 
     
 if __name__ == '__main__':
-    import threading, time, os
 
-    # def diarization_worker():
-    #     while True:
-    #         time.sleep(2)
-    #         diarize_audio()
+    def diarization_worker():
+        while True:
+            time.sleep(2)
+            diarize_audio()
 
-    # threading.Thread(target=diarization_worker, daemon=True).start()
+    threading.Thread(target=diarization_worker, daemon=True).start()
 
     port = int(os.environ.get("PORT", 5000))
-    # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
+    logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
     import sys
