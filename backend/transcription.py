@@ -199,6 +199,10 @@ def get_speaker_at_timestamp(timestamp):
         
     return "Unknown Speaker"
 
+@app.route("/")
+def index():
+    return "✅ Server is running", 200
+
 @socketio.on('connect')
 def handle_connect():
     client_id = request.sid
