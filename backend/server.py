@@ -1080,7 +1080,7 @@ notified_meetings = set()
 def meeting_reminder_cron():
     global notified_meetings
     try:
-        res = requests.get("http://127.0.0.1:10000/api/get_medical_meetings")
+        res = requests.get("http://127.0.0.1:8001/api/get_medical_meetings")
         meetings = res.json()
         now = datetime.utcnow()
 
@@ -1525,7 +1525,7 @@ if __name__ == "__main__":
             diarize_audio()
 
     threading.Thread(target=diarization_worker, daemon=True).start()
-    port =int(os.environ.get("PORT", 10000))
+    port =int(os.environ.get("PORT", 8001))
     # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
@@ -1533,6 +1533,6 @@ if __name__ == "__main__":
     print(f"Render PORT variable: {os.environ.get('PORT')}")
 
     logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: http://127.0.0.1:10000")
+    print("Server running at: http://127.0.0.1:8001")
     socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True)
     
