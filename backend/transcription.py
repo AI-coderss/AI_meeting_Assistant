@@ -311,21 +311,32 @@ def handle_disconnect():
     logger.info(f'🔌 Client disconnected: {client_id}')
 
     
-if __name__ == '__main__':
+# ========== Background Worker ==========
 
-    def diarization_worker():
-        while True:
-            time.sleep(2)
-            diarize_audio()
+def diarization_worker():
+    while True:
+        time.sleep(2)
+        # placeholder for diarization logic
+        diarize_audio()
+        pass
 
+# ========== Entry Points ==========
+
+if __name__ == "__main__":
     threading.Thread(target=diarization_worker, daemon=True).start()
-
-    port = int(os.environ.get("PORT", 10000))
-    logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
+    port =int(os.environ.get("PORT", 8001))
+    # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
 
     print(f"Render PORT variable: {os.environ.get('PORT')}")
 
-    # Start Flask-SocketIO app
-    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+    logger.info("Starting Flask-SocketIO development server...")
+    # uncomment below like to run on local
+    socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
+else:
+    # Production (Render / Gunicorn)
+    threading.Thread(target=diarization_worker, daemon=True).start()
+    logger.info("🚀 Running in production mode via Gunicorn")
+    application = app  # expose for Gunicorn
+    
