@@ -1,4 +1,3 @@
-# CRITICAL: eventlet.monkey_patch() MUST be first, before ANY other imports
 import eventlet
 eventlet.monkey_patch()
 

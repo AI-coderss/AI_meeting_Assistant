@@ -1,0 +1,21 @@
+# Core web stack
+flask
+flask-socketio
+flask-cors
+eventlet
+gunicorn
+python-dotenv
+
+# Redis for message queue
+redis
+
+# AI and audio processing
+torch
+numpy
+pyannote.audio
+
+# OpenAI API client
+openai
+
+# Utilities
+requests
