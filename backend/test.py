@@ -266,7 +266,7 @@ def diarization_worker():
 # Main
 # ------------------------
 if __name__ == '__main__':
-    threading.Thread(target=diarization_worker, daemon=True).start()
+    # threading.Thread(target=diarization_worker, daemon=True).start()
     port = int(os.environ.get("PORT", 5000))
     logger.info("🤖 Using OpenAI Whisper API for transcription")
     logger.info("👥 Speaker identification enabled")
