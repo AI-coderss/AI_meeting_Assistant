@@ -1,3 +1,4 @@
+# CRITICAL: eventlet.monkey_patch() MUST be first, before ANY other imports
 import eventlet
 eventlet.monkey_patch()
 
@@ -14,7 +15,7 @@ import torch
 import numpy as np
 import io
 from openai import OpenAI
-import threading, time
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -74,30 +75,18 @@ speakers_list = []  # List of (start, end, speaker)
 # OpenAI client
 client = OpenAI()
 
-diarizer = None
-diarization_available = False
+# Initialize pyannote speaker diarization pipeline
+try:
+    from pyannote.audio import Pipeline
 
-def initialize_diarizer():
-    """Initializes the heavy Pyannote pipeline outside of import time."""
-    global diarizer, diarization_available
-    try:
-        from pyannote.audio import Pipeline
-        # Check for CUDA/GPU if you intend to use it, otherwise keep it simple
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        
-        # Initialize the pipeline with Hugging Face token
-        # NOTE: Pyannote models are large and this is where it might be crashing.
-        diarizer = Pipeline.from_pretrained(
-            "pyannote/speaker-diarization-3.1", 
-            use_auth_token=HF_TOKEN
-        ).to(torch.device(device)) # Explicitly move to CPU/GPU
-        
-        diarization_available = True
-        logger.info("✅ Pyannote speaker diarization pipeline loaded")
-    except Exception as e:
-        logger.warning(f"❌ Failed to load pyannote diarization pipeline: {e}")
-        diarizer = None
-        diarization_available = False
+    # Initialize the pipeline with Hugging Face token
+    diarizer = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=HF_TOKEN)
+    diarization_available = True
+    logger.info("✅ Pyannote speaker diarization pipeline loaded")
+except Exception as e:
+    logger.warning(f"❌ Failed to load pyannote diarization pipeline: {e}")
+    diarizer = None
+    diarization_available = False
 
 def diarize_audio():
     global audio_buffer, speakers_list, buffer_start_time, participants
@@ -209,10 +198,6 @@ def get_speaker_at_timestamp(timestamp):
         return speaker_name
         
     return "Unknown Speaker"
-
-@app.route("/")
-def index():
-    return "✅ Server is running", 200
 
 @socketio.on('connect')
 def handle_connect():
@@ -326,50 +311,22 @@ def handle_disconnect():
     logger.info(f'🔌 Client disconnected: {client_id}')
 
     
-application = app
+if __name__ == '__main__':
+    import threading, time, os
 
-# ========== Background Worker ==========
+    def diarization_worker():
+        while True:
+            time.sleep(2)
+            diarize_audio()
 
-def diarization_worker():
-    initialize_diarizer()
-    while True:
-        time.sleep(2)
-        # placeholder for diarization logic
-        diarize_audio()
+    threading.Thread(target=diarization_worker, daemon=True).start()
 
-
-print("✅ Starting Diarization worker...")      
-socketio.start_background_task(diarization_worker)
-
-# Start the background thread ONCE per Gunicorn worker
-# def start_background_worker():
-#     if not getattr(app, "_diarization_thread_started", False):
-#         socketio.start_background_task(diarization_worker)
-#         app._diarization_thread_started = True
-#         print("✅ Diarization worker started")
-# ========== Entry Points ==========
-
-# if __name__ == "__main__":
-#     threading.Thread(target=diarization_worker, daemon=True).start()
-#     port =int(os.environ.get("PORT", 8001))
-#     # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
-#     logger.info("🤖 Using OpenAI Whisper API for transcription")
-#     logger.info("👥 Speaker identification enabled")
-
-#     print(f"Render PORT variable: {os.environ.get('PORT')}")
-
-#     logger.info("Starting Flask-SocketIO development server...")
-#     # uncomment below like to run on local
-#     socketio.run(app, host="0.0.0.0", port=port, debug = False, allow_unsafe_werkzeug=True) 
-# else:
-#     # Production (Render / Gunicorn)
-#     threading.Thread(target=diarization_worker, daemon=True).start()
-#     logger.info("🚀 Running in production mode via Gunicorn")
-#     application = app  # expose for Gunicorn
-    
-
-    # Main entry
-if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Starting Eventlet SocketIO server on port {port}")
-    socketio.run(app, host="0.0.0.0", port=port,debug = False, allow_unsafe_werkzeug=True)
+    # logger.info(f"🚀 Starting Socket.IO server on 0.0.0.0:{port}")
+    logger.info("🤖 Using OpenAI Whisper API for transcription")
+    logger.info("👥 Speaker identification enabled")
+    import sys
+    print(f"🚀 Listening on 0.0.0.0:{port}")
+    sys.stdout.flush()
+    socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
+

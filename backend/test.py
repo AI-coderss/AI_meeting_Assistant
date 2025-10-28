@@ -9,7 +9,7 @@ from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from dotenv import load_dotenv
 import redis
-from pyannote.audio import Pipeline
+# from pyannote.audio import Pipeline
 import torch
 import numpy as np
 import io
