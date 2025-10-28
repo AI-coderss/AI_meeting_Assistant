@@ -1,7 +1,9 @@
-# CRITICAL: eventlet.monkey_patch() MUST be first, before ANY other imports
 import eventlet
 eventlet.monkey_patch()
 
+# ------------------------
+# Standard Libraries
+# ------------------------
 import logging
 import os
 import base64
@@ -9,14 +11,18 @@ import io
 import threading
 import time
 import numpy as np
-import torch
-import soundfile as sf
+import redis
 from flask import Flask, request
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 from dotenv import load_dotenv
-import redis
-from openai import OpenAI
+
+# ------------------------
+# Optional Heavy Libraries (deferred)
+# ------------------------
+soundfile = None
+torch = None
+Pipeline = None
 
 # ------------------------
 # Logging Configuration
@@ -86,26 +92,10 @@ buffer_start_time = 0.0
 audio_buffer = []
 speakers_list = []
 
-# ------------------------
-# OpenAI Client
-# ------------------------
-client = OpenAI(api_key=OPENAI_API_KEY)
-
-# ------------------------
-# Pyannote Speaker Diarization Pipeline
-# ------------------------
-try:
-    from pyannote.audio import Pipeline
-    diarizer = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token=HF_TOKEN
-    )
-    diarization_available = True
-    logger.info("✅ Pyannote speaker diarization pipeline loaded")
-except Exception as e:
-    diarizer = None
-    diarization_available = False
-    logger.warning(f"⚠️ Failed to load pyannote pipeline: {e}")
+# Placeholders for heavy modules
+client = None
+diarizer = None
+diarization_available = False
 
 # ------------------------
 # Helper Functions
@@ -117,6 +107,7 @@ def diarize_audio():
         return
 
     try:
+        import soundfile as sf
         full_audio = b''.join(audio_buffer)
         audio_np = np.frombuffer(full_audio, dtype=np.int16).astype(np.float32) / 32768.0
 
@@ -135,7 +126,6 @@ def diarize_audio():
                 speaker_name = speaker_label
             speakers_list.append((start, end, speaker_name))
 
-        # Emit diarization to frontend
         socketio.emit('diarization', {
             'segments': [{'start': s, 'end': e, 'speaker': sp} for s, e, sp in speakers_list]
         })
@@ -193,8 +183,12 @@ def handle_connect():
 @socketio.on('audio_chunk')
 def handle_audio_chunk(data):
     """Process incoming audio chunks for transcription and diarization."""
-    global current_time, buffer_start_time, audio_buffer, participants, speaker_counter
+    global current_time, buffer_start_time, audio_buffer, participants, speaker_counter, client
     try:
+        if client is None:
+            emit('error', {'error': 'Server still initializing, try again shortly'})
+            return
+
         audio_data = data.get('audio')
         participants_data = data.get('participants', [])
 
@@ -226,6 +220,7 @@ def handle_audio_chunk(data):
         )
         wav_data = wav_header + audio_bytes
 
+        import io
         with io.BytesIO(wav_data) as audio_file:
             audio_file.name = "audio.wav"
             result = client.audio.transcriptions.create(
@@ -255,20 +250,49 @@ def handle_disconnect():
     logger.info(f'🔌 Client disconnected: {client_id}')
 
 # ------------------------
-# Background Diarization Worker
+# Background Workers
 # ------------------------
 def diarization_worker():
     while True:
         time.sleep(2)
         diarize_audio()
 
+def initialize_heavy_modules():
+    """Load Pyannote, OpenAI client, torch, soundfile in background"""
+    global diarizer, client, diarization_available, soundfile, torch, Pipeline
+    try:
+        import torch
+        import soundfile as sf
+        from pyannote.audio import Pipeline
+        Pipeline = Pipeline
+        soundfile = sf
+        torch = torch
+
+        diarizer = Pipeline.from_pretrained(
+            "pyannote/speaker-diarization-3.1",
+            use_auth_token=HF_TOKEN
+        )
+        diarization_available = True
+        logger.info("✅ Pyannote pipeline loaded")
+    except Exception as e:
+        logger.warning(f"⚠️ Pyannote load failed: {e}")
+        diarizer = None
+        diarization_available = False
+
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_API_KEY)
+    logger.info("✅ OpenAI client initialized")
+
 # ------------------------
 # Main
 # ------------------------
 if __name__ == '__main__':
-    # threading.Thread(target=diarization_worker, daemon=True).start()
+    # Start heavy module loader in background
+    threading.Thread(target=initialize_heavy_modules, daemon=True).start()
+
+    # Start diarization worker
+    threading.Thread(target=diarization_worker, daemon=True).start()
+
     port = int(os.environ.get("PORT", 5000))
-    logger.info("🤖 Using OpenAI Whisper API for transcription")
-    logger.info("👥 Speaker identification enabled")
-    print(f"🚀 Listening on 0.0.0.0:{port}")
+    logger.info("🚀 Starting Socket.IO server")
     socketio.run(app, host='0.0.0.0', port=port, debug=False, allow_unsafe_werkzeug=True)
