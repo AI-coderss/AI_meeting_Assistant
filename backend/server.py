@@ -125,12 +125,18 @@ class UserCreate(BaseModel):
     password: str
 
 # ---------- Auth helpers (SYNC) ----------
-
 def hash_password(pw: str) -> str:
-    return bcrypt.hash(pw)
+    # bcrypt only supports up to 72 bytes; truncate for safety
+    return bcrypt.hash(pw[:72])
 
 def verify_password(pw: str, pw_hash: str) -> bool:
-    return bcrypt.verify(pw, pw_hash)
+    try:
+        # truncate password before verifying
+        return bcrypt.verify(pw[:72], pw_hash)
+    except ValueError as e:
+        # handle bcrypt errors (e.g., corrupted hash)
+        print(f"[verify_password] Error: {e}")
+        return False
 
 def create_access_token(user: Dict[str, Any]) -> str:
     payload = {
