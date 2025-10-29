@@ -1071,7 +1071,7 @@ notified_meetings = set()
 def meeting_reminder_cron():
     global notified_meetings
     try:
-        res = requests.get("http://127.0.0.1:8001/api/get_medical_meetings")
+        res = requests.get("https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings")
         meetings = res.json()
         now = datetime.utcnow()
 
@@ -1210,5 +1210,5 @@ async def test_home():
 
 if __name__ == "__main__":
     logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: http://127.0.0.1:8001")
+    print("Server running at: https://ai-meeting-assistant-backend-suu9.onrender.com")
     socketio.run(app, host="0.0.0.0", port=8001, allow_unsafe_werkzeug=True)

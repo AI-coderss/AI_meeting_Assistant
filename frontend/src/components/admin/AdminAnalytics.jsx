@@ -25,10 +25,10 @@ export default function AdminAnalytics() {
     const fetchData = async () => {
       try {
         const [usersRes, meetingsRes] = await Promise.all([
-          fetch("http://127.0.0.1:8001/api/users", {
+          fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/users", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch("http://127.0.0.1:8001/api/meetings", {
+          fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings", {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);

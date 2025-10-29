@@ -51,7 +51,7 @@ const UpcomingMeetings = () => {
 
   const fetchUpcomingMeetings = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8001/api/get_medical_meetings");
+      const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings");
       const data = await res.json();
 
       // Filter only future meetings

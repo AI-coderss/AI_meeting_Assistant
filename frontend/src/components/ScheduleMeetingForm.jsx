@@ -91,7 +91,7 @@ const n8npayload = {
       });
 
       // Save to Flask MongoDB API
-      const flaskAPI = "http://127.0.0.1:8001/api/save_medical_meeting";
+      const flaskAPI = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/save_medical_meeting";
       const flaskRes = await fetch(flaskAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
