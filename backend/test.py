@@ -279,9 +279,13 @@ def initialize_heavy_modules():
         diarizer = None
         diarization_available = False
 
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    logger.info("✅ OpenAI client initialized")
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        logger.info("✅ OpenAI client initialized")
+    except Exception as e:
+        logger.warning(f"⚠️ OpenAI load failed: {e}")
+        client = None
 
 # ------------------------
 # Main
