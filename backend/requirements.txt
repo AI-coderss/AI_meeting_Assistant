@@ -16,7 +16,7 @@ async-timeout
 attrs
 audioread
 auth
-bcrypt
+bcrypt==4.0.1
 bidict
 blinker
 braceexpand
@@ -138,7 +138,7 @@ optuna
 packaging
 pandas
 parso
-passlib
+passlib==1.7.4
 peft
 pexpect
 pillow
