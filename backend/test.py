@@ -287,16 +287,15 @@ def initialize_heavy_modules():
         logger.warning(f"⚠️ OpenAI load failed: {e}")
         client = None
 
-# Start heavy module loader in background
-threading.Thread(target=initialize_heavy_modules, daemon=True).start()
-
-# Start diarization worker
-threading.Thread(target=diarization_worker, daemon=True).start()
-
 # ------------------------
 # Main
 # ------------------------
 if __name__ == '__main__':
+    # Start heavy module loader in background
+    threading.Thread(target=initialize_heavy_modules, daemon=True).start()
+
+    # Start diarization worker
+    threading.Thread(target=diarization_worker, daemon=True).start()
 
     port = int(os.environ.get("PORT", 5000))
     logger.info("🚀 Starting Socket.IO server")
