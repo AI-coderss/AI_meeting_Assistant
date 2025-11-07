@@ -31,7 +31,7 @@ import jwt
 
 # Third-party clients you already use
 import openai
-# from openai import OpenAI
+from openai import OpenAI
 from deepgram import DeepgramClient
 from google.cloud import speech
 import threading
@@ -772,7 +772,7 @@ def shutdown_db_client():
     client.close()
 
 # Initialize the new OpenAI client (v1.x+)
-# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     try:
