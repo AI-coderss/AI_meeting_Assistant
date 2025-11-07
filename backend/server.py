@@ -62,10 +62,10 @@ client = MongoClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 users_collection = db["users"]
 
-DIARIZATION_PIPELINE = Pipeline.from_pretrained(
-    "pyannote/speaker-diarization@2.1",
-    use_auth_token=HF_TOKEN
-)
+# DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+#     "pyannote/speaker-diarization@2.1",
+#     use_auth_token=HF_TOKEN
+# )
 
 # Flask
 app = Flask(__name__)
