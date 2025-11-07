@@ -52,7 +52,7 @@ export const useOpenAITranscription = ({
     setIsConnecting(true);
     connectingRef.current = true;
 
-    const socketUrl = "https://ai-meeting-assistant-backend-app.onrender.com";
+    const socketUrl = "http://127.0.0.1:5000";
     // const socketUrl = "http://localhost:8001";
 
     console.log(`🔗 Connecting to: ${socketUrl}`);

@@ -11,8 +11,11 @@ from typing import List, Optional, Dict, Any
 from functools import wraps
 import logging
 import base64
+from pyannote.audio import Pipeline
+import torch
 # Flask and extensions
 from flask import Flask, Blueprint, request, jsonify, abort
+from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 from flask_socketio import SocketIO, join_room, leave_room
 from google_calendar_service import GoogleCalendarService
@@ -28,6 +31,7 @@ import jwt
 
 # Third-party clients you already use
 import openai
+from openai import OpenAI
 from deepgram import DeepgramClient
 from google.cloud import speech
 import threading
@@ -48,6 +52,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
 JWT_SECRET = os.environ.get("JWT_SECRET", "change_me_in_prod")
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRES_MIN", "120"))
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 openai.api_key = OPENAI_API_KEY
 deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
@@ -56,6 +61,11 @@ mongo_url = os.environ["MONGO_URL"]
 client = MongoClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 users_collection = db["users"]
+
+DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+    "pyannote/speaker-diarization@2.1",
+    use_auth_token=HF_TOKEN
+)
 
 # Flask
 app = Flask(__name__)
@@ -74,26 +84,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---------- Models ----------
-
 class TranscriptSegment(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    text: str
-    timestamp: float
     speaker: str = "Unknown"
-    confidence: float = 0.0
+    text: str
+
 
 class MeetingSummary(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    summary: str = ""
     key_points: List[str] = []
-    decisions_made: List[str] = []
     action_items: List[str] = []
-    assignees: List[str] = []
-    deadlines: List[str] = []
-    attendee_recommendations: List[str] = []
-    ai_recommendations: List[str] = []
-    unresolved_issues: List[str] = []
-    followup_reminders: List[str] = []
-    references: List[str] = []
+    decisions_made: List[str] = []
+
 
 class Meeting(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -102,7 +104,7 @@ class Meeting(BaseModel):
     host: str = "Unknown"
     participants: List[str] = []
     transcript: List[TranscriptSegment] = []
-    summary: Optional[MeetingSummary] = None
+    summary: Optional[MeetingSummary] = Field(default_factory=MeetingSummary)
     duration: Optional[float] = None
     status: str = "active"  # active, completed, processing
 
@@ -388,24 +390,40 @@ def update_meeting(meeting_id):
 
     try:
         data = request.get_json()
-        transcript = data.get("transcript")
 
-        if transcript is None:
+        transcript = data.get("transcript", [])
+        summary_data = data.get("summary", "")
+
+        # Build the structured summary object
+        summary_obj = {
+            "summary": summary_data if isinstance(summary_data, str) else summary_data.get("summary", ""),
+            "key_points": data.get("key_points", []),
+            "action_items": data.get("action_items", []),
+            "decisions_made": data.get("decisions_made", [])
+        }
+
+        # Ensure at least transcript is present
+        if not transcript:
             abort(400, description="Missing 'transcript' field in request body")
 
-        # Update the meeting in the database
+        # Update the meeting with both transcript and structured summary
         result = db.meetings.update_one(
             {"id": meeting_id},
-            {"$set": {"transcript": transcript}}
+            {"$set": {"transcript": transcript, "summary": summary_obj}}
         )
 
         if result.matched_count == 0:
             abort(404, description=f"Meeting with ID {meeting_id} not found")
 
-        updated_meeting = db.meetings.find_one({"_id": meeting_id})
-        logger.info(f"✅ Updated meeting {meeting_id} with transcript")
+        updated_meeting = db.meetings.find_one({"id": meeting_id})
+        logger.info(f"✅ Updated meeting {meeting_id} with transcript and summary")
 
         return jsonify(updated_meeting), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
+        abort(500, description=str(e))
+
 
     except Exception as e:
         logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
@@ -1200,8 +1218,90 @@ def shutdown_db_client():
 #         'calendar_link': event_info['calendar_link']
 #     })
 
+# Initialize the new OpenAI client (v1.x+)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+@app.route("/api/process-meeting", methods=["POST"])
+def process_meeting():
+    try:
+        audio = request.files["audio"]
+        participants = json.loads(request.form.get("participants", "[]"))
 
+        # 1️⃣ Ensure upload folder exists
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
 
+        # 2️⃣ Save uploaded audio file
+        audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
+        audio.save(audio_path)
+
+        # 3️⃣ Transcribe using Whisper
+        with open(audio_path, "rb") as f:
+            transcript_obj = client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",  # or "whisper-1"
+                file=f
+            )
+            transcript = transcript_obj.text
+
+        # 4️⃣ Create participant list string for GPT context
+        participant_context = "\n".join(
+            [f"- {p.get('name')} ({p.get('role')})" for p in participants]
+        )
+
+        # 5️⃣ Generate structured analysis + speaker attribution via GPT
+        prompt = f"""
+        You are a meeting assistant AI.
+        The meeting involved the following participants:
+
+        {participant_context}
+
+        Below is the full raw meeting transcript (unlabeled):
+
+        {transcript}
+
+        You must:
+        - Attribute each line or paragraph of the transcript to the most likely speaker based on context and role.
+        - Structure it as a JSON list of objects with "speaker" and "text" fields, e.g.:
+          [
+            {{"speaker": "Alice (Manager)", "text": "Let's start with updates."}},
+            {{"speaker": "Bob (Engineer)", "text": "We completed feature X."}}
+          ]
+        - Then, provide a meeting analysis as JSON with:
+          - summary: a concise overview of the meeting.
+          - key_points: a list of main discussion points.
+          - action_items: a list of tasks or next steps.
+          - decisions_made: a list of decisions.
+          - structured_transcript: the speaker-labeled transcript as above.
+          - full_transcript: the complete raw text transcript.
+
+        ⚠️ Important: Return a **valid JSON object only**, without any markdown or explanations.
+        """
+
+        summary_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        ).choices[0].message.content
+
+        # 6️⃣ Parse JSON safely
+        try:
+            summary_data = json.loads(summary_response)
+        except json.JSONDecodeError:
+            summary_data = {
+                "summary": "Error parsing GPT response.",
+                "raw_output": summary_response,
+                "full_transcript": transcript
+            }
+
+        # 7️⃣ Cleanup uploaded file
+        try:
+            os.remove(audio_path)
+        except Exception as e:
+            print(f"Warning: could not delete {audio_path} — {e}")
+
+        return jsonify(summary_data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.get("/")
 async def test_home():
     return {"message": "Hello, world!"}

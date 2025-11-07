@@ -223,7 +223,7 @@ const n8npayload = {
           ))}
 
           <button type="button" onClick={addParticipant} className="add-btn">
-            ➕ Add Participant
+            + Add Participant
           </button>
         </div>
 

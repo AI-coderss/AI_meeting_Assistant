@@ -71,8 +71,6 @@ function MainApp() {
     copyToClipboard,
   } = useTranscript({ currentMeeting, showToast });
 
-  // REMOVED: useOpenAITranscription hook - now in LiveMeeting component
-
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
