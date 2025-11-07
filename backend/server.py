@@ -772,7 +772,7 @@ def shutdown_db_client():
     client.close()
 
 # Initialize the new OpenAI client (v1.x+)
-# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     try:
