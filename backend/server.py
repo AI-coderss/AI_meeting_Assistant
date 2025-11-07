@@ -11,8 +11,8 @@ from typing import List, Optional, Dict, Any
 from functools import wraps
 import logging
 import base64
-from pyannote.audio import Pipeline
-import torch
+# from pyannote.audio import Pipeline
+# import torch
 # Flask and extensions
 from flask import Flask, Blueprint, request, jsonify, abort
 from werkzeug.utils import secure_filename
@@ -31,7 +31,7 @@ import jwt
 
 # Third-party clients you already use
 import openai
-from openai import OpenAI
+# from openai import OpenAI
 from deepgram import DeepgramClient
 from google.cloud import speech
 import threading
