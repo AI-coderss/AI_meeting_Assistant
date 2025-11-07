@@ -69,7 +69,7 @@ const AllMeetings = ({
             onChange={(e) => setParticipantFilter(e.target.value)}
             className="search-input"
           />
-          <button className="btn btn-search" onClick={fetchMeetings}>
+          <button className="btn btn-search search-view" onClick={fetchMeetings}>
             🔍 Search
           </button>
         </div>

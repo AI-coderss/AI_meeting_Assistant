@@ -409,7 +409,11 @@ button.btn.btn-delete {
 
 /* Button Gradients */
 .btn-record { background: #3A54EC }
-.btn-stop { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn-stop {
+    background: #e42121 !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+}
 .btn-upload { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 .btn-generate { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
 .btn-export { background: linear-gradient(135deg, #06b6d4, #0891b2); padding: 0.5rem 1rem; font-size: 0.9rem; }
@@ -418,7 +422,14 @@ button.btn.btn-delete {
 .btn-search { background: linear-gradient(135deg, #64748b, #475569); }
 .btn-send { background: linear-gradient(135deg, #10b981, #059669); }
 .btn-cancel { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
-
+.btn:hover {
+    box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+    transform: translateY(-2px);
+    
+}
+.btn.btn-upload:hover {
+    color: #fff;
+}
 /* File Upload */
 .file-upload-area {
   display: flex;

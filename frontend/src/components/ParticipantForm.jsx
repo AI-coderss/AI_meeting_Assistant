@@ -124,7 +124,7 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
       </div>
 
       {/* 🔹 Common Meeting Details */}
-      <div className="common-meeting-fields">
+      <div className="common-meeting-fields space-lable">
         <div className="input-group">
           <label>Meeting Title</label>
           <input
@@ -154,6 +154,7 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
       {/* 🔹 Add Participants */}
       <div className="add-participant">
         <div className="input-group">
+          <label></label>
           <input
             type="text"
             placeholder="Participant Name"
@@ -191,9 +192,9 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
         <button
           onClick={handleAddParticipant}
           disabled={!newParticipant.email || emailError || nameError}
-          className="add-participant-btn"
+          className="add-participant-btn plus-btn"
         >
-          ➕
+          Add
         </button>
       </div>
 

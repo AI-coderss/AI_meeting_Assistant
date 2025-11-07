@@ -11,10 +11,13 @@ from typing import List, Optional, Dict, Any
 from functools import wraps
 import logging
 import base64
+from pyannote.audio import Pipeline
+import torch
 # Flask and extensions
 from flask import Flask, Blueprint, request, jsonify, abort
+from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
-from flask_socketio import SocketIO, join_room, leave_room
+# from flask_socketio import SocketIO, join_room, leave_room
 from google_calendar_service import GoogleCalendarService
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
@@ -28,6 +31,7 @@ import jwt
 
 # Third-party clients you already use
 import openai
+from openai import OpenAI
 from deepgram import DeepgramClient
 from google.cloud import speech
 import threading
@@ -48,6 +52,7 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
 JWT_SECRET = os.environ.get("JWT_SECRET", "change_me_in_prod")
 JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRES_MIN", "120"))
+HF_TOKEN = os.getenv("HF_TOKEN")
 
 openai.api_key = OPENAI_API_KEY
 deepgram_client = DeepgramClient(api_key=DEEPGRAM_API_KEY)
@@ -56,6 +61,11 @@ mongo_url = os.environ["MONGO_URL"]
 client = MongoClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 users_collection = db["users"]
+
+DIARIZATION_PIPELINE = Pipeline.from_pretrained(
+    "pyannote/speaker-diarization@2.1",
+    use_auth_token=HF_TOKEN
+)
 
 # Flask
 app = Flask(__name__)
@@ -67,33 +77,25 @@ CORS(
     resources={r"/*": {"origins": ["http://localhost:3000", 'https://9a86c1d2a8db.ngrok-free.app',"http://127.0.0.1:3001", "*"]}},
     supports_credentials=True,
 )
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # keep your original
+# socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # keep your original
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---------- Models ----------
-
 class TranscriptSegment(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    text: str
-    timestamp: float
     speaker: str = "Unknown"
-    confidence: float = 0.0
+    text: str
+
 
 class MeetingSummary(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    summary: str = ""
     key_points: List[str] = []
-    decisions_made: List[str] = []
     action_items: List[str] = []
-    assignees: List[str] = []
-    deadlines: List[str] = []
-    attendee_recommendations: List[str] = []
-    ai_recommendations: List[str] = []
-    unresolved_issues: List[str] = []
-    followup_reminders: List[str] = []
-    references: List[str] = []
+    decisions_made: List[str] = []
+
 
 class Meeting(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -102,7 +104,7 @@ class Meeting(BaseModel):
     host: str = "Unknown"
     participants: List[str] = []
     transcript: List[TranscriptSegment] = []
-    summary: Optional[MeetingSummary] = None
+    summary: Optional[MeetingSummary] = Field(default_factory=MeetingSummary)
     duration: Optional[float] = None
     status: str = "active"  # active, completed, processing
 
@@ -388,24 +390,40 @@ def update_meeting(meeting_id):
 
     try:
         data = request.get_json()
-        transcript = data.get("transcript")
 
-        if transcript is None:
+        transcript = data.get("transcript", [])
+        summary_data = data.get("summary", "")
+
+        # Build the structured summary object
+        summary_obj = {
+            "summary": summary_data if isinstance(summary_data, str) else summary_data.get("summary", ""),
+            "key_points": data.get("key_points", []),
+            "action_items": data.get("action_items", []),
+            "decisions_made": data.get("decisions_made", [])
+        }
+
+        # Ensure at least transcript is present
+        if not transcript:
             abort(400, description="Missing 'transcript' field in request body")
 
-        # Update the meeting in the database
+        # Update the meeting with both transcript and structured summary
         result = db.meetings.update_one(
             {"id": meeting_id},
-            {"$set": {"transcript": transcript}}
+            {"$set": {"transcript": transcript, "summary": summary_obj}}
         )
 
         if result.matched_count == 0:
             abort(404, description=f"Meeting with ID {meeting_id} not found")
 
-        updated_meeting = db.meetings.find_one({"_id": meeting_id})
-        logger.info(f"✅ Updated meeting {meeting_id} with transcript")
+        updated_meeting = db.meetings.find_one({"id": meeting_id})
+        logger.info(f"✅ Updated meeting {meeting_id} with transcript and summary")
 
         return jsonify(updated_meeting), 200
+
+    except Exception as e:
+        logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
+        abort(500, description=str(e))
+
 
     except Exception as e:
         logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
@@ -654,351 +672,8 @@ def summarize_meeting(meeting_id: str):
         abort(500, description=f"Summary generation error: {str(e)}")
 
 
-@api_bp.route("/meetings/<string:meeting_id>/send-email", methods=['POST'])
-@auth_required
-def send_meeting_email(meeting_id: str):
-    if not request.is_json:
-        abort(400, description="Invalid content type, expected application/json")
-    try:
-        req_data = request.get_json()
-        recipient_emails = req_data.get('recipient_emails', [])
-        if not recipient_emails:
-            abort(400, description="'recipient_emails' list is required.")
 
-        meeting_doc = db.meetings.find_one({"id": meeting_id})
-        if not meeting_doc:
-            abort(404, description="Meeting not found")
-
-        meeting = Meeting(**meeting_doc)
-        transcript_text = "\n".join([f"[{seg.timestamp:.1f}s] {seg.speaker}: {seg.text}" for seg in meeting.transcript])
-        summary_text = "No summary available."
-        if meeting.summary:
-            s = meeting.summary
-            summary_text = f"🔑 KEY POINTS:\n" + "\n".join(f"• {p}" for p in s.key_points) + "\n\n" \
-                         + f"✅ ACTION ITEMS:\n" + "\n".join(f"• {i}" for i in s.action_items)
-
-        email_body = f"Summary for {meeting.title}:\n\n{summary_text}\n\n---\nFull Transcript:\n{transcript_text}"
-
-        for email in recipient_emails:
-            message = Mail(
-                from_email=req_data.get('sender_email', 'meetings@example.com'),
-                to_emails=email,
-                subject=f"Meeting Summary: {meeting.title}",
-                plain_text_content=email_body
-            )
-            # If SendGrid client used:
-            # sg = SendGridAPIClient(api_key=os.environ.get("SENDGRID_API_KEY"))
-            # sg.send(message)
-            logger.info(f"Email (simulated) sent to {email} for meeting {meeting_id}")
-
-        db.email_logs.insert_one({
-            "meeting_id": meeting_id, "recipients": recipient_emails, "sent_at": datetime.utcnow()
-        })
-        return jsonify({"message": f"Email sent to {len(recipient_emails)} recipients"})
-    except Exception as e:
-        logger.error(f"Error sending email for {meeting_id}: {str(e)}")
-        abort(500, description=f"Email sending error: {str(e)}")
-
-
-@app.route("/transcribe", methods=["POST"])
-def transcribe_audio():
-    if "file" not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files["file"]
-
-    url = "https://api.openai.com/v1/audio/transcriptions"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
-    files = {"file": (file.filename, file.read(), file.content_type)}
-    data = {"model": "gpt-4o-transcribe"}  # or "whisper-1"
-
-    try:
-        resp = requests.post(url, headers=headers, files=files, data=data)
-        resp.raise_for_status()
-        transcription = resp.json()
-
-        # Extract text safely
-        text = transcription.get("text", "")
-
-        return jsonify({
-            "text": text,
-            "timestamp": datetime.datetime.utcnow().isoformat()  # ✅ add timestamp
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
-@app.route("/api/deepgram-token", methods=["GET"])
-def get_deepgram_token():
-    """
-    Returns a short-lived Deepgram token for WebSocket authentication.
-    """
-    if not DEEPGRAM_API_KEY:
-        return jsonify({"error": "Deepgram API key not set"}), 500
-
-    try:
-        projectId = "9cd2b509-71dd-45bd-85b4-88791a52dec9"
-        url = f"https://api.deepgram.com/v1/projects/{projectId}/tokens"  
-
-        headers = {
-            "Authorization": f"Token {DEEPGRAM_API_KEY}",
-            "Content-Type": "application/json"
-        }
-
-        # you can also send scopes in body if you want to restrict
-        resp = requests.post(url, headers=headers, json={"scopes": ["listen:stream"]})
-        resp.raise_for_status()
-
-        data = resp.json()
-        token = data.get("token")
-        if not token:
-            return jsonify({"error": "Failed to get token"}), 500
-        return jsonify({"token": token})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    
-# ---------- Socket.IO (SYNC style) ----------
-
-deepgram_connections = {}
-speaker_counter = {}
-
-def on_deepgram_message(result, sid, **kwargs):
-    transcript = result.channel.alternatives[0].transcript
-    if transcript:
-        socketio.emit('transcript_update', {
-            "type": "transcript",
-            "data": {
-                "text": transcript,
-                "timestamp": datetime.utcnow().timestamp(),
-                "is_final": result.is_final
-            }
-        }, to=sid)
-
-def on_deepgram_error(error, sid, **kwargs):
-    logger.error(f"Deepgram error for sid {sid}: {error}")
-    socketio.emit('error', {"data": str(error)}, to=sid)
-
-@socketio.on('join_meeting')
-def handle_join_meeting(data):
-    import threading, asyncio
-    sid = request.sid
-    meeting_id = data.get('meeting_id')
-    sample_rate = int(data.get('sample_rate') or 48000)  # fallback
-
-    if not meeting_id:
-        logger.error(f"Client {sid} tried to join without meeting_id")
-        return
-
-    logger.info(f"Client {sid} joining meeting {meeting_id} (sample_rate={sample_rate})")
-    join_room(meeting_id)
-
-    try:
-        dg_connection = deepgram_client.listen.v("1")
-
-        async def handle_open():
-            logger.info(f"[Deepgram] Connection opened for {sid}")
-
-        async def handle_close():
-            logger.info(f"[Deepgram] Connection closed for {sid}")
-
-        async def handle_transcript(result):
-            try:
-                logger.debug(f"[Deepgram] Raw transcript event: {result}")
-
-                # result is a dict
-                channel = result.get("channel", {})
-                alternatives = channel.get("alternatives", [])
-                if alternatives:
-                    text = alternatives[0].get("transcript", "")
-                    is_final = result.get("is_final", False)
-
-                    if text:
-                        logger.info(f"[Deepgram] Transcript for {sid}: {text} (final={is_final})")
-                        socketio.emit(
-                            "transcript_update",
-                            {"text": text, "is_final": is_final},
-                            room=sid
-                        )
-            except Exception as e:
-                logger.exception(f"Transcript parse error for {sid}: {e}")
-
-        async def handle_error(error):
-            logger.error(f"[Deepgram] Error for {sid}: {error}")
-
-        dg_connection.on("open", handle_open)
-        dg_connection.on("close", handle_close)
-        dg_connection.on("transcription", handle_transcript)
-        dg_connection.on("error", handle_error)
-
-        options = {
-            "model": "nova-2",
-            "punctuate": True,
-            "language": "en-US",
-            "encoding": "linear16",
-            "channels": 1,
-            "sample_rate": sample_rate,
-            "interim_results": True
-        }
-
-        def _start(loop):
-            try:
-                socketio.emit('joined', {'sid': sid, 'meeting_id': meeting_id}, to=sid)
-                logger.info(f"🔄 Starting Deepgram connection for {sid} in meeting {meeting_id}")
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(dg_connection.start(options))
-            except Exception as e:
-                logger.error(f"❌ Deepgram start failed for {sid}: {e}")
-                socketio.emit('error', {'data': f'Failed to start transcription: {e}'}, to=sid)
-
-        loop = asyncio.new_event_loop()
-        thread = threading.Thread(target=_start, args=(loop,), daemon=True)
-        thread.start()
-
-        deepgram_connections[sid] = {"conn": dg_connection, "loop": loop, "thread": thread}
-
-    except Exception as e:
-        logger.error(f"❌ Error preparing Deepgram for {sid}: {e}")
-        socketio.emit('error', {'data': f'Failed to initialize transcription service: {e}'}, to=sid)
-
-@socketio.on('audio_stream')
-def handle_audio_stream(payload):
-    import base64
-    import asyncio
-    sid = request.sid
-    if sid not in deepgram_connections:
-        logger.warning(f"Received audio from {sid}, but no active Deepgram connection")
-        return
-
-    conn_info = deepgram_connections[sid]
-    dg_connection = conn_info["conn"]
-    loop = conn_info["loop"]
-
-    try:
-        audio_bytes = None
-        if isinstance(payload, dict) and 'audio' in payload:
-            # Check if the audio data contains a data URL prefix
-            audio_data = payload['audio']
-            if ',' in audio_data:
-                # Remove the data URL prefix if present
-                _, audio_data = audio_data.split(',', 1)
-            audio_bytes = base64.b64decode(audio_data)
-        elif isinstance(payload, (bytes, bytearray)):
-            audio_bytes = bytes(payload)
-
-        if not audio_bytes:
-            logger.warning(f"Unexpected audio payload type from {sid}: {type(payload)}")
-            return
-
-        logger.info(
-                f"➡️ Forwarding {len(audio_bytes)} bytes to Deepgram "
-                f"for sid {sid} | sample: {audio_bytes[:10]}"
-            )
-        asyncio.run_coroutine_threadsafe(dg_connection.send(audio_bytes), loop)
-    except Exception as e:
-        logger.error(f"❌ Failed to send audio chunk for {sid}: {e}")
-
-
-@socketio.on('disconnect', namespace='/api/meetings/<meeting_id>/live-transcribe')
-def live_transcribe_disconnect(meeting_id):
-    sid = request.sid
-    logger.info(f"Live transcribe client disconnected for meeting {meeting_id}")
-    if sid in deepgram_connections:
-        import threading, asyncio
-        dg_connection = deepgram_connections.pop(sid)
-        def _finish():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(dg_connection.finish())
-        threading.Thread(target=_finish, daemon=True).start()
-
-@socketio.on('audio_chunk')
-def handle_audio_chunk(data):
-    import base64
-    sid = request.sid
-
-    audio_b64 = data.get('audio')
-    if audio_b64:
-        try:
-            # decode
-            if ',' in audio_b64:
-                # Remove the data URL prefix if present
-                _, encoded = audio_b64.split(',', 1)
-            else:
-                encoded = audio_b64
-            audio_data = base64.b64decode(encoded)
-            if len(audio_data) > 1000:
-                # save to temp
-                mime_type = data.get('mimeType', 'audio/webm')
-                suffix = '.ogg' if 'ogg' in mime_type else '.webm'
-                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
-                    f.write(audio_data)
-                    temp_path = f.name
-
-                try:
-                    logger.info(f"Processing audio chunk for {sid}, size: {len(audio_data)}")
-                    # transcribe using Google Speech-to-Text
-                    client = speech.SpeechClient()
-                    encoding = speech.RecognitionConfig.AudioEncoding.WEBM_OPUS if 'webm' in mime_type else speech.RecognitionConfig.AudioEncoding.OGG_OPUS
-                    config = speech.RecognitionConfig(
-                        encoding=encoding,
-                        sample_rate_hertz=16000,
-                        language_code="en-US",
-                    )
-                    audio = speech.RecognitionAudio(content=audio_data)
-                    response = client.recognize(config=config, audio=audio)
-
-                    text = ""
-                    if response.results:
-                        text = response.results[0].alternatives[0].transcript
-                        language = "en"  # Google returns language_code, but for simplicity
-
-                    logger.info(f"Transcription result for {sid}: text='{text}', language='{language}'")
-                    if text and text.strip():
-                        logger.info(f"Emitting text for {sid}: '{text}'")
-                        speaker = "Speaker 1"
-
-                        # Generate AI response
-                        # Removed AI response generation as per user request
-                        socketio.emit('transcript', {
-                            'text': text,
-                            'language': language,
-                            'speaker': speaker
-                        }, to=sid)
-
-                except Exception as e:
-                    logger.error(f"Transcription error for {sid}: {e}")
-                finally:
-                    try:
-                        os.unlink(temp_path)
-                    except:
-                        pass
-
-        except Exception as e:
-            logger.error(f"Audio chunk processing error for {sid}: {e}")
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    sid = request.sid
-    logger.info(f"Client disconnected: {sid}")
-    if sid in deepgram_connections:
-        conn_info = deepgram_connections.pop(sid)
-        dg_connection = conn_info["conn"]
-        loop = conn_info["loop"]
-
-        def _finish():
-            try:
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(dg_connection.finish())
-                logger.info(f"Finished Deepgram connection for {sid}")
-            except Exception as e:
-                logger.error(f"❌ Error finishing Deepgram connection for {sid}: {e}")
-
-        threading.Thread(target=_finish, daemon=True).start()
-
-    if sid in speaker_counter:
-        del speaker_counter[sid]
-
+#save meeting when scheduling
 @app.route("/api/save_medical_meeting", methods=["POST"])
 def save_medical_meeting():
     """
@@ -1054,18 +729,6 @@ def get_medical_meetings():
         print("Error fetching meetings:", e)
         return jsonify({"error": str(e)}), 500
 
-# @app.route("/api/get_medical_meetings")
-# def get_meetings():
-#     meetings = [
-#         {
-#             "meeting_title": "Test Meeting Now",
-#             "meeting_time": (datetime.utcnow() + timedelta(minutes=1)).strftime("%a, %d %b %Y %H:%M:%S GMT"),
-#             "host_email": "host@example.com",
-#             "participants": [{"email": "p1@example.com"}, {"email": "p2@example.com"}],
-#         }
-#     ]
-#     return jsonify(meetings)
-
 notified_meetings = set()
 
 def meeting_reminder_cron():
@@ -1108,107 +771,98 @@ def shutdown_db_client():
     logger.info("Closing MongoDB client...")
     client.close()
 
+# Initialize the new OpenAI client (v1.x+)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+@app.route("/api/process-meeting", methods=["POST"])
+def process_meeting():
+    try:
+        audio = request.files["audio"]
+        participants = json.loads(request.form.get("participants", "[]"))
 
+        # 1️⃣ Ensure upload folder exists
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
 
+        # 2️⃣ Save uploaded audio file
+        audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
+        audio.save(audio_path)
 
-# @app.route('/api/schedule_meeting', methods=['POST'])
-# def schedule_meeting():
-#     data = request.get_json()
-#     required_fields = ['name', 'email', 'demo_date', 'timezone', 'duration_minutes']
-#     missing_fields = [field for field in required_fields if field not in data]
-#     if missing_fields:
-#         return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+        # 3️⃣ Transcribe using Whisper
+        with open(audio_path, "rb") as f:
+            transcript_obj = client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",  # or "whisper-1"
+                file=f
+            )
+            transcript = transcript_obj.text
 
-#     try:
-#         # Parse demo_date as datetime object
-#         demo_date = datetime.datetime.fromisoformat(data['demo_date'])
-#     except Exception as e:
-#         return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format.'}), 400
+        # 4️⃣ Create participant list string for GPT context
+        participant_context = "\n".join(
+            [f"- {p.get('name')} ({p.get('role')})" for p in participants]
+        )
 
-#     # Create a simple demo_booking object as a dict
-#     demo_booking = type('DemoBooking', (), {})()
-#     demo_booking.name = data['name']
-#     demo_booking.email = data['email']
-#     demo_booking.demo_date = demo_date
-#     demo_booking.timezone = data['timezone']
-#     demo_booking.duration_minutes = int(data['duration_minutes'])
-#     demo_booking.company = data.get('company')
-#     demo_booking.phone = data.get('phone')
-#     demo_booking.message = data.get('message')
-#     demo_booking.id = data.get('id', 1)  # fallback id for requestId in event
+        # 5️⃣ Generate structured analysis + speaker attribution via GPT
+        prompt = f"""
+        You are a meeting assistant AI.
+        The meeting involved the following participants:
 
-#     calendar_service = GoogleCalendarService()
-#     event_info = calendar_service.create_demo_event(demo_booking)
+        {participant_context}
 
-#     if event_info is None:
-#         return jsonify({'error': 'Failed to create calendar event'}), 500
+        Below is the full raw meeting transcript (unlabeled):
 
-#     return jsonify({
-#         'event_id': event_info['event_id'],
-#         'meet_link': event_info['meet_link'],
-#         'calendar_link': event_info['calendar_link']
-#     })
+        {transcript}
 
-# @app.route('/api/schedule_meeting', methods=['POST'])
-# def schedule_meeting():
-#     data = request.get_json()
-#     required_fields = ['name', 'email', 'demo_date', 'duration_minutes']
-#     missing_fields = [field for field in required_fields if field not in data]
-#     if missing_fields:
-#         return jsonify({'error': f'Missing required fields: {", ".join(missing_fields)}'}), 400
+        You must:
+        - Attribute each line or paragraph of the transcript to the most likely speaker based on context and role.
+        - Structure it as a JSON list of objects with "speaker" and "text" fields, e.g.:
+          [
+            {{"speaker": "Alice (Manager)", "text": "Let's start with updates."}},
+            {{"speaker": "Bob (Engineer)", "text": "We completed feature X."}}
+          ]
+        - Then, provide a meeting analysis as JSON with:
+          - summary: a concise overview of the meeting.
+          - key_points: a list of main discussion points.
+          - action_items: a list of tasks or next steps.
+          - decisions_made: a list of decisions.
+          - structured_transcript: the speaker-labeled transcript as above.
+          - full_transcript: the complete raw text transcript.
 
-#     try:
-#         iso_str = data['demo_date'].strip()
-#         demo_date_utc = datetime.fromisoformat(iso_str)
-#         if demo_date_utc.tzinfo is None:
-#             demo_date_utc = demo_date_utc.replace(tzinfo=timezone.utc)
-#     except ValueError:
-#         # Try adding UTC timezone if parsing failed due to missing timezone
-#         try:
-#             if not iso_str.endswith("+00:00") and not iso_str.endswith("Z"):
-#                 iso_str += "+00:00"
-#             elif iso_str.endswith("Z"):
-#                 iso_str = iso_str[:-1] + "+00:00"
-#             demo_date_utc = datetime.fromisoformat(iso_str)
-#             if demo_date_utc.tzinfo is None:
-#                 demo_date_utc = demo_date_utc.replace(tzinfo=timezone.utc)
-#         except Exception:
-#             return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format like 2025-10-03T05:13:00.000Z'}), 400
-#     except Exception:
-#         return jsonify({'error': 'Invalid demo_date format. Use ISO 8601 format like 2025-10-03T05:13:00.000Z'}), 400
+        ⚠️ Important: Return a **valid JSON object only**, without any markdown or explanations.
+        """
 
-#     # Create a simple demo_booking object
-#     demo_booking = type('DemoBooking', (), {})()
-#     demo_booking.name = data['name']
-#     demo_booking.email = data['email']
-#     demo_booking.demo_date = demo_date_utc  # store UTC datetime
-#     demo_booking.duration_minutes = int(data['duration_minutes'])
-#     demo_booking.company = data.get('company')
-#     demo_booking.phone = data.get('phone')
-#     demo_booking.message = data.get('message')
-#     demo_booking.id = data.get('id', 1)
+        summary_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        ).choices[0].message.content
 
-#     calendar_service = GoogleCalendarService()
-#     event_info = calendar_service.create_demo_event(demo_booking)
+        # 6️⃣ Parse JSON safely
+        try:
+            summary_data = json.loads(summary_response)
+        except json.JSONDecodeError:
+            summary_data = {
+                "summary": "Error parsing GPT response.",
+                "raw_output": summary_response,
+                "full_transcript": transcript
+            }
 
-#     if event_info is None:
-#         return jsonify({'error': 'Failed to create calendar event'}), 500
+        # 7️⃣ Cleanup uploaded file
+        try:
+            os.remove(audio_path)
+        except Exception as e:
+            print(f"Warning: could not delete {audio_path} — {e}")
 
-#     return jsonify({
-#         'event_id': event_info['event_id'],
-#         'meet_link': event_info['meet_link'],
-#         'calendar_link': event_info['calendar_link']
-#     })
+        return jsonify(summary_data)
 
-
-
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.get("/")
 async def test_home():
     return {"message": "Hello, world!"}
 
-
-
 if __name__ == "__main__":
-    logger.info("Starting Flask-SocketIO development server...")
-    print("Server running at: https://ai-meeting-assistant-backend-suu9.onrender.com")
-    socketio.run(app, host="0.0.0.0", port=8001, allow_unsafe_werkzeug=True)
+    port = int(os.environ.get("PORT", 5000))  # Default to 5000 if not set
+
+    logger.info("Starting Flask development server...")
+    print(f"Server running at: https://ai-meeting-assistant-backend-suu9.onrender.com (Port: {port})")
+
+    app.run(host="0.0.0.0", port=port, debug=True)

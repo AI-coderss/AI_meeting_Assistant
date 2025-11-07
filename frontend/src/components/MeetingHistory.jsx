@@ -1,25 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
 
-const MeetingHistory = ({
-  setCurrentMeeting,
-  setTranscript,
-  setSummary,
-  setActiveTab,
-}) => {
+const MeetingHistory = () => {
   const [meetings, setMeetings] = useState([]);
   const [hostName, setHostName] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [participantFilter, setParticipantFilter] = useState("");
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
 
   const token = localStorage.getItem("token");
 
-  // ✅ Use useCallback to prevent unnecessary recreations
   const fetchMeetings = useCallback(async () => {
-    if (!hostName) {
-      console.log("No hostname available yet");
-      return;
-    }
+    if (!hostName) return;
 
     setLoading(true);
     try {
@@ -31,8 +23,6 @@ const MeetingHistory = ({
         params.toString() ? `?${params.toString()}` : ""
       }`;
 
-      console.log("Fetching meetings from:", url);
-
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -40,61 +30,33 @@ const MeetingHistory = ({
         },
       });
 
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
 
       const data = await res.json();
-      console.log("Fetched meetings:", data);
       setMeetings(data);
     } catch (err) {
       console.error("Failed to fetch meetings:", err);
-      // ✅ Keep existing meetings instead of clearing them on error
     } finally {
       setLoading(false);
     }
   }, [hostName, searchQuery, participantFilter, token]);
 
-  // Step 1: set hostName from localStorage
   useEffect(() => {
     const storedEmail = localStorage.getItem("email");
-    console.log("Setting hostname from localStorage:", storedEmail);
-    if (storedEmail) {
-      setHostName(storedEmail);
-    }
+    if (storedEmail) setHostName(storedEmail);
   }, []);
 
-  // Step 2: fetch meetings when dependencies change
   useEffect(() => {
-    if (hostName) {
-      console.log("Hostname changed, fetching meetings...");
-      fetchMeetings();
-    }
+    if (hostName) fetchMeetings();
   }, [hostName, fetchMeetings]);
 
-  // ✅ Improved view meeting handler with validation
   const handleViewMeeting = (meeting) => {
-    console.log("Setting current meeting:", meeting);
-
-    // Validate meeting object
-    if (!meeting || !meeting.id) {
-      console.error("Invalid meeting object:", meeting);
-      return;
-    }
-
-    // Set states in a batch to prevent race conditions
-    setCurrentMeeting(meeting);
-    setTranscript(meeting.transcript || []);
-    setSummary(meeting.summary || null);
-    setActiveTab("live");
-
-    console.log("Meeting set successfully, switching to live tab");
+    setSelectedMeeting(meeting);
   };
 
-  // ✅ Handle search with debouncing
-  const handleSearch = () => {
-    fetchMeetings();
-  };
+  const closeModal = () => setSelectedMeeting(null);
+
+  const handleSearch = () => fetchMeetings();
 
   return (
     <div className="tab-content">
@@ -115,7 +77,7 @@ const MeetingHistory = ({
             onChange={(e) => setParticipantFilter(e.target.value)}
             className="search-input"
           />
-          <button className="btn btn-search" onClick={handleSearch}>
+          <button className="search-view" onClick={handleSearch}>
             🔍 Search
           </button>
         </div>
@@ -148,11 +110,6 @@ const MeetingHistory = ({
                   <strong>Transcript segments:</strong>{" "}
                   {meeting.transcript?.length || 0}
                 </p>
-                {/* ✅ Add language display for debugging */}
-                <p>
-                  <strong>Language:</strong>{" "}
-                  {meeting.language || "Not specified"}
-                </p>
               </div>
               <div className="card-actions">
                 <button
@@ -172,6 +129,146 @@ const MeetingHistory = ({
           </div>
         )}
       </div>
+
+    {/* ✅ Modal Content */}
+{selectedMeeting && (
+  <div className="modal-overlay" onClick={closeModal}>
+    
+    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="btn-close-modal">
+          <button className="btn btn-close" onClick={closeModal}></button>
+</div>
+      <h2>{selectedMeeting.title}</h2>
+      <p>
+        <strong>Host:</strong> {selectedMeeting.host}
+      </p>
+      <p>
+        <strong>Participants:</strong>{" "}
+        {selectedMeeting.participants?.join(", ") || "None"}
+      </p>
+      <p>
+        <strong>Status:</strong> {selectedMeeting.status}
+      </p>
+      <p>
+        <strong>Date:</strong>{" "}
+        {new Date(selectedMeeting.timestamp).toLocaleString()}
+      </p>
+
+      {/* ✅ Render summary object safely */}
+      {selectedMeeting.summary && (
+        <div className="meeting-summary">
+          <h3>Summary</h3>
+          <p>{selectedMeeting.summary.summary || "No summary available"}</p>
+
+          {selectedMeeting.summary.key_points?.length > 0 && (
+            <>
+              <h4>Key Points</h4>
+              <ul>
+                {selectedMeeting.summary.key_points.map((point, idx) => (
+                  <li key={idx}>{point}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {selectedMeeting.summary.action_items?.length > 0 && (
+            <>
+              <h4>Action Items</h4>
+              <ul>
+                {selectedMeeting.summary.action_items.map((item, idx) => (
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {selectedMeeting.summary.decisions_made?.length > 0 && (
+            <>
+              <h4>Decisions Made</h4>
+              <ul>
+                {selectedMeeting.summary.decisions_made.map((decision, idx) => (
+                  <li key={idx}>{decision}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ✅ Render transcript */}
+      {selectedMeeting.transcript?.length > 0 && (
+        <div className="meeting-transcript">
+          <h3>Transcript</h3>
+          {selectedMeeting.transcript.map((t, idx) => (
+            <p key={idx}>
+              <strong>{t.speaker}:</strong> {t.text}
+            </p>
+          ))}
+        </div>
+      )}
+
+      
+    </div>
+  </div>
+)}
+
+
+      {/* ✅ Inline CSS for modal styling */}
+      <style jsx>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+        }
+        .modal-content {
+          background: white;
+          width: 80%;
+          max-height: 90vh;
+          overflow-y: auto;
+          border-radius: 12px;
+          padding: 2rem;
+          box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+          position: relative;
+          color: #222;
+        }
+        .modal-close {
+          position: absolute;
+          top: 10px;
+          right: 15px;
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+        }
+        .transcript-section {
+          background: #f9f9f9;
+          padding: 1rem;
+          border-radius: 8px;
+        }
+      .modal-content h2 {
+    color: #004aad;
+    font-size: 21px;
+}
+        .modal-content h3 {
+    margin-top: 1rem;
+    color: #0073e6;
+    font-size: 20px;
+}
+          .btn-close-modal {
+    display: flex;
+    justify-content: end;
+}
+    .btn-close-modal .btn.btn-close {
+    box-shadow: unset;
+}
+      `}</style>
     </div>
   );
 };
