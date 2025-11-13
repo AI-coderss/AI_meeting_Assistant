@@ -928,9 +928,11 @@ button.btn.btn-delete {
   }
 
   .app-header h1 {
-    font-size: 1.5rem;
+    font-size: 20px;
   }
-
+  .app-logo {
+    width: 200px;
+  }
   .tabs {
     padding: 0 1rem;
     overflow-x: auto;
@@ -968,7 +970,11 @@ button.btn.btn-delete {
     width: 100%;
   }
   .search-view {
-    width: 100%;
+    width: 50%;
+    margin: 0 auto;
+  }
+  .btn.btn-view {
+    width: 50%;
   }
 }
 

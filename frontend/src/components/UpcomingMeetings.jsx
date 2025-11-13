@@ -87,7 +87,9 @@ const UpcomingMeetings = () => {
 
   return (
     <div className="upcoming-container">
-      <h2>🩺 Upcoming Medical Meetings</h2>
+      <h2 class="fw-bold text-center my-4 fs-4 fs-sm-3 fs-md-2 fs-lg-1">
+        🩺 Upcoming Medical Meetings
+      </h2>
 
       {loading ? (
         <p>Loading meetings...</p>
