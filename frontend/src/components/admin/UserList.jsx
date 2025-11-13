@@ -61,12 +61,15 @@ export default function UserList() {
     try {
       setUpdating(userId);
       const token = localStorage.getItem("token");
-      const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       const data = await res.json();
       if (res.ok) {
@@ -87,9 +90,12 @@ export default function UserList() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/users",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       const data = await res.json();
       if (res.ok) {
@@ -140,11 +146,13 @@ export default function UserList() {
 
   return (
     <div className="p-4">
-      <h2 className="mb-3 fw-bold">👥 User List</h2>
+      <h2 className="mb-3 fw-bold fs-4 fs-md-3 fs-lg-2 text-start ">
+        👥 User List
+      </h2>
       {users.length === 0 ? (
         <p>No users found.</p>
       ) : (
-        <div className="">
+        <div className="table-responsive ">
           <table className="table table-bordered table-hover">
             <thead className="table-light">
               <tr>
@@ -210,7 +218,7 @@ export default function UserList() {
                     </td>
                     <td>{u.is_active ? "✅" : "❌"}</td>
                     <td>{new Date(u.created_at).toLocaleString()}</td>
-                    <td className="d-flex gap-2">
+                    <td className="d-flex gap-2 justify-content-center">
                       {updating === u.id ? (
                         "⏳ Updating..."
                       ) : (

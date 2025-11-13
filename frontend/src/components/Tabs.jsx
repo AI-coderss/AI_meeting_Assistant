@@ -12,14 +12,7 @@ const Tabs = ({ activeTab, setActiveTab }) => {
 
   return (
     <nav className="tabs">
-      <div className="brand">
-        <a className="napbar__brand" href="/">
-          <span className="napbar__logo" aria-hidden="true">
-            🤖
-          </span>
-          <span className="napbar__brandText">AI Meeting Assistant</span>
-        </a>
-      </div>
+   
 
       <div className="button-left">
         <button
@@ -62,12 +55,6 @@ const Tabs = ({ activeTab, setActiveTab }) => {
               onClick={() => setActiveTab("allMeetings")}
             >
               📚 All Meetings
-            </button>
-            <button
-              className={`tab ${activeTab === "Analytics" ? "active" : ""}`}
-              onClick={() => setActiveTab("Analytics")}
-            >
-              📊 Analytics
             </button>
           </>
         )}

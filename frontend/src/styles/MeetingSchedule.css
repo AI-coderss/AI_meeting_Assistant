@@ -7,7 +7,30 @@
   box-shadow: 0 4px 12px rgba(0, 100, 100, 0.1);
   transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
   max-height: 500px;
-  overflow-y: scroll;
+  overflow-y: auto;
+
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #ced0e0 #f3f4ff;
+}
+
+/* Chrome, Edge, and Safari */
+.meeting-container::-webkit-scrollbar {
+  width: 2px; /* thinner scrollbar */
+}
+
+.meeting-container::-webkit-scrollbar-track {
+  background: #f3f4ff; /* very light track */
+  border-radius: 10px;
+}
+
+.meeting-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #aab4ff, #03050e); /* soft gradient */
+  border-radius: 10px;
+}
+
+.meeting-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #9faaff, #060813);
 }
 
 .meeting-container h2 {
@@ -36,7 +59,7 @@
 .meeting-form textarea {
   width: 100%;
   padding: 10px;
-  border: 1px solid #b2d8d8;
+  border: 1px solid #c7d0e0;
   border-radius: 8px;
   font-size: 1rem;
   box-sizing: border-box;
@@ -53,7 +76,7 @@
 .meeting-form input:focus,
 .meeting-form select:focus,
 .meeting-form textarea:focus {
-  border-color: #009999;
+  border-color: #4f8ef7;
   outline: none;
 }
 
@@ -132,7 +155,15 @@ body.dark-theme .meeting-container {
   color: #e0e0e0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
 }
-
+.dark-theme .summary-section {
+  background-color: #222e40;
+}
+.dark-theme .meeting-container {
+  scrollbar-color: #1e1e2f #2a2a3d;
+}
+.dark-theme .structured-transcript {
+  background: #222e40;
+}
 body.dark-theme .meeting-container h2 {
   color: #9ee7e7;
 }
@@ -145,18 +176,24 @@ body.dark-theme .meeting-form input,
 body.dark-theme .meeting-form select,
 body.dark-theme .meeting-form textarea {
   background: #2a2a3d;
-  border-color: #3a6b6b;
-  color: #e0e0e0;
+  border-color: #46464b;
+  color: #fff;
 }
 
 body.dark-theme .meeting-form input:focus,
 body.dark-theme .meeting-form select:focus,
 body.dark-theme .meeting-form textarea:focus {
-  border-color: #40cccc;
+  border-color: #00c6c652;
 }
 
 body.dark-theme .info-text {
-  color: #9ca3af;
+  color: #fff;
+}
+body.dark-theme input::placeholder {
+  color: #fff;
+}
+body.dark-theme input#meeting_title::placeholder {
+  color: #fff;
 }
 
 body.dark-theme .response-success {
@@ -188,33 +225,33 @@ body.dark-theme .participant-row {
   color: #f2f2f2;
 }
 .space-lable input {
-    margin-bottom: 10px;
-    border-radius: 10px !important;
+  margin-bottom: 10px;
+  border-radius: 10px !important;
 }
 .participant-form input {
-    border-radius: 10px  !important;
+  border-radius: 10px !important;
 }
 select.category-select {
-    border-radius: 10px !important;
+  border-radius: 10px !important;
 }
 button.btn.btn-participant {
-    color: #fff;
-    font-weight: 600;
+  color: #fff;
+  font-weight: 600;
 }
 .filter-icon {
-    filter: invert(1);
+  filter: invert(1);
 }
 .card-header {
-    text-align: center;
-    margin-bottom: 10px;
+  text-align: center;
+  margin-bottom: 10px;
 }
 .btn.btn-view {
-    color: #fff;
-    font-weight: 600;
+  color: #fff;
+  font-weight: 600;
 }
 .search-view {
   background: linear-gradient(135deg, #3a54ec, #4f8ef7);
-  color: #ffffff;
+  color: #ffffff !important;
   border: none;
   border-radius: 10px;
   padding: 10px 20px;
@@ -249,9 +286,9 @@ button.btn.btn-participant {
 }
 
 .btn.btn-upload {
-    color: #fff;
-    font-weight: 600;
+  color: #fff;
+  font-weight: 600;
 }
 .modal-content p {
-    text-align: start;
+  text-align: start;
 }

@@ -331,7 +331,6 @@
   }
 }
 
-
 .participant-form-header {
   display: flex;
   justify-content: space-between;
@@ -358,24 +357,29 @@
   color: #f44336;
 }
 .participant-form {
-    background: #ffffff;
-    border-radius: 16px;
-    max-height: 545
-    px;
-    padding: 24px;
-    overflow-y: scroll;
-    width: 526px;
-    max-width: 90vw;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-    font-family: "Inter", sans-serif;
-    color: #222;
-    position: relative;
-    animation: fadeIn 0.25s ease;
+  background: #ffffff;
+  border-radius: 16px;
+  max-height: 545 px;
+  padding: 24px;
+  overflow-y: scroll;
+  width: 526px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  font-family: "Inter", sans-serif;
+  color: #222;
+  position: relative;
+  animation: fadeIn 0.25s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* 🌙 Dark Theme Overrides */
@@ -409,7 +413,7 @@ body.dark-theme .participant-form-header {
 }
 
 body.dark-theme .participant-form-header h4 {
-  color: #8fa9ff;
+  color: #9ee7e7;
 }
 
 .form-close-btn {
@@ -473,7 +477,7 @@ body.dark-theme .input-group select {
 
 body.dark-theme .input-group input:focus,
 body.dark-theme .input-group select:focus {
-  border-color: #8fa9ff;
+  border-color: #00c6c652;
 }
 
 .add-participant {
@@ -642,9 +646,9 @@ body.dark-theme .error-content {
   font-size: 0.85rem;
 }
 .plus-btn {
-    width: 100%;
+  width: 100%;
 }
 
 .participant-form label {
-    font-weight: 600;
+  font-weight: 600;
 }

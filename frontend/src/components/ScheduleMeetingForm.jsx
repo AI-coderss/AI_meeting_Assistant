@@ -47,43 +47,43 @@ const MedicalMeetingScheduler = () => {
     setResponse({ type: "", message: "" });
 
     try {
+      function toLocalIsoWithOffset(dateString) {
+        const date = new Date(dateString);
 
-  function toLocalIsoWithOffset(dateString) {
-  const date = new Date(dateString);
+        // Get timezone offset in hours and minutes
+        const tzOffset = -date.getTimezoneOffset();
+        const sign = tzOffset >= 0 ? "+" : "-";
+        const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2, "0");
+        const hours = pad(tzOffset / 60);
+        const minutes = pad(tzOffset % 60);
 
-  // Get timezone offset in hours and minutes
-  const tzOffset = -date.getTimezoneOffset();
-  const sign = tzOffset >= 0 ? "+" : "-";
-  const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2, "0");
-  const hours = pad(tzOffset / 60);
-  const minutes = pad(tzOffset % 60);
+        // Build ISO string with offset
+        const iso = date.toISOString().replace("Z", "");
+        return `${iso}${sign}${hours}:${minutes}`;
+      }
 
-  // Build ISO string with offset
-  const iso = date.toISOString().replace("Z", "");
-  return `${iso}${sign}${hours}:${minutes}`;
-}
+      // Original meeting time
+      const meetingTimeISO = toLocalIsoWithOffset(formData.meeting_time);
 
-// Original meeting time
-const meetingTimeISO = toLocalIsoWithOffset(formData.meeting_time);
+      // 1 hour later
+      const oneHourLater = new Date(formData.meeting_time);
+      oneHourLater.setHours(oneHourLater.getHours() + 1);
+      const oneHourLaterISO = toLocalIsoWithOffset(oneHourLater.toISOString());
 
-// 1 hour later
-const oneHourLater = new Date(formData.meeting_time);
-oneHourLater.setHours(oneHourLater.getHours() + 1);
-const oneHourLaterISO = toLocalIsoWithOffset(oneHourLater.toISOString());
+      const payload = {
+        ...formData,
+        meeting_time: toLocalIsoWithOffset(formData.meeting_time),
+      };
 
-const payload = {
-  ...formData,
-  meeting_time: toLocalIsoWithOffset(formData.meeting_time)
-};
-
-const n8npayload = {
-  ...formData,
-  meeting_time: meetingTimeISO,       // Original time
-  reminder_time: oneHourLaterISO      // 1 hour later
-};
+      const n8npayload = {
+        ...formData,
+        meeting_time: meetingTimeISO, // Original time
+        reminder_time: oneHourLaterISO, // 1 hour later
+      };
 
       // Send to n8n webhook
-      const n8nWebhookUrl = "https://n8n-latest-h3pu.onrender.com/webhook/0ca8d94d-a335-43f8-90c7-130fe37292b3";
+      const n8nWebhookUrl =
+        "https://n8n-latest-h3pu.onrender.com/webhook/0ca8d94d-a335-43f8-90c7-130fe37292b3";
       await fetch(n8nWebhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,7 +91,8 @@ const n8npayload = {
       });
 
       // Save to Flask MongoDB API
-      const flaskAPI = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/save_medical_meeting";
+      const flaskAPI =
+        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/save_medical_meeting";
       const flaskRes = await fetch(flaskAPI, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,7 +128,7 @@ const n8npayload = {
 
   return (
     <div className="meeting-container">
-      <h2> Schedule a Meeting</h2>
+      <h2 class="h3 h2-md h1-lg">Schedule a Meeting</h2>
       <form onSubmit={handleSubmit} className="meeting-form">
         {/* Meeting Title */}
         <div>
@@ -175,7 +176,12 @@ const n8npayload = {
         {/* Host */}
         <div>
           <label>Host (Doctor/Staff Email)</label>
-          <input id="host_email" type="email" value={formData.host_email} readOnly />
+          <input
+            id="host_email"
+            type="email"
+            value={formData.host_email}
+            readOnly
+          />
         </div>
 
         {/* Participants */}
@@ -187,19 +193,25 @@ const n8npayload = {
                 type="text"
                 placeholder="Name"
                 value={p.name}
-                onChange={(e) => handleParticipantChange(index, "name", e.target.value)}
+                onChange={(e) =>
+                  handleParticipantChange(index, "name", e.target.value)
+                }
                 required
               />
               <input
                 type="email"
                 placeholder="Email"
                 value={p.email}
-                onChange={(e) => handleParticipantChange(index, "email", e.target.value)}
+                onChange={(e) =>
+                  handleParticipantChange(index, "email", e.target.value)
+                }
                 required
               />
               <select
                 value={p.role}
-                onChange={(e) => handleParticipantChange(index, "role", e.target.value)}
+                onChange={(e) =>
+                  handleParticipantChange(index, "role", e.target.value)
+                }
                 required
               >
                 <option value="">Select Role</option>
@@ -222,9 +234,11 @@ const n8npayload = {
             </div>
           ))}
 
-          <button type="button" onClick={addParticipant} className="add-btn">
-            + Add Participant
-          </button>
+          <div className="text-center mt-3">
+            <button type="button" onClick={addParticipant} className="add-btn">
+              + Add Participant
+            </button>
+          </div>
         </div>
 
         <button type="submit">💾 Schedule Meeting</button>
