@@ -9,7 +9,7 @@ const LINKS = [
 export default function Navbar({
   brand = "AI Meeting Assistant",
   current = "live", // "live" | "history"
-  onNavigate,       // optional: (href) => void
+  onNavigate, // optional: (href) => void
 }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
@@ -56,17 +56,25 @@ export default function Navbar({
     <header className={`napbar ${open ? "is-open" : ""}`}>
       <nav className="napbar__inner" aria-label="Primary">
         <div className="logoo">
-        <a className="napbar__brand" href="/" onClick={(e) => onNavigate && (e.preventDefault(), onNavigate("/"))}>
-          <span className="napbar__logo" aria-hidden="true">🤖</span>
-          <span className="napbar__brandText">{brand}</span>
-        </a>
-</div>
+          <a
+            className="napbar__brand"
+            href="/"
+            onClick={(e) => onNavigate && (e.preventDefault(), onNavigate("/"))}
+          >
+            <span className="napbar__logo" aria-hidden="true">
+              🤖
+            </span>
+            <span className="napbar__brandText">{brand}</span>
+          </a>
+        </div>
         {/* Desktop links */}
         <ul className="napbar__links">
           {LINKS.map((l, i) => (
             <li key={l.key} className="napbar__item">
               <a
-                className={`napbar__link ${current === l.key ? "is-active" : ""}`}
+                className={`napbar__link ${
+                  current === l.key ? "is-active" : ""
+                }`}
                 href={l.href}
                 onClick={(e) => handleLink(e, l.href)}
               >
@@ -102,8 +110,16 @@ export default function Navbar({
         aria-labelledby="napbar-mobile-title"
       >
         <div className="napbar__drawerHeader">
-          <span id="napbar-mobile-title" className="napbar__drawerTitle">{brand}</span>
-          <button className="napbar__drawerClose" onClick={closeMenu} aria-label="Close menu">✕</button>
+          <span id="napbar-mobile-title" className="napbar__drawerTitle">
+            {brand}
+          </span>
+          <button
+            className="napbar__drawerClose"
+            onClick={closeMenu}
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
         </div>
 
         <ul className="napbar__drawerList">
@@ -114,7 +130,9 @@ export default function Navbar({
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <a
-                className={`napbar__drawerLink ${current === l.key ? "is-active" : ""}`}
+                className={`napbar__drawerLink ${
+                  current === l.key ? "is-active" : ""
+                }`}
                 href={l.href}
                 onClick={(e) => handleLink(e, l.href)}
               >
@@ -129,7 +147,11 @@ export default function Navbar({
       </div>
 
       {/* Backdrop */}
-      <div className="napbar__backdrop" onClick={closeMenu} aria-hidden="true" />
+      <div
+        className="napbar__backdrop"
+        onClick={closeMenu}
+        aria-hidden="true"
+      />
     </header>
   );
 }

@@ -61,7 +61,10 @@ const MeetingHistory = () => {
   return (
     <div className="tab-content">
       <div className="history-header">
-        <h2>Meeting History (by Host)</h2>
+        <h2 class="fs-4 fs-sm-3 fs-md-2 fw-semibold mb-3 text-center text-md-start text-dark dark:text-white">
+          Meeting History (by Host)
+        </h2>
+
         <div className="search-controls">
           <input
             type="text"
@@ -130,88 +133,88 @@ const MeetingHistory = () => {
         )}
       </div>
 
-    {/* ✅ Modal Content */}
-{selectedMeeting && (
-  <div className="modal-overlay" onClick={closeModal}>
-    
-    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-      <div className="btn-close-modal">
-          <button className="btn btn-close" onClick={closeModal}></button>
-</div>
-      <h2>{selectedMeeting.title}</h2>
-      <p>
-        <strong>Host:</strong> {selectedMeeting.host}
-      </p>
-      <p>
-        <strong>Participants:</strong>{" "}
-        {selectedMeeting.participants?.join(", ") || "None"}
-      </p>
-      <p>
-        <strong>Status:</strong> {selectedMeeting.status}
-      </p>
-      <p>
-        <strong>Date:</strong>{" "}
-        {new Date(selectedMeeting.timestamp).toLocaleString()}
-      </p>
-
-      {/* ✅ Render summary object safely */}
-      {selectedMeeting.summary && (
-        <div className="meeting-summary">
-          <h3>Summary</h3>
-          <p>{selectedMeeting.summary.summary || "No summary available"}</p>
-
-          {selectedMeeting.summary.key_points?.length > 0 && (
-            <>
-              <h4>Key Points</h4>
-              <ul>
-                {selectedMeeting.summary.key_points.map((point, idx) => (
-                  <li key={idx}>{point}</li>
-                ))}
-              </ul>
-            </>
-          )}
-
-          {selectedMeeting.summary.action_items?.length > 0 && (
-            <>
-              <h4>Action Items</h4>
-              <ul>
-                {selectedMeeting.summary.action_items.map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
-            </>
-          )}
-
-          {selectedMeeting.summary.decisions_made?.length > 0 && (
-            <>
-              <h4>Decisions Made</h4>
-              <ul>
-                {selectedMeeting.summary.decisions_made.map((decision, idx) => (
-                  <li key={idx}>{decision}</li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ✅ Render transcript */}
-      {selectedMeeting.transcript?.length > 0 && (
-        <div className="meeting-transcript">
-          <h3>Transcript</h3>
-          {selectedMeeting.transcript.map((t, idx) => (
-            <p key={idx}>
-              <strong>{t.speaker}:</strong> {t.text}
+      {/* ✅ Modal Content */}
+      {selectedMeeting && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="btn-close-modal">
+              <button className="btn btn-close" onClick={closeModal}></button>
+            </div>
+            <h2>{selectedMeeting.title}</h2>
+            <p>
+              <strong>Host:</strong> {selectedMeeting.host}
             </p>
-          ))}
+            <p>
+              <strong>Participants:</strong>{" "}
+              {selectedMeeting.participants?.join(", ") || "None"}
+            </p>
+            <p>
+              <strong>Status:</strong> {selectedMeeting.status}
+            </p>
+            <p>
+              <strong>Date:</strong>{" "}
+              {new Date(selectedMeeting.timestamp).toLocaleString()}
+            </p>
+
+            {/* ✅ Render summary object safely */}
+            {selectedMeeting.summary && (
+              <div className="meeting-summary">
+                <h3>Summary</h3>
+                <p>
+                  {selectedMeeting.summary.summary || "No summary available"}
+                </p>
+
+                {selectedMeeting.summary.key_points?.length > 0 && (
+                  <>
+                    <h4>Key Points</h4>
+                    <ul>
+                      {selectedMeeting.summary.key_points.map((point, idx) => (
+                        <li key={idx}>{point}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {selectedMeeting.summary.action_items?.length > 0 && (
+                  <>
+                    <h4>Action Items</h4>
+                    <ul>
+                      {selectedMeeting.summary.action_items.map((item, idx) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {selectedMeeting.summary.decisions_made?.length > 0 && (
+                  <>
+                    <h4>Decisions Made</h4>
+                    <ul>
+                      {selectedMeeting.summary.decisions_made.map(
+                        (decision, idx) => (
+                          <li key={idx}>{decision}</li>
+                        )
+                      )}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ✅ Render transcript */}
+            {selectedMeeting.transcript?.length > 0 && (
+              <div className="meeting-transcript">
+                <h3>Transcript</h3>
+                {selectedMeeting.transcript.map((t, idx) => (
+                  <p key={idx}>
+                    <strong>{t.speaker}:</strong> {t.text}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
-
-      
-    </div>
-  </div>
-)}
-
 
       {/* ✅ Inline CSS for modal styling */}
       <style jsx>{`
@@ -252,22 +255,22 @@ const MeetingHistory = () => {
           padding: 1rem;
           border-radius: 8px;
         }
-      .modal-content h2 {
-    color: #004aad;
-    font-size: 21px;
-}
+        .modal-content h2 {
+          color: #004aad;
+          font-size: 21px;
+        }
         .modal-content h3 {
-    margin-top: 1rem;
-    color: #0073e6;
-    font-size: 20px;
-}
-          .btn-close-modal {
-    display: flex;
-    justify-content: end;
-}
-    .btn-close-modal .btn.btn-close {
-    box-shadow: unset;
-}
+          margin-top: 1rem;
+          color: #0073e6;
+          font-size: 20px;
+        }
+        .btn-close-modal {
+          display: flex;
+          justify-content: end;
+        }
+        .btn-close-modal .btn.btn-close {
+          box-shadow: unset;
+        }
       `}</style>
     </div>
   );

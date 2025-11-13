@@ -761,6 +761,30 @@ button.btn.btn-delete {
 }
 
 /* Dark Theme */
+.dark-theme .navigation ul li.active a .icon {
+  position: relative;
+  color: #fff;
+}
+.dark-theme .navigation ul li a .icon {
+  color: #fff;
+}
+.dark-theme .navigation {
+  background: #202b3d;
+}
+.dark-theme .navigation ul li a .text {
+  color: #fff;
+}
+.dark-theme .navigation ul li.active a .icon::after {
+  z-index: -1;
+  content: "";
+  background-color: #6ec9c9;
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  top: 18px;
+  left: -8px;
+  border-radius: 100%;
+}
 .dark-theme .btn {
   background: linear-gradient(45deg, #9ee7e7, #23aaaa);
   font-weight: 600;
@@ -830,10 +854,11 @@ button.btn.btn-delete {
   background: rgba(51, 65, 85, 0.7);
   border-left-color: #818cf8;
 }
-input[type="date"],
-input[type="datetime-local"] {
+.dark-theme input[type="date"],
+.dark-theme input[type="datetime-local"] {
   color-scheme: dark;
 }
+
 .dark-theme .file-upload-area {
   background: rgba(51, 65, 85, 0.7);
   border-color: #475569;
@@ -888,10 +913,18 @@ input[type="datetime-local"] {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .main-content .table th,
+  .dark-theme .main-content .table.table-light th {
+    min-width: 212px;
+  }
+
   .header-content {
     padding: 0 1rem;
     flex-direction: column;
     gap: 1rem;
+  }
+  body .navigation {
+    visibility: visible;
   }
 
   .app-header h1 {
@@ -904,6 +937,7 @@ input[type="datetime-local"] {
     top: auto;
     position: relative;
     text-align: center;
+    display: none;
   }
 
   .main-content {
@@ -1124,4 +1158,8 @@ button.btn.btn-danger.btn-del.btn-sm {
   .meeting-container h2 {
     font-size: 22px !important;
   }
+}
+
+.navigation {
+  visibility: hidden;
 }

@@ -10,80 +10,80 @@ const UpcomingMeetings = () => {
   }, []);
 
   useEffect(() => {
-  if (!("Notification" in window)) return;
+    if (!("Notification" in window)) return;
 
-  Notification.requestPermission(); // Ask permission once
+    Notification.requestPermission(); // Ask permission once
 
-  const checkReminders = () => {
-    const now = new Date();
-    meetings.forEach((m) => {
-      const meetingTime = new Date(m.meeting_time);
-      const diffMinutes = (meetingTime - now) / 1000 / 60;
-      if (diffMinutes > 59 && diffMinutes <= 60) {
-        // Fire notification only once
-        new Notification("Meeting Reminder", {
-          body: `${m.meeting_title} starts in 1 hour!`,
-        });
+    const checkReminders = () => {
+      const now = new Date();
+      meetings.forEach((m) => {
+        const meetingTime = new Date(m.meeting_time);
+        const diffMinutes = (meetingTime - now) / 1000 / 60;
+        if (diffMinutes > 59 && diffMinutes <= 60) {
+          // Fire notification only once
+          new Notification("Meeting Reminder", {
+            body: `${m.meeting_title} starts in 1 hour!`,
+          });
+        }
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60 * 1000); // check every minute
+    return () => clearInterval(interval);
+  }, [meetings]);
+
+  // Check if browser supports notifications
+  // if ("Notification" in window) {
+  //   Notification.requestPermission().then((permission) => {
+  //     if (permission === "granted") {
+  //       // Show a test notification
+  //       new Notification("🩺 Test Meeting Reminder", {
+  //         body: "This is a test notification for a meeting starting in 1 hour!",
+  //         icon: "https://cdn-icons-png.flaticon.com/512/2910/2910768.png", // optional icon
+  //       });
+  //     } else {
+  //       alert("Notification permission denied");
+  //     }
+  //   });
+  // } else {
+  //   alert("Your browser does not support notifications.");
+  // }
+
+  const fetchUpcomingMeetings = async () => {
+    try {
+      const res = await fetch(
+        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings"
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Bad response:", text);
+        throw new Error("Failed to fetch meetings");
       }
-    });
+
+      const data = await res.json();
+      console.log("Fetched meetings:", data);
+
+      const now = new Date();
+      const upcoming = data.filter((m) => {
+        const meetingTime = new Date(m.meeting_time);
+        return meetingTime.getTime() > now.getTime(); // compare in ms
+      });
+
+      console.log("Upcoming meetings:", upcoming);
+      setMeetings(upcoming);
+    } catch (err) {
+      console.error("Error fetching meetings:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const interval = setInterval(checkReminders, 60 * 1000); // check every minute
-  return () => clearInterval(interval);
-}, [meetings]);
-
-// Check if browser supports notifications
-// if ("Notification" in window) {
-//   Notification.requestPermission().then((permission) => {
-//     if (permission === "granted") {
-//       // Show a test notification
-//       new Notification("🩺 Test Meeting Reminder", {
-//         body: "This is a test notification for a meeting starting in 1 hour!",
-//         icon: "https://cdn-icons-png.flaticon.com/512/2910/2910768.png", // optional icon
-//       });
-//     } else {
-//       alert("Notification permission denied");
-//     }
-//   });
-// } else {
-//   alert("Your browser does not support notifications.");
-// }
-
- const fetchUpcomingMeetings = async () => {
-  try {
-    const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings");
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Bad response:", text);
-      throw new Error("Failed to fetch meetings");
-    }
-
-    const data = await res.json();
-    console.log("Fetched meetings:", data);
-
-    const now = new Date();
-    const upcoming = data.filter((m) => {
-      const meetingTime = new Date(m.meeting_time);
-      return meetingTime.getTime() > now.getTime(); // compare in ms
-    });
-
-    console.log("Upcoming meetings:", upcoming);
-    setMeetings(upcoming);
-  } catch (err) {
-    console.error("Error fetching meetings:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
   const formatDate = (gmtString) =>
-  new Date(gmtString).toLocaleString("en-SA", {
-    timeZone: "Asia/Riyadh",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
+    new Date(gmtString).toLocaleString("en-SA", {
+      timeZone: "Asia/Riyadh",
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
 
   return (
     <div className="upcoming-container">
@@ -94,30 +94,30 @@ const UpcomingMeetings = () => {
       ) : meetings.length === 0 ? (
         <p>No upcoming meetings scheduled.</p>
       ) : (
-        <table className="upcoming-table">
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Type</th>
-              <th>Scheduled Time</th>
-              <th>Host</th>
-              <th>Participants</th>
-            </tr>
-          </thead>
-          <tbody>
-            {meetings.map((m, idx) => (
-              <tr key={idx}>
-                <td>{m.meeting_title}</td>
-                <td>{m.meeting_type}</td>
-                <td>{formatDate(m.meeting_time)}</td>
-                <td>{m.host_email}</td>
-                <td>
-                  {m.participants.map((p) => p.email).join(", ")}
-                </td>
+        <div className="table-responsive">
+          <table className="upcoming-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Scheduled Time</th>
+                <th>Host</th>
+                <th>Participants</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {meetings.map((m, idx) => (
+                <tr key={idx}>
+                  <td>{m.meeting_title}</td>
+                  <td>{m.meeting_type}</td>
+                  <td>{formatDate(m.meeting_time)}</td>
+                  <td>{m.host_email}</td>
+                  <td>{m.participants.map((p) => p.email).join(", ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

@@ -12,8 +12,6 @@ const Tabs = ({ activeTab, setActiveTab }) => {
 
   return (
     <nav className="tabs">
-   
-
       <div className="button-left">
         <button
           className={`tab ${activeTab === "schedule" ? "active" : ""}`}

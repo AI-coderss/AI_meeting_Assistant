@@ -1,0 +1,138 @@
+@import url("https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+:root {
+  --clr: #222327;
+  --primary: #3a54ec; /* your theme color */
+  --surface: #ffffff;
+  --bg-app: #1a1a1a;
+}
+
+/* -------- MOBILE NAV -------- */
+.meeting-nav-wrapper {
+  background: var(--bg-app);
+}
+
+.navigation {
+  position: relative;
+  width: 100%;
+  height: 70px;
+  background: var(--surface);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  position: fixed;
+  bottom: 0;
+}
+
+.navigation ul {
+  display: flex;
+  justify-content: space-between;
+  width: 350px;
+}
+
+.navigation ul li {
+  list-style: none;
+  width: 70px;
+  height: 70px;
+  z-index: 1;
+}
+
+.navigation ul li a {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.navigation ul li a .icon {
+  line-height: 75px;
+  font-size: 1.5em;
+  color: var(--clr);
+  transition: 0.5s;
+}
+
+.navigation ul li.active a .icon {
+  transform: translateY(-32px);
+  color: #fff;
+}
+.navigation ul li.active a .icon::after {
+  z-index: -1;
+  content: "";
+  background-color: #3a54ec;
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  top: 22px;
+  left: -6px;
+  border-radius: 100%;
+}
+.navigation ul li a .text {
+  position: absolute;
+  color: var(--clr);
+  font-weight: 400;
+  font-size: 0.75em;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: 0.5s;
+}
+
+.navigation ul li.active a .text {
+  opacity: 1;
+  transform: translateY(10px);
+}
+
+.indicator {
+  position: absolute;
+  top: -50%;
+  width: 50px;
+  height: 50px;
+  background: var(--primary);
+  border-radius: 50%;
+  border: 6px solid var(--surface);
+  transition: 0.5s;
+  display: none;
+}
+
+.indicator::before,
+.indicator::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+}
+
+.indicator::before {
+  left: -22px;
+  border-top-right-radius: 20px;
+  box-shadow: 1px -10px 0 0 var(--surface);
+}
+
+.indicator::after {
+  right: -22px;
+  border-top-left-radius: 20px;
+  box-shadow: -1px -10px 0 0 var(--surface);
+}
+@media (max-width: 1024px) {
+  .tabs {
+    text-align: center;
+  }
+}
+
+/* Hide on desktop */
+@media (max-width: 768px) {
+  .meeting-nav-wrapper {
+    display: none;
+  }
+}

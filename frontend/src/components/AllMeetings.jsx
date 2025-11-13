@@ -14,7 +14,7 @@ const AllMeetings = ({
   setActiveTab,
 }) => {
   // 🔹 Delete meeting API call
-    const deleteMeeting = async (id) => {
+  const deleteMeeting = async (id) => {
     const result = await Swal.fire({
       title: "Are you sure?",
       text: "This meeting will be permanently deleted.",
@@ -28,13 +28,16 @@ const AllMeetings = ({
     if (!result.isConfirmed) return;
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/meetings/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error(await response.text());
@@ -45,10 +48,13 @@ const AllMeetings = ({
       fetchMeetings(); // 🔄 refresh meetings
     } catch (error) {
       console.error("Failed to delete meeting:", error);
-      Swal.fire("Error!", "Failed to delete meeting. Please try again.", "error");
+      Swal.fire(
+        "Error!",
+        "Failed to delete meeting. Please try again.",
+        "error"
+      );
     }
   };
-
 
   return (
     <div className="tab-content">
@@ -69,7 +75,10 @@ const AllMeetings = ({
             onChange={(e) => setParticipantFilter(e.target.value)}
             className="search-input"
           />
-          <button className="btn btn-search search-view" onClick={fetchMeetings}>
+          <button
+            className="btn btn-search search-view"
+            onClick={fetchMeetings}
+          >
             🔍 Search
           </button>
         </div>
@@ -114,12 +123,15 @@ const AllMeetings = ({
                   View
                 </button>
                 <div className=" del-responsive">
-                <button
-                  className="btn btn-delete "
-                  onClick={() => deleteMeeting(meeting.id)}
-                >
-                 <span className="text-danger"> <FaTrash /></span>
-                </button>
+                  <button
+                    className="btn btn-delete "
+                    onClick={() => deleteMeeting(meeting.id)}
+                  >
+                    <span className="text-danger">
+                      {" "}
+                      <FaTrash />
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
