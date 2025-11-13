@@ -42,43 +42,36 @@ const MedicalMeetingScheduler = () => {
     setFormData((prev) => ({ ...prev, participants: updated }));
   };
 
+function toSaudiIso(dateString) {
+  // Parse the user's selected date-time (no timezone)
+  const [datePart, timePart] = dateString.split("T");
+  if (!timePart) return null;
+  // Directly append Saudi timezone offset
+  return `${datePart}T${timePart}:00+03:00`;
+}
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setResponse({ type: "", message: "" });
 
     try {
-      function toLocalIsoWithOffset(dateString) {
-        const date = new Date(dateString);
+      // Convert to Saudi ISO time for both systems
+      const saudiMeetingISO = toSaudiIso(formData.meeting_time);
 
-        // Get timezone offset in hours and minutes
-        const tzOffset = -date.getTimezoneOffset();
-        const sign = tzOffset >= 0 ? "+" : "-";
-        const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2, "0");
-        const hours = pad(tzOffset / 60);
-        const minutes = pad(tzOffset % 60);
-
-        // Build ISO string with offset
-        const iso = date.toISOString().replace("Z", "");
-        return `${iso}${sign}${hours}:${minutes}`;
-      }
-
-      // Original meeting time
-      const meetingTimeISO = toLocalIsoWithOffset(formData.meeting_time);
-
-      // 1 hour later
+      // Reminder (1 hour later)
       const oneHourLater = new Date(formData.meeting_time);
       oneHourLater.setHours(oneHourLater.getHours() + 1);
-      const oneHourLaterISO = toLocalIsoWithOffset(oneHourLater.toISOString());
+      const saudiReminderISO = toSaudiIso(oneHourLater.toISOString());
 
       const payload = {
         ...formData,
-        meeting_time: toLocalIsoWithOffset(formData.meeting_time),
+        meeting_time: saudiMeetingISO,
       };
 
       const n8npayload = {
         ...formData,
-        meeting_time: meetingTimeISO, // Original time
-        reminder_time: oneHourLaterISO, // 1 hour later
+        meeting_time: saudiMeetingISO,
+        reminder_time: saudiReminderISO,
       };
 
       // Send to n8n webhook
@@ -102,7 +95,7 @@ const MedicalMeetingScheduler = () => {
       if (flaskRes.ok) {
         setResponse({
           type: "success",
-          message: "✅ Medical meeting scheduled successfully!",
+          message: "✅ Medical meeting scheduled successfully in Saudi time!",
         });
         setFormData({
           meeting_title: "",
@@ -128,7 +121,7 @@ const MedicalMeetingScheduler = () => {
 
   return (
     <div className="meeting-container">
-      <h2 class="h3 h2-md h1-lg">Schedule a Meeting</h2>
+      <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
       <form onSubmit={handleSubmit} className="meeting-form">
         {/* Meeting Title */}
         <div>
@@ -163,7 +156,7 @@ const MedicalMeetingScheduler = () => {
 
         {/* Meeting Time */}
         <div>
-          <label>Meeting Date & Time</label>
+          <label>Meeting Date & Time (Saudi Time)</label>
           <input
             id="meeting_time"
             type="datetime-local"
