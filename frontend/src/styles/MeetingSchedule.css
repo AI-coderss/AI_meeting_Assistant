@@ -1,5 +1,5 @@
 .meeting-container {
-  max-width: 600px;
+  max-width: 540px;
   margin: 40px auto;
   background: #f9fdfc;
   border-radius: 12px;
@@ -287,4 +287,111 @@ input#meeting_time,
 }
 .dark-theme .participant-row select {
   color: #000;
+}
+/*------------------------------*/
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  cursor: pointer;
+  padding: 5px;
+  z-index: 1001;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  width: 19px;
+  height: 19px;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+}
+
+.hamburger span {
+  display: block;
+  height: 3px;
+  width: 100%;
+  background-color: currentColor;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.hamburger.active span:nth-child(1) {
+  transform: rotate(45deg) translate(6px, 6px);
+}
+
+.hamburger.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Mobile Menu */
+.mobile-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: inherit;
+  border-top: 1px solid #212b3a;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  z-index: 1000;
+  transform: translateY(-10px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.mobile-menu.active {
+  display: block;
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+.mobile-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: end;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .theme-toggle {
+    width: 39px;
+    height: 39px;
+  }
+  .btn.login-btn {
+    width: 39px;
+    height: 39px;
+  }
+  .mobile-menu.active {
+    background-color: #fff;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  }
+  .dark-theme .mobile-menu.active {
+    background-color: #131b2f;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+  }
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .header-controls {
+    display: none;
+  }
+
+  .mobile-menu {
+    display: block;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu {
+    display: none !important;
+  }
 }

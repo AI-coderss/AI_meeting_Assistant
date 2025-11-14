@@ -932,6 +932,10 @@ button.btn.btn-delete {
 }
 
 @media (max-width: 768px) {
+  .theme-toggle {
+    background: rgb(58 84 236);
+    border: 1px solid rgb(88 93 114);
+  }
   .search-input {
     font-size: 14px;
   }
@@ -963,25 +967,13 @@ button.btn.btn-delete {
   .app-logo {
     width: 125px;
   }
-  .theme-toggle {
-    width: 36px;
-    height: 36px;
-    font-size: 1rem;
-  }
 
   .meeting-controls h2,
   .history-header h2 {
     font-size: 18px;
     margin: 0 auto;
   }
-  .btn.login-btn {
-    height: 36px !important;
-    width: 36px !important;
-    padding: 0px !important;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+
   .tabs {
     padding: 0 1rem;
     overflow-x: auto;
@@ -1209,19 +1201,12 @@ button.btn.btn-danger.btn-del.btn-sm {
   .app-header h1 {
     font-size: 12px;
   }
-  .theme-toggle {
-    width: 27px;
-    height: 27px;
-    font-size: 12px;
-  }
+
   .login-btn svg {
     width: 16px;
     height: 16px;
   }
-  .btn.login-btn {
-    height: 30px !important;
-    width: 30px !important;
-  }
+
   .app-logo {
     width: 105px;
   }
