@@ -49,34 +49,43 @@ const UpcomingMeetings = () => {
   //   alert("Your browser does not support notifications.");
   // }
 
-  const fetchUpcomingMeetings = async () => {
-    try {
-      const res = await fetch(
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_medical_meetings"
-      );
-      if (!res.ok) {
-        const text = await res.text();
-        console.error("Bad response:", text);
-        throw new Error("Failed to fetch meetings");
-      }
-
-      const data = await res.json();
-      console.log("Fetched meetings:", data);
-
-      const now = new Date();
-      const upcoming = data.filter((m) => {
-        const meetingTime = new Date(m.meeting_time);
-        return meetingTime.getTime() > now.getTime(); // compare in ms
-      });
-
-      console.log("Upcoming meetings:", upcoming);
-      setMeetings(upcoming);
-    } catch (err) {
-      console.error("Error fetching meetings:", err);
-    } finally {
-      setLoading(false);
+const fetchUpcomingMeetings = async () => {
+  try {
+    const storedEmail = localStorage.getItem("email");
+    if (!storedEmail) {
+      console.error("No email in localStorage");
+      return;
     }
-  };
+
+    const res = await fetch(
+      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
+        storedEmail
+      )}`
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Bad response:", text);
+      throw new Error("Failed to fetch user meetings");
+    }
+
+    const data = await res.json();
+    console.log("User meetings:", data);
+
+    const now = new Date();
+    const upcoming = data.filter((m) => {
+      const meetingTime = new Date(m.meeting_time);
+      return meetingTime > now;
+    });
+
+    setMeetings(upcoming);
+  } catch (err) {
+    console.error("Error fetching user meetings:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const formatDate = (gmtString) =>
     new Date(gmtString).toLocaleString("en-SA", {

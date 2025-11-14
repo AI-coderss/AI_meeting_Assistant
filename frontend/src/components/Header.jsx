@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Swal from "sweetalert2";
 
 const Header = ({ darkMode, toggleDarkMode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -18,6 +19,34 @@ const Header = ({ darkMode, toggleDarkMode }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+  const handleLogout = () => {
+  Swal.fire({
+    title: "Logout?",
+    text: "Are you sure you want to log out?",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Yes, Logout",
+    cancelButtonText: "Cancel",
+  }).then((result) => {
+    if (result.isConfirmed) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("email");
+      localStorage.removeItem("roles");
+
+      Swal.fire({
+        icon: "success",
+        title: "Logged out",
+        timer: 1000,
+        showConfirmButton: false,
+      });
+
+      setTimeout(() => {
+        window.location.href = "/authpage";
+      }, 1000);
+    }
+  });
+};
+
 
   return (
     <header className="app-header">
@@ -49,7 +78,7 @@ const Header = ({ darkMode, toggleDarkMode }) => {
           >
             {darkMode ? "☀️" : "🌙"}
           </button>
-          <button className="btn login-btn d-flex align-items-center gap-2">
+          <button className="btn login-btn d-flex align-items-center gap-2"   onClick={handleLogout}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="20"

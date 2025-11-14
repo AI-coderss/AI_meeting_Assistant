@@ -715,6 +715,32 @@ def save_medical_meeting():
         logger.error(f"Error saving medical meeting: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
+@app.route("/api/get_user_medical_meetings", methods=["GET"])
+def get_user_medical_meetings():
+    """
+    Return medical meetings only for a specific user.
+    Expected query param: ?email=user@example.com
+    """
+    try:
+        email = request.args.get("email")
+
+        if not email:
+            return jsonify({"error": "Email query param is required"}), 400
+
+        # Filter by created_by field
+        meetings = list(
+            db["medical_meetings"]
+            .find({"host_email": email}, {"_id": 0})
+            .sort("meeting_time", 1)
+        )
+
+        return jsonify(meetings), 200
+
+    except Exception as e:
+        print("Error fetching user meetings:", e)
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/get_medical_meetings", methods=["GET"])
 def get_medical_meetings():
     """
