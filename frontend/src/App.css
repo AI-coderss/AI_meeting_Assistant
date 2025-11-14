@@ -276,6 +276,7 @@ span.napbar__brandText {
   padding: 2rem;
   width: 100%;
   animation: fadeIn 0.5s ease-out;
+  padding-top: 20px;
 }
 
 .tab-content {
@@ -884,7 +885,7 @@ button.btn.btn-delete {
 .dark-theme h2,
 .dark-theme h3,
 .dark-theme h4 {
-  color: #fff;
+  color: #fff !important;
 }
 
 .dark-theme .speaker {
