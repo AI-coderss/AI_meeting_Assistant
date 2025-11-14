@@ -83,9 +83,7 @@ body.dark-theme p {
 .upcoming-container {
   max-width: unset;
 }
-.upcoming-table th {
-  min-width: 180px;
-}
+
 /* Wrapper for horizontal scroll on small screens */
 .table-responsive {
   width: 100%;

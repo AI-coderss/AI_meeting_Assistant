@@ -42,13 +42,13 @@ const MedicalMeetingScheduler = () => {
     setFormData((prev) => ({ ...prev, participants: updated }));
   };
 
-function toSaudiIso(dateString) {
-  // Parse the user's selected date-time (no timezone)
-  const [datePart, timePart] = dateString.split("T");
-  if (!timePart) return null;
-  // Directly append Saudi timezone offset
-  return `${datePart}T${timePart}:00+03:00`;
-}
+  function toSaudiIso(dateString) {
+    // Parse the user's selected date-time (no timezone)
+    const [datePart, timePart] = dateString.split("T");
+    if (!timePart) return null;
+    // Directly append Saudi timezone offset
+    return `${datePart}T${timePart}:00+03:00`;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -123,60 +123,62 @@ function toSaudiIso(dateString) {
     <div className="meeting-container">
       <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
       <form onSubmit={handleSubmit} className="meeting-form">
-        {/* Meeting Title */}
-        <div>
-          <label>Meeting Title</label>
-          <input
-            id="meeting_title"
-            type="text"
-            placeholder="e.g., Post-surgery follow-up"
-            value={formData.meeting_title}
-            onChange={handleChange}
-            required
-          />
-        </div>
+        <div className="fex-sec">
+          {/* Meeting Title */}
+          <div>
+            <label>Meeting Title</label>
+            <input
+              id="meeting_title"
+              type="text"
+              placeholder="e.g., Post-surgery follow-up"
+              value={formData.meeting_title}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-        {/* Meeting Type */}
-        <div>
-          <label>Meeting Type</label>
-          <select
-            id="meeting_type"
-            value={formData.meeting_type}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Meeting Type</option>
-            <option value="Consultation">Consultation</option>
-            <option value="Case Discussion">Case Discussion</option>
-            <option value="Follow-up">Follow-up</option>
-            <option value="Team Meeting">Team Meeting</option>
-            <option value="Training Session">Training Session</option>
-          </select>
+          {/* Meeting Type */}
+          <div>
+            <label>Meeting Type</label>
+            <select
+              id="meeting_type"
+              value={formData.meeting_type}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Select Meeting Type</option>
+              <option value="Consultation">Consultation</option>
+              <option value="Case Discussion">Case Discussion</option>
+              <option value="Follow-up">Follow-up</option>
+              <option value="Team Meeting">Team Meeting</option>
+              <option value="Training Session">Training Session</option>
+            </select>
+          </div>
         </div>
+        <div className="fex-sec">
+          {/* Meeting Time */}
+          <div>
+            <label>Meeting Date & Time (Saudi Time)</label>
+            <input
+              id="meeting_time"
+              type="datetime-local"
+              value={formData.meeting_time}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-        {/* Meeting Time */}
-        <div>
-          <label>Meeting Date & Time (Saudi Time)</label>
-          <input
-            id="meeting_time"
-            type="datetime-local"
-            value={formData.meeting_time}
-            onChange={handleChange}
-            required
-          />
+          {/* Host */}
+          <div>
+            <label>Host (Doctor/Staff Email)</label>
+            <input
+              id="host_email"
+              type="email"
+              value={formData.host_email}
+              readOnly
+            />
+          </div>
         </div>
-
-        {/* Host */}
-        <div>
-          <label>Host (Doctor/Staff Email)</label>
-          <input
-            id="host_email"
-            type="email"
-            value={formData.host_email}
-            readOnly
-          />
-        </div>
-
         {/* Participants */}
         <div className="participants-section">
           <label>Add Participants</label>
@@ -227,7 +229,7 @@ function toSaudiIso(dateString) {
             </div>
           ))}
 
-          <div className="text-center mt-3">
+          <div className="text-center mt-3 mb-3">
             <button type="button" onClick={addParticipant} className="add-btn">
               + Add Participant
             </button>
