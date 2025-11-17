@@ -5,10 +5,12 @@ import gsap from "gsap";
 import Swal from "sweetalert2";
 import "../styles/auth.css";
 
-const LOGIN_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/login";
-const REGISTER_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/register";
-const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/"; 
-// const REDIRECT_URL = "http://localhost:3000/"; 
+const LOGIN_URL =
+  "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/login";
+const REGISTER_URL =
+  "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/register";
+const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/";
+// const REDIRECT_URL = "http://localhost:3000/";
 
 export default function AuthPage() {
   const [panelRightActive, setPanelRightActive] = useState(false);
@@ -50,7 +52,12 @@ export default function AuthPage() {
     const settle = gsap.timeline({ delay: 3.0 });
     settle
       .to(shellRef.current, { y: -6, duration: 0.8, ease: "sine.out" })
-      .to(shellRef.current, { y: 0, rotateZ: 0.4, duration: 0.8, ease: "sine.inOut" })
+      .to(shellRef.current, {
+        y: 0,
+        rotateZ: 0.4,
+        duration: 0.8,
+        ease: "sine.inOut",
+      })
       .to(shellRef.current, { rotateZ: 0, duration: 0.6, ease: "sine.inOut" });
     return () => settle.kill();
   }, []);
@@ -85,7 +92,7 @@ export default function AuthPage() {
         localStorage.setItem("email", signInEmail);
         localStorage.setItem("roles", JSON.stringify(data.roles || []));
         if (data.name) {
-        localStorage.setItem("name", data.name);
+          localStorage.setItem("name", data.name);
         }
         // redirect to your index page (provided)
         setTimeout(() => {
@@ -117,7 +124,11 @@ export default function AuthPage() {
       const res = await fetch(REGISTER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: signUpName, email: signUpEmail, password: signUpPass }),
+        body: JSON.stringify({
+          name: signUpName,
+          email: signUpEmail,
+          password: signUpPass,
+        }),
       });
 
       let data = {};
@@ -161,11 +172,22 @@ export default function AuthPage() {
 
   return (
     <div className="auth-root">
+      <div className="left logo-banner">
+        <div className="logo-sec">
+        <img src="/logo-img.png"></img>
+        </div>
+        <div className="bg-image"></div>
+      </div>
       <section className="auth-section">
         {/* Hero text ABOVE the form */}
         <div className="auth-hero" aria-hidden="false">
           <h1 className="hero-head">AI Meeting Assistant</h1>
-          <div className="hero-rotator" role="status" aria-live="polite" ref={heroRef}>
+          <div
+            className="hero-rotator"
+            role="status"
+            aria-live="polite"
+            ref={heroRef}
+          >
             <span className="hero-line">Meetings Transcription with AI.</span>
             <span className="hero-line">Generates Meetings Minutes.</span>
             <span className="hero-line">Agent For Automations.</span>
@@ -185,9 +207,16 @@ export default function AuthPage() {
           animate={{ x: 0, rotateZ: 0 }}
           transition={{ duration: 3.0, ease: "easeInOut" }}
         >
-          <div id="auth-shell" className={`auth-shell ${panelRightActive ? "is-signup" : ""}`} ref={shellRef}>
+          <div
+            id="auth-shell"
+            className={`auth-shell ${panelRightActive ? "is-signup" : ""}`}
+            ref={shellRef}
+          >
             {/* Sign Up */}
-            <div className="auth-form auth-signup" aria-hidden={!panelRightActive}>
+            <div
+              className="auth-form auth-signup"
+              aria-hidden={!panelRightActive}
+            >
               <form onSubmit={handleSignUp}>
                 <h1>Create Account</h1>
 
@@ -242,17 +271,23 @@ export default function AuthPage() {
                   />
                 </label>
 
-                <button className="auth-btn" style={{ marginTop: 9 }} disabled={signUpLoading}>
+                <button
+                  className="auth-btn"
+                  style={{ marginTop: 9 }}
+                  disabled={signUpLoading}
+                >
                   {signUpLoading ? "Signing up..." : "Sign Up"}
                 </button>
               </form>
             </div>
 
-            {/* Sign In */}
-            <div className="auth-form auth-signin" aria-hidden={panelRightActive}>
+            <div
+              className="auth-form auth-signin"
+              aria-hidden={panelRightActive}
+            >
               <form onSubmit={handleSignIn}>
                 <h1>Sign In</h1>
-{/* 
+                {/* 
                 <div className="auth-socials">
                   <span className="auth-social muted">GH</span>
                   <span className="auth-social muted">CP</span>
@@ -284,7 +319,11 @@ export default function AuthPage() {
 
                 {/* <a className="auth-forgot" href="#forgot">Forgot your password?</a> */}
 
-                {signInErr && <div className="auth-error" role="alert">{signInErr}</div>}
+                {signInErr && (
+                  <div className="auth-error" role="alert">
+                    {signInErr}
+                  </div>
+                )}
 
                 <button className="auth-btn mt-2" disabled={signInLoading}>
                   {signInLoading ? "Signing in..." : "Sign In"}
@@ -299,7 +338,7 @@ export default function AuthPage() {
                   <h1>Welcome Back</h1>
                   <p>Sign in if you already have an account.</p>
                   <button
-                    className="auth-btn ghost mt-5"
+                    className="auth-btn ghost mt-2"
                     onClick={() => setPanelRightActive(false)}
                     type="button"
                   >
