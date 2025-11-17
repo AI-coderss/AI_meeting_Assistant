@@ -7,10 +7,11 @@ import "../styles/auth.css";
 
 const LOGIN_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/login";
 const REGISTER_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/register";
-const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/"; // your index page
+const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/"; 
+// const REDIRECT_URL = "http://localhost:3000/"; 
 
 export default function AuthPage() {
-  const [panelRightActive, setPanelRightActive] = useState(false); // false = Sign In, true = Sign Up
+  const [panelRightActive, setPanelRightActive] = useState(false);
 
   // Sign-in state
   const [signInEmail, setSignInEmail] = useState("");
@@ -77,14 +78,15 @@ export default function AuthPage() {
           timer: 1300,
           showConfirmButton: false,
         });
-
         // Store token and user info (same keys as your old code)
         if (data.access_token) {
           localStorage.setItem("token", data.access_token);
         }
         localStorage.setItem("email", signInEmail);
         localStorage.setItem("roles", JSON.stringify(data.roles || []));
-
+        if (data.name) {
+        localStorage.setItem("name", data.name);
+        }
         // redirect to your index page (provided)
         setTimeout(() => {
           window.location.href = REDIRECT_URL;

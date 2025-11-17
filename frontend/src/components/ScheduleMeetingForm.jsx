@@ -13,10 +13,24 @@ const MedicalMeetingScheduler = () => {
   const [response, setResponse] = useState({ type: "", message: "" });
 
   // Prefill host email from localStorage
-  useEffect(() => {
-    const storedEmail = localStorage.getItem("email") || "";
-    setFormData((prev) => ({ ...prev, host_email: storedEmail }));
-  }, []);
+useEffect(() => {
+  const storedEmail = localStorage.getItem("email") || "";
+  const storedName = localStorage.getItem("name") || "";
+
+  setFormData((prev) => ({
+    ...prev,
+    host_email: storedEmail,
+    participants: [
+      {
+        name: storedName,
+        email: storedEmail,
+        role: "Host",
+      },
+      ...prev.participants, // keep other empty input
+    ],
+  }));
+}, []);
+
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -101,7 +115,7 @@ const MedicalMeetingScheduler = () => {
           meeting_title: "",
           meeting_type: "",
           meeting_time: "",
-          host_email: localStorage.getItem("email") || "",
+          host_email: localStorage.getItem("name") || "",
           participants: [{ name: "", email: "", role: "" }],
         });
       } else {
@@ -217,7 +231,7 @@ const MedicalMeetingScheduler = () => {
                 <option value="Admin Staff">Admin Staff</option>
               </select>
 
-              {formData.participants.length > 1 && (
+              {index !== 0 && formData.participants.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeParticipant(index)}

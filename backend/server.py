@@ -18,7 +18,6 @@ from flask import Flask, Blueprint, request, jsonify, abort
 from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 # from flask_socketio import SocketIO, join_room, leave_room
-from google_calendar_service import GoogleCalendarService
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
 
@@ -116,6 +115,7 @@ class MeetingCreate(BaseModel):
 # Auth models
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
     email: EmailStr
     password_hash: str
     roles: List[str] = ["viewer"]
@@ -123,6 +123,7 @@ class User(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserCreate(BaseModel):
+    name: str
     email: EmailStr
     password: str
 
@@ -240,6 +241,7 @@ def register():
             return jsonify({"success": False, "message": "User already exists"}), 400
 
         user = User(
+            name=body.name,
             email=body.email,
             password_hash=hash_password(body.password),
             roles=roles
@@ -287,7 +289,8 @@ def login():
         "message": "Login successful",
         "access_token": token,
         "roles": user.get("roles", []),
-        "user_id": user["id"]
+        "user_id": user["id"],
+        "name": user.get("name", "")
     }), 200
 
 # ---- Admin endpoints ----

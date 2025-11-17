@@ -16,5 +16,5 @@ export function isTokenExpired(token) {
 
 export function logout() {
   localStorage.removeItem("token");
-  window.location.href = "/login";
+  window.location.href = "/authpage";
 }

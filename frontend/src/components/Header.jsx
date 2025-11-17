@@ -102,7 +102,7 @@ const Header = ({ darkMode, toggleDarkMode }) => {
             >
               {darkMode ? "☀️ " : "🌙 "}
             </button>
-            <button className="btn login-btn mobile-login-btn">
+            <button className="btn login-btn mobile-login-btn" onClick={handleLogout}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="20"
