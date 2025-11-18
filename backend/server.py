@@ -925,15 +925,14 @@ Transcript:
 {transcript}
 
 You MUST return ONLY valid JSON in this EXACT format:
-{
+{{
   "structured_transcript": [
-    {
+    {{
       "speaker": "<speaker name exactly>",
       "text": "<what the speaker said>"
-    }
+    }}
   ]
-}
-
+}}
 RULES:
 - Always use the keys: speaker, text
 - NEVER use keys like line, speech, or dialog
