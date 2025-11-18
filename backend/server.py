@@ -907,7 +907,16 @@ def structured_transcript():
 
         prompt = f"""
 You are an expert meeting transcriber.
-Label every line with the correct speaker and their role.
+
+Your task:
+- Read the participants list.
+- Read the transcript lines.
+- Assign the correct speaker to every line.
+- Clean grammar ONLY if needed for clarity.
+- DO NOT add, remove, or hallucinate content.
+- DO NOT include timestamps.
+- DO NOT summarize.
+- DO NOT return any markdown.
 
 Participants:
 {participant_context}
@@ -915,12 +924,26 @@ Participants:
 Transcript:
 {transcript}
 
-Return ONLY JSON:
-{{
-  "structured_transcript": []
-}}
-"""
+You MUST return ONLY valid JSON in this EXACT format:
+{
+  "structured_transcript": [
+    {
+      "speaker": "<speaker name exactly>",
+      "text": "<what the speaker said>"
+    }
+  ]
+}
 
+RULES:
+- Always use the keys: speaker, text
+- NEVER use keys like line, speech, or dialog
+- NEVER include trailing spaces in keys or values
+- NEVER wrap JSON in ```json
+- NEVER add comments or explanations
+- MUST be valid JSON parseable by Python
+
+Return ONLY the JSON object defined above.
+"""
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
