@@ -358,7 +358,7 @@ const uploadRecording = async () => {
           {item.speaker || "Unknown"} {item.role ? `(${item.role})` : ""}:
         </span>
         <span className="speaker-text">
-          {item.line || ""}
+          {item.text || ""} 
         </span>
       </div>
     ));
