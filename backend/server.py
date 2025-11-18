@@ -805,27 +805,31 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     try:
-        # -----------------------------------------------------
-        # 0️⃣ GET AUDIO SAFELY (STREAM, NO RAM BUFFERING)
-        # -----------------------------------------------------
+        # -------------------------------
+        # 0️⃣ GET AUDIO SAFELY (STREAMED)
+        # -------------------------------
         audio = request.files.get("audio_data")
         if not audio:
             return jsonify({"error": "No audio_data file found in request"}), 400
 
         participants = json.loads(request.form.get("participants", "[]"))
 
+        # Save uploaded file WITHOUT buffering whole file in memory
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
+
         audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
 
-        # Stream file to disk
+        # Stream to disk → prevents RAM spikes
         with open(audio_path, "wb") as f:
+            # Use stream instead of .read()
             import shutil
             shutil.copyfileobj(audio.stream, f)
 
-        # -----------------------------------------------------
-        # 1️⃣ SEND AUDIO TO TRANSCRIBER (NO CONVERSION)
-        # -----------------------------------------------------
+        # -------------------------------
+        # 1️⃣ SEND AUDIO FILE TO TRANSCRIBER
+        # (NO webm → wav conversion!)
+        # -------------------------------
         transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
 
         with open(audio_path, "rb") as f:
@@ -843,7 +847,12 @@ def process_meeting():
                 "details": external_res.text
             }), 500
 
+        # -------------------------------
+        # 2️⃣ PARSE TRANSCRIPTION JSON
+        # -------------------------------
         transcript_json = external_res.json()
+        print("🔍 Parsed JSON keys:", list(transcript_json.keys()))
+
         transcript = (
             transcript_json.get("transcript")
             or transcript_json.get("text")
@@ -854,27 +863,20 @@ def process_meeting():
         if not transcript.strip():
             return jsonify({"error": "Transcription returned empty text"}), 500
 
-        # -----------------------------------------------------
-        # 2️⃣ TRIM TRANSCRIPT → Prevents extreme token counts
-        # -----------------------------------------------------
-        MAX_CHARS = 15000   # safe for Render free plan
-        if len(transcript) > MAX_CHARS:
-            transcript = transcript[:MAX_CHARS] + "\n...(trimmed)"
-
         print("🔍 FINAL TRANSCRIPT (first 300 chars):", transcript[:300])
 
-        # -----------------------------------------------------
-        # 3️⃣ PARTICIPANT CONTEXT
-        # -----------------------------------------------------
+        # -------------------------------
+        # 3️⃣ BUILD PARTICIPANT CONTEXT
+        # -------------------------------
         participant_context = "\n".join(
             [f"- {p.get('name')} ({p.get('role')})" for p in participants]
         )
 
-        # -----------------------------------------------------
-        # 4️⃣ SAFER GPT PROMPT (COMPACT + NO HEAVY FIELDS)
-        # -----------------------------------------------------
+        # -------------------------------
+        # 4️⃣ GPT PROMPT — DETAILED VERSION
+        # -------------------------------
         prompt = f"""
-You are a medical meeting assistant.
+You are a professional medical meeting assistant.
 
 Participants:
 {participant_context}
@@ -882,64 +884,47 @@ Participants:
 Transcript:
 {transcript}
 
-Return ONLY valid JSON with these fields:
-- "summary": Detailed summary (1–3 paragraphs)
-- "key_points": A paragraph (not bullets)
-- "action_items": A paragraph of actionable steps
-- "decisions_made": A paragraph clearly listing decisions
+Produce ONLY valid JSON (no markdown, no backticks). 
+Make everything detailed and descriptive.
 
-DO NOT return:
-- structured_transcript
-- full_transcript
-- speaker-by-speaker conversation
-
-ONLY return JSON. No markdown, code fences, or explanations.
+Return:
+- "summary": A long, detailed narrative summary
+- "key_points": List out all the key points
+- "action_items": Clealy list out the actionable items
+- "decisions_made": Detailed explanation of decisions
+- "structured_transcript": Label each speaker and their roles clearly with full sentences
 """
 
-        # -----------------------------------------------------
-        # 5️⃣ STREAMING COMPLETION → ZERO MEMORY SPIKES
-        # -----------------------------------------------------
-        stream = client.chat.completions.create(
+        response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            stream=True
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        collected_output = ""
+        summary_response = response.choices[0].message.content.strip()
+        print("🔍 RAW GPT RESPONSE (first 400 chars):", summary_response[:400])
 
-        for chunk in stream:
-            delta = chunk.choices[0].delta
-            if delta and delta.content:
-                collected_output += delta.content
+        # -------------------------------
+        # 5️⃣ CLEAN JSON (remove accidental fences)
+        # -------------------------------
+        cleaned = summary_response.replace("```json", "").replace("```", "").strip()
 
-        # -----------------------------------------------------
-        # 6️⃣ CLEAN JSON
-        # -----------------------------------------------------
-        cleaned = (
-            collected_output
-            .replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
-
-        # -----------------------------------------------------
-        # 7️⃣ SAFE JSON PARSE
-        # -----------------------------------------------------
+        # -------------------------------
+        # 6️⃣ PARSE JSON SAFELY
+        # -------------------------------
         try:
             summary_data = json.loads(cleaned)
-        except Exception as json_err:
+        except Exception:
             summary_data = {
-                "summary": "GPT returned invalid JSON.",
-                "raw_output": collected_output,
-                "error": str(json_err)
+                "summary": "GPT returned non-JSON response.",
+                "raw_output": summary_response
             }
 
-        # -----------------------------------------------------
-        # 8️⃣ CLEANUP TEMP FILE
-        # -----------------------------------------------------
+        # -------------------------------
+        # 7️⃣ CLEANUP
+        # -------------------------------
         try:
             os.remove(audio_path)
-        except Exception:
+        except:
             pass
 
         return jsonify(summary_data)
