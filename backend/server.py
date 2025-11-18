@@ -805,57 +805,79 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     try:
-        audio = request.files["audio"]
+        audio = request.files.get("audio_data")
+        if not audio:
+            return jsonify({"error": "No audio_data file found in request"}), 400
+
         participants = json.loads(request.form.get("participants", "[]"))
 
-        # 1️⃣ Ensure upload folder exists
+        # Save uploaded file
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
-
-        # 2️⃣ Save uploaded audio file
         audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
         audio.save(audio_path)
 
-        # 3️⃣ Transcribe using Whisper
-        with open(audio_path, "rb") as f:
-            transcript_obj = client.audio.transcriptions.create(
-                model="gpt-4o-mini-transcribe",  # or "whisper-1"
-                file=f
-            )
-            transcript = transcript_obj.text
+        # -------------------------------
+        # 1️⃣ SEND AUDIO TO TRANSCRIPTION API
+        # -------------------------------
+        transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
 
-        # 4️⃣ Create participant list string for GPT context
+        with open(audio_path, "rb") as f:
+            external_res = requests.post(
+                transcribe_url, files={"audio_data": f}
+            )
+
+        print("🔍 RAW TRANSCRIPTION RESPONSE:", external_res.text)
+
+        if external_res.status_code != 200:
+            return jsonify({
+                "error": "Transcription API failed",
+                "details": external_res.text
+            }), 500
+
+        # Get transcription JSON
+        transcript_json = external_res.json()
+        print("🔍 Parsed JSON:", transcript_json)
+
+        # FIX: Look for both transcript keys
+        transcript = (
+            transcript_json.get("transcript")
+            or transcript_json.get("text")
+            or transcript_json.get("full_transcript")
+            or ""
+        )
+
+        print("🔍 FINAL TRANSCRIPT EXTRACTED:", transcript)
+
+        if not transcript.strip():
+            return jsonify({"error": "Transcription returned empty text"}), 500
+
+        # -------------------------------
+        # 2️⃣ Build participant context
+        # -------------------------------
         participant_context = "\n".join(
             [f"- {p.get('name')} ({p.get('role')})" for p in participants]
         )
 
-        # 5️⃣ Generate structured analysis + speaker attribution via GPT
+        # -------------------------------
+        # 3️⃣ GPT PROMPT
+        # -------------------------------
         prompt = f"""
         You are a meeting assistant AI.
-        The meeting involved the following participants:
 
+        Participants:
         {participant_context}
 
-        Below is the full raw meeting transcript (unlabeled):
-
+        Transcript:
         {transcript}
 
-        You must:
-        - Attribute each line or paragraph of the transcript to the most likely speaker based on context and role.
-        - Structure it as a JSON list of objects with "speaker" and "text" fields, e.g.:
-          [
-            {{"speaker": "Alice (Manager)", "text": "Let's start with updates."}},
-            {{"speaker": "Bob (Engineer)", "text": "We completed feature X."}}
-          ]
-        - Then, provide a meeting analysis as JSON with:
-          - summary: a concise overview of the meeting.
-          - key_points: a list of main discussion points.
-          - action_items: a list of tasks or next steps.
-          - decisions_made: a list of decisions.
-          - structured_transcript: the speaker-labeled transcript as above.
-          - full_transcript: the complete raw text transcript.
-
-        ⚠️ Important: Return a **valid JSON object only**, without any markdown or explanations.
+        Respond ONLY in valid JSON with:
+        - summary
+        - key_points
+        - action_items
+        - decisions_made
+        - structured_transcript
+        - full_transcript
         """
 
         summary_response = client.chat.completions.create(
@@ -863,9 +885,25 @@ def process_meeting():
             messages=[{"role": "user", "content": prompt}]
         ).choices[0].message.content
 
-        # 6️⃣ Parse JSON safely
+        print("🔍 RAW GPT RESPONSE:", summary_response)
+
+        # -------------------------------
+        # 4️⃣ Remove ```json fences
+        # -------------------------------
+        cleaned = summary_response.strip()
+
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("```")[1]  # remove starting ```
+        if cleaned.startswith("json"):
+            cleaned = cleaned.replace("json", "", 1).strip()
+        if "```" in cleaned:
+            cleaned = cleaned.split("```")[0]
+
+        print("🔍 CLEANED GPT RESPONSE:", cleaned)
+
+        # Try parsing
         try:
-            summary_data = json.loads(summary_response)
+            summary_data = json.loads(cleaned)
         except json.JSONDecodeError:
             summary_data = {
                 "summary": "Error parsing GPT response.",
@@ -873,17 +911,17 @@ def process_meeting():
                 "full_transcript": transcript
             }
 
-        # 7️⃣ Cleanup uploaded file
+        # Cleanup uploaded file
         try:
             os.remove(audio_path)
-        except Exception as e:
-            print(f"Warning: could not delete {audio_path} — {e}")
+        except:
+            pass
 
         return jsonify(summary_data)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
 @app.get("/")
 async def test_home():
     return {"message": "Hello, world!"}

@@ -1,0 +1,144 @@
+
+.meeting-visualizer {
+  width: 100%;
+  border-radius: 16px;
+  padding: 10px 12px 12px;
+  box-sizing: border-box;
+
+  background: radial-gradient(circle at top left, #0f172a 0, #020617 40%, #020617 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
+  color: #e5e7eb;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Header */
+.meeting-visualizer__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.meeting-visualizer__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+}
+
+.meeting-visualizer__dot--pulse {
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: meeting-visualizer-pulse 1.4s infinite;
+}
+
+.meeting-visualizer__title {
+  font-weight: 600;
+}
+.meeting-visualizer__canvas {
+    width: 100%;
+    display: block;
+}
+/* Canvas wrapper – controls size & responsiveness */
+.meeting-visualizer {
+    margin: 0 auto;
+    width: 70%;
+    border-radius: 16px;
+    padding: 10px 12px 12px;
+    box-sizing: border-box;
+    background: radial-gradient(circle at top left, #212529 0, #020617 40%, #212529 100%);
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.45);
+    color: #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+}
+.dark-theme .meeting-visualizer {
+    margin: 0 auto;
+
+    background: radial-gradient(circle at top left, #68c6c669 0, #020617 40%, #64caca5e 100%);
+}
+
+/* Make taller on larger screens */
+@media (min-width: 640px) {
+  .meeting-visualizer__canvas-wrapper {
+    height: 140px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .meeting-visualizer__canvas-wrapper {
+    height: 160px;
+  }
+}
+
+.meeting-visualizer__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Footer */
+.meeting-visualizer__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.meeting-visualizer__status {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+.meeting-visualizer__status.on {
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.7);
+}
+
+.meeting-visualizer__status.off {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+/* Pulse animation for the dot */
+@keyframes meeting-visualizer-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Mobile friendliness: ensure it fits small screens nicely */
+@media (max-width: 480px) {
+  .meeting-visualizer {
+    padding: 8px 10px 10px;
+    border-radius: 14px;
+  }
+
+  .meeting-visualizer__header {
+    font-size: 0.72rem;
+  }
+
+  .meeting-visualizer__status {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+}

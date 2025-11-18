@@ -8,7 +8,7 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
   const [newParticipant, setNewParticipant] = useState({
     name: "",
     email: "",
-    role: "participant",
+    role: "",
   });
 
   const [emailError, setEmailError] = useState("");
@@ -40,16 +40,16 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
 
   // ✅ Validate Name (letters only)
   const handleNameChange = (name) => {
-    const namePattern = /^[A-Za-z\s]*$/;
-    const error = !namePattern.test(name)
-      ? "Name can only contain letters and spaces"
-      : "";
-    setNameError(error);
+    // const namePattern = /^[A-Za-z\s]*$/;
+    // const error = !namePattern.test(name)
+    //   ? "Name can only contain letters and spaces"
+    //   : "";
+    // setNameError(error);
 
-    if (error) {
-      setModalError(error);
-      setShowErrorModal(true);
-    }
+    // if (error) {
+    //   setModalError(error);
+    //   setShowErrorModal(true);
+    // }
 
     setNewParticipant({ ...newParticipant, name });
   };

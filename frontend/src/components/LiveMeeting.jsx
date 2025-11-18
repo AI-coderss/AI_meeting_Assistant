@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import axios from "axios";
 import "../styles/LiveMeeting.css";
+import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
 
 const LiveMeeting = ({
   participants,
@@ -14,6 +15,7 @@ const LiveMeeting = ({
   const [currentMeeting, setCurrentMeeting] = useState(null);
   const [summaryData, setSummaryData] = useState(null);
   const [transcript, setTranscript] = useState(null);
+  const [audioStream, setAudioStream] = useState(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
@@ -109,6 +111,7 @@ const startRecording = async () => {
 
     // 🎤 Step 2: Start microphone capture
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+     setAudioStream(stream);
     const mediaRecorder = new MediaRecorder(stream);
     mediaRecorderRef.current = mediaRecorder;
     chunksRef.current = [];
@@ -143,7 +146,7 @@ const startRecording = async () => {
 
     setIsProcessing(true);
     const formData = new FormData();
-    formData.append("audio", audioBlob, "meeting_audio.webm");
+    formData.append("audio_data", audioBlob, "meeting_audio.webm");
     formData.append("participants", JSON.stringify(participants));
 
     try {
@@ -236,7 +239,15 @@ const startRecording = async () => {
           </div>
         </div>
       </div>
-
+{isRecording && audioStream && (
+  <div style={{ marginTop: "20px" }}>
+    <MeetingAudioVisualizer
+      stream={audioStream} 
+      isActive={isRecording} 
+      label="Live Meeting Audio"
+    />
+  </div>
+)}
       {/* 🧠 Summary & Key Details Section */}
       {transcriptData && (
         <>
