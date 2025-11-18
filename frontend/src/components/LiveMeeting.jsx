@@ -71,7 +71,7 @@ ${(summaryData?.action_items || []).map((p, i) => `${i + 1}. ${p}`).join("\n") |
 ${(summaryData?.decisions_made || []).map((p, i) => `${i + 1}. ${p}`).join("\n") || "None"}
 `;
 
-    const res = await fetch(`${BACKEND_URL}/api/meetings/${currentMeeting.id}`, {
+    const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${currentMeeting.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -152,59 +152,95 @@ const startRecording = async () => {
     }
   };
 
-  const uploadRecording = async () => {
-    if (!audioBlob) return showToast && showToast("No recording found.");
+const uploadRecording = async () => {
+  if (!audioBlob) return showToast && showToast("No recording found.");
 
-    setIsProcessing(true);
-    const formData = new FormData();
-    formData.append("audio_data", audioBlob, "meeting_audio.webm");
-    formData.append("participants", JSON.stringify(participants));
+  setIsProcessing(true);
+  const formData = new FormData();
+  formData.append("audio_data", audioBlob, "meeting_audio.webm");
+  formData.append("participants", JSON.stringify(participants));
 
-    try {
-      const res = await axios.post("https://ai-meeting-assistant-backend-suu9.onrender.com/api/process-meeting", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+  try {
+    // -----------------------------------------------------------
+    // 1️⃣ FIRST CALL — Process meeting WITHOUT structured transcript
+    // -----------------------------------------------------------
+    const res = await axios.post(
+      "https://ai-meeting-assistant-backend-suu9.onrender.com/api/process-meeting",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
 
-      const data = res.data;
-      setTranscriptData(data);
-      showToast && showToast("Meeting processed successfully!");
+    const data = res.data;
+    setTranscriptData(data);
+    showToast && showToast("Transcription completed!");
 
-      // 🔹 Send summary and key details to n8n webhook (including structured transcript)
-      const webhookPayload = {
-        summary: data.summary || "",
-        key_points: data.key_points || [],
-        action_items: data.action_items || [],
-        decisions_made: data.decisions_made || [],
-        participants: participants || [],
-        structured_transcript: data.structured_transcript || [],
-        timestamp: new Date().toISOString(),
-      };
-      await updateMeetingWithTranscript(
-  currentMeeting,
-  data.structured_transcript,
-  data
-);
-
-
-      try {
-        await axios.post(
-          "https://n8n-latest-h3pu.onrender.com/webhook/9d74e4da-cdfb-4610-9fe7-c309c9494a87",
-          webhookPayload
-        );
-        console.log("✅ Sent meeting summary to n8n successfully");
-        showToast && showToast("Summary sent to n8n workflow!");
-      } catch (webhookErr) {
-        console.error("⚠️ Error sending to n8n webhook:", webhookErr);
-        showToast && showToast("Failed to send summary to n8n webhook.");
-      }
-
-    } catch (err) {
-      console.error(err);
-      showToast && showToast("Error processing meeting.");
-    } finally {
-      setIsProcessing(false);
+    const rawTranscript = data?.transcript;
+    if (!rawTranscript) {
+      showToast("No transcript text received.", "error");
+      return;
     }
-  };
+
+    // -----------------------------------------------------------
+    // 2️⃣ SECOND CALL — Generate structured speaker transcript
+    // -----------------------------------------------------------
+    const structuredRes = await axios.post(
+      "https://ai-meeting-assistant-backend-suu9.onrender.com/api/structured-transcript",
+      {
+        transcript: rawTranscript,
+        participants: participants,
+      }
+    );
+
+    const structuredData = structuredRes.data;
+    console.log("🗣️ Structured transcript:", structuredData);
+
+    // Inject structured transcript into existing data
+    const finalData = {
+      ...data,
+      structured_transcript: structuredData.structured_transcript,
+    };
+
+    setTranscriptData(finalData);
+
+    // -----------------------------------------------------------
+    // 3️⃣ SAVE EVERYTHING TO DATABASE
+    // -----------------------------------------------------------
+    await updateMeetingWithTranscript(
+      currentMeeting,
+      finalData.structured_transcript,
+      finalData
+    );
+
+    // -----------------------------------------------------------
+    // 4️⃣ Send to n8n
+    // -----------------------------------------------------------
+    try {
+      await axios.post(
+        "https://n8n-latest-h3pu.onrender.com/webhook/9d74e4da-cdfb-4610-9fe7-c309c949a87",
+        {
+          summary: finalData.summary || "",
+          key_points: finalData.key_points || [],
+          action_items: finalData.action_items || [],
+          decisions_made: finalData.decisions_made || [],
+          structured_transcript: finalData.structured_transcript || [],
+          participants,
+          timestamp: new Date().toISOString(),
+        }
+      );
+
+      console.log("✅ Sent to n8n");
+    } catch (webhookErr) {
+      console.error("⚠️ Error sending to n8n:", webhookErr);
+    }
+
+  } catch (err) {
+    console.error("❌ Error processing:", err);
+    showToast && showToast("Error processing meeting");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
 
   return (
     <div className="tab-content">
@@ -309,33 +345,27 @@ const startRecording = async () => {
   <h3>🗣️ Structured Transcript</h3>
   <div className="structured-transcript">
 
-    {transcriptData.structured_transcript ? (
-      (() => {
-        // If backend returns a string, convert it into array
-        const raw = transcriptData.structured_transcript;
+  {transcriptData.structured_transcript ? (
+  (() => {
+    const raw = transcriptData.structured_transcript;
 
-        const lines = typeof raw === "string"
-          ? raw.split("\n").filter((l) => l.trim() !== "")
-          : raw;
+    // raw should be an array of objects
+    const entries = Array.isArray(raw) ? raw : [];
 
-        const parsed = lines.map((line) => {
-          const [speaker, ...speechParts] = line.split(":");
-          return {
-            speaker: speaker?.trim() || "Unknown",
-            speech: speechParts.join(":").trim()
-          };
-        });
-
-        return parsed.map((entry, idx) => (
-          <div key={idx} className="transcript-entry">
-            <span className="speaker-name">{entry.speaker}:</span>
-            <span className="speaker-text">{entry.speech}</span>
-          </div>
-        ));
-      })()
-    ) : (
-      <p>No structured transcript available.</p>
-    )}
+    return entries.map((item, idx) => (
+      <div key={idx} className="transcript-entry">
+        <span className="speaker-name">
+          {item.speaker || "Unknown"} {item.role ? `(${item.role})` : ""}:
+        </span>
+        <span className="speaker-text">
+          {item.line || ""}
+        </span>
+      </div>
+    ));
+  })()
+) : (
+  <p>No structured transcript available.</p>
+)}
 
   </div>
 </div>

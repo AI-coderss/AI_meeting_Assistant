@@ -36,6 +36,7 @@ from google.cloud import speech
 import threading
 import asyncio
 import requests
+from bson.json_util import dumps
 from flask import Response
 from sendgrid.helpers.mail import Mail
 # from google_speech import google_bp
@@ -385,6 +386,7 @@ def create_meeting():
         logger.error(f"Error creating meeting: {str(e)}")
         abort(500, description=str(e))
 
+
 @api_bp.route("/meetings/<meeting_id>", methods=["PUT"])
 @auth_required
 def update_meeting(meeting_id):
@@ -397,7 +399,6 @@ def update_meeting(meeting_id):
         transcript = data.get("transcript", [])
         summary_data = data.get("summary", "")
 
-        # Build the structured summary object
         summary_obj = {
             "summary": summary_data if isinstance(summary_data, str) else summary_data.get("summary", ""),
             "key_points": data.get("key_points", []),
@@ -405,11 +406,9 @@ def update_meeting(meeting_id):
             "decisions_made": data.get("decisions_made", [])
         }
 
-        # Ensure at least transcript is present
         if not transcript:
             abort(400, description="Missing 'transcript' field in request body")
 
-        # Update the meeting with both transcript and structured summary
         result = db.meetings.update_one(
             {"id": meeting_id},
             {"$set": {"transcript": transcript, "summary": summary_obj}}
@@ -419,14 +418,8 @@ def update_meeting(meeting_id):
             abort(404, description=f"Meeting with ID {meeting_id} not found")
 
         updated_meeting = db.meetings.find_one({"id": meeting_id})
-        logger.info(f"✅ Updated meeting {meeting_id} with transcript and summary")
 
-        return jsonify(updated_meeting), 200
-
-    except Exception as e:
-        logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
-        abort(500, description=str(e))
-
+        return Response(dumps(updated_meeting), mimetype="application/json")
 
     except Exception as e:
         logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
@@ -805,31 +798,23 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     try:
-        # -------------------------------
-        # 0️⃣ GET AUDIO SAFELY (STREAMED)
-        # -------------------------------
+        # 0️⃣ GET AUDIO FILE
         audio = request.files.get("audio_data")
         if not audio:
             return jsonify({"error": "No audio_data file found in request"}), 400
 
         participants = json.loads(request.form.get("participants", "[]"))
 
-        # Save uploaded file WITHOUT buffering whole file in memory
+        # Save audio to disk
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
-
         audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
 
-        # Stream to disk → prevents RAM spikes
         with open(audio_path, "wb") as f:
-            # Use stream instead of .read()
             import shutil
             shutil.copyfileobj(audio.stream, f)
 
-        # -------------------------------
-        # 1️⃣ SEND AUDIO FILE TO TRANSCRIBER
-        # (NO webm → wav conversion!)
-        # -------------------------------
+        # 1️⃣ Send to external transcriber API
         transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
 
         with open(audio_path, "rb") as f:
@@ -839,20 +824,10 @@ def process_meeting():
                 timeout=600
             )
 
-        print("🔍 RAW TRANSCRIPTION RESPONSE:", external_res.text[:500])
-
         if external_res.status_code != 200:
-            return jsonify({
-                "error": "Transcription API failed",
-                "details": external_res.text
-            }), 500
+            return jsonify({"error": "Transcription API failed", "details": external_res.text}), 500
 
-        # -------------------------------
-        # 2️⃣ PARSE TRANSCRIPTION JSON
-        # -------------------------------
         transcript_json = external_res.json()
-        print("🔍 Parsed JSON keys:", list(transcript_json.keys()))
-
         transcript = (
             transcript_json.get("transcript")
             or transcript_json.get("text")
@@ -863,18 +838,12 @@ def process_meeting():
         if not transcript.strip():
             return jsonify({"error": "Transcription returned empty text"}), 500
 
-        print("🔍 FINAL TRANSCRIPT (first 300 chars):", transcript[:300])
-
-        # -------------------------------
-        # 3️⃣ BUILD PARTICIPANT CONTEXT
-        # -------------------------------
+        # 3️⃣ Participant context
         participant_context = "\n".join(
             [f"- {p.get('name')} ({p.get('role')})" for p in participants]
         )
 
-        # -------------------------------
-        # 4️⃣ GPT PROMPT — DETAILED VERSION
-        # -------------------------------
+        # 4️⃣ GPT Summary ONLY (no structured transcript)
         prompt = f"""
 You are a professional medical meeting assistant.
 
@@ -884,15 +853,13 @@ Participants:
 Transcript:
 {transcript}
 
-Produce ONLY valid JSON (no markdown, no backticks). 
-Make everything detailed and descriptive.
+Produce ONLY valid JSON.
 
 Return:
-- "summary": A long, detailed narrative summary
-- "key_points": List out all the key points
-- "action_items": Clealy list out the actionable items
-- "decisions_made": Detailed explanation of decisions
-- "structured_transcript": Label each speaker and their roles clearly with full sentences
+- "summary"
+- "key_points"
+- "action_items"
+- "decisions_made"
 """
 
         response = client.chat.completions.create(
@@ -900,37 +867,86 @@ Return:
             messages=[{"role": "user", "content": prompt}]
         )
 
-        summary_response = response.choices[0].message.content.strip()
-        print("🔍 RAW GPT RESPONSE (first 400 chars):", summary_response[:400])
+        cleaned = (
+            response.choices[0].message.content
+            .replace("```json", "")
+            .replace("```", "")
+            .strip()
+        )
 
-        # -------------------------------
-        # 5️⃣ CLEAN JSON (remove accidental fences)
-        # -------------------------------
-        cleaned = summary_response.replace("```json", "").replace("```", "").strip()
-
-        # -------------------------------
-        # 6️⃣ PARSE JSON SAFELY
-        # -------------------------------
         try:
             summary_data = json.loads(cleaned)
-        except Exception:
-            summary_data = {
-                "summary": "GPT returned non-JSON response.",
-                "raw_output": summary_response
-            }
-
-        # -------------------------------
-        # 7️⃣ CLEANUP
-        # -------------------------------
-        try:
-            os.remove(audio_path)
         except:
-            pass
+            summary_data = {"summary": "GPT returned invalid JSON", "raw_output": cleaned}
+
+        # ❗ Add transcript for 2nd API call
+        summary_data["transcript"] = transcript
+
+        # Cleanup
+        try: os.remove(audio_path)
+        except: pass
 
         return jsonify(summary_data)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/structured-transcript", methods=["POST"])
+def structured_transcript():
+    try:
+        data = request.json
+        transcript = data.get("transcript", "")
+        participants = data.get("participants", [])
+
+        if not transcript:
+            return jsonify({"error": "Transcript missing"}), 400
+
+        participant_context = "\n".join(
+            [f"- {p.get('name')} ({p.get('role')})" for p in participants]
+        )
+
+        prompt = f"""
+You are an expert meeting transcriber.
+Label every line with the correct speaker and their role.
+
+Participants:
+{participant_context}
+
+Transcript:
+{transcript}
+
+Return ONLY JSON:
+{{
+  "structured_transcript": []
+}}
+"""
+
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        cleaned = (
+            response.choices[0].message.content
+            .replace("```json","")
+            .replace("```","")
+            .strip()
+        )
+
+        try:
+            result = json.loads(cleaned)
+        except:
+            return jsonify({
+                "error": "GPT returned invalid JSON",
+                "raw_output": cleaned
+            }), 500
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.get("/")
 async def test_home():
