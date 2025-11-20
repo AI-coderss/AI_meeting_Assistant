@@ -32,7 +32,7 @@ const Header = ({ darkMode, toggleDarkMode }) => {
       localStorage.removeItem("token");
       localStorage.removeItem("email");
       localStorage.removeItem("roles");
-
+      localStorage.clear();
       Swal.fire({
         icon: "success",
         title: "Logged out",

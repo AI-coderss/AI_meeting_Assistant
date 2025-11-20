@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "../styles/LiveMeeting.css";
 import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
@@ -18,12 +18,7 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
   const [loaderText, setLoaderText] = useState("");
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
-  const [actionItems, setActionItems] = useState(
-    transcriptData?.action_items?.map((item) => ({
-      task: item.task,
-      completed: false,
-    })) || []
-  );
+  const [actionItems, setActionItems] = useState([]);
 
   const [showInput, setShowInput] = useState(false);
   const [newItem, setNewItem] = useState("");
@@ -41,6 +36,48 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
     setNewItem("");
     setShowInput(false);
   };
+  useEffect(() => {
+    const savedTranscript = localStorage.getItem("mom_transcriptData");
+    const savedItems = localStorage.getItem("mom_actionItems");
+    const savedTab = localStorage.getItem("mom_activeTab");
+
+    if (savedTranscript) {
+      setTranscriptData(JSON.parse(savedTranscript));
+    }
+
+    if (savedItems) {
+      setActionItems(JSON.parse(savedItems));
+    }
+
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (actionItems.length > 0) {
+      localStorage.setItem("mom_actionItems", JSON.stringify(actionItems));
+    }
+  }, [actionItems]);
+
+  useEffect(() => {
+    localStorage.setItem("mom_activeTab", activeTab);
+  }, [activeTab]);
+
+  // 🟢 Load action items when transcriptData arrives
+  useEffect(() => {
+    if (transcriptData?.action_items) {
+      const formatted = transcriptData.action_items.map((item) => ({
+        task: item.task,
+        completed: false,
+        owner: item.owner || null,
+        due_date: item.due_date || null,
+      }));
+
+      setActionItems(formatted);
+      localStorage.setItem("mom_actionItems", JSON.stringify(formatted));
+    }
+  }, [transcriptData]);
 
   const createMeetingIfNeeded = async () => {
     const token = localStorage.getItem("token");
@@ -60,7 +97,10 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
         body: JSON.stringify({
           title: `Live Meeting - ${formattedDate}`,
           host: localStorage.getItem("email") || "Host",
-          participants: participants.map((p) => p.email || p.name),
+          participants: [
+            localStorage.getItem("email") || "Host", // add host here
+            ...participants.map((p) => p.email || p.name),
+          ],
         }),
       });
 
@@ -281,6 +321,10 @@ ${
       };
 
       setTranscriptData(finalData);
+      // SAVE EVERYTHING TO LOCAL STORAGE
+      localStorage.setItem("mom_transcriptData", JSON.stringify(finalData));
+      localStorage.setItem("mom_actionItems", JSON.stringify(actionItems));
+      localStorage.setItem("mom_activeTab", activeTab);
 
       // -----------------------------------------------------------
       // 3️⃣ SAVE EVERYTHING TO DATABASE
@@ -369,7 +413,7 @@ ${
         </div>
       </div>
       {isRecording && audioStream && (
-        <div style={{ marginTop: "20px" }}>
+        <div style={{ marginTop: "0px" }}>
           {/* <MeetingAudioVisualizer
       stream={audioStream} 
       isActive={isRecording} 
@@ -388,22 +432,21 @@ ${
       )}
 
       {transcriptData && (
-      <div className="bottom-tabs">
-  <button
-    className={`tab-btn ${activeTab === "summary" ? "active" : ""}`}
-    onClick={() => setActiveTab("summary")}
-  >
-    Summary
-  </button>
+        <div className="bottom-tabs">
+          <button
+            className={`tab-btn ${activeTab === "summary" ? "active" : ""}`}
+            onClick={() => setActiveTab("summary")}
+          >
+            Summary
+          </button>
 
-  <button
-    className={`tab-btn ${activeTab === "transcript" ? "active" : ""}`}
-    onClick={() => setActiveTab("transcript")}
-  >
-    Transcript
-  </button>
-</div>
-
+          <button
+            className={`tab-btn ${activeTab === "transcript" ? "active" : ""}`}
+            onClick={() => setActiveTab("transcript")}
+          >
+            Transcript
+          </button>
+        </div>
       )}
 
       {/* 🧠 Summary & Key Details Section */}
@@ -412,47 +455,46 @@ ${
           {activeTab === "summary" && transcriptData && (
             <div className="summary-section">
               <div className="section-title">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginRight: "6px" }}
-  >
-    <line x1="4" y1="6" x2="20" y2="6" />
-    <line x1="4" y1="12" x2="20" y2="12" />
-    <line x1="4" y1="18" x2="14" y2="18" />
-  </svg>
-  Overview
-</div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: "6px" }}
+                >
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="18" x2="14" y2="18" />
+                </svg>
+                Overview
+              </div>
 
               <p>{transcriptData.overview}</p>
-            <div className="section-title">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginRight: "6px" }}
-  >
-    <path d="M9 11l3 3L22 4" />
-    <path d="M2 12h7" />
-    <path d="M2 18h7" />
-    <path d="M2 6h7" />
-  </svg>
-  Action Items
-</div>
-
+              <div className="section-title">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: "6px" }}
+                >
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M2 12h7" />
+                  <path d="M2 18h7" />
+                  <path d="M2 6h7" />
+                </svg>
+                Action Items
+              </div>
 
               <div className="space-y-3">
                 {actionItems.map((item, i) => (
@@ -476,7 +518,7 @@ ${
                           : "text-gray-700"
                       }`}
                     >
-                      {item.task}
+                      {item.task} - {item.owner}
                     </span>
                   </div>
                 ))}
@@ -493,54 +535,52 @@ ${
 
                 {/* Input Field (only shows after clicking button) */}
                 {showInput && (
-      <div className="action-input-row">
-  <input
-    type="text"
-    placeholder="New action item..."
-    value={newItem}
-    onChange={(e) => setNewItem(e.target.value)}
-    onKeyDown={(e) => e.key === "Enter" && addNewItem()}
-    className="action-input"
-    autoFocus
-  />
+                  <div className="action-input-row">
+                    <input
+                      type="text"
+                      placeholder="New action item..."
+                      value={newItem}
+                      onChange={(e) => setNewItem(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addNewItem()}
+                      className="action-input"
+                      autoFocus
+                    />
 
-  <button onClick={addNewItem} className="btn-primary">
-    Save
-  </button>
+                    <button onClick={addNewItem} className="btn-primary">
+                      Save
+                    </button>
 
-  <button
-    onClick={() => {
-      setShowInput(false);
-      setNewItem("");
-    }}
-    className="btn-secondary"
-  >
-    Cancel
-  </button>
-</div>
-
-
+                    <button
+                      onClick={() => {
+                        setShowInput(false);
+                        setNewItem("");
+                      }}
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 )}
               </div>
 
               <div className="section-title">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginRight: "6px" }}
-  >
-    <path d="M3 3v18h18" />
-    <path d="M7 14l3-3 4 4 5-6" />
-  </svg>
-  <h3>Insights</h3>
-</div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: "6px" }}
+                >
+                  <path d="M3 3v18h18" />
+                  <path d="M7 14l3-3 4 4 5-6" />
+                </svg>
+                <h3>Insights</h3>
+              </div>
 
               <ul>
                 {transcriptData.insights?.map((ins, i) => (
@@ -548,25 +588,25 @@ ${
                 ))}
               </ul>
 
-             <div className="section-title">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginRight: "6px" }}
-  >
-    <rect x="3" y="4" width="18" height="4" rx="1.5" />
-    <rect x="3" y="10" width="18" height="4" rx="1.5" />
-    <rect x="3" y="16" width="18" height="4" rx="1.5" />
-  </svg>
-  Overview
-</div>
+              <div className="section-title">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: "6px" }}
+                >
+                  <rect x="3" y="4" width="18" height="4" rx="1.5" />
+                  <rect x="3" y="10" width="18" height="4" rx="1.5" />
+                  <rect x="3" y="16" width="18" height="4" rx="1.5" />
+                </svg>
+                Overview
+              </div>
 
               <div className="outline-section">
                 {transcriptData.outline?.map((sec, i) => (
@@ -586,24 +626,24 @@ ${
           {activeTab === "transcript" && transcriptData && (
             <div className="transcript-section">
               <div className="section-title">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    style={{ marginRight: "6px" }}
-  >
-    <path d="M4 4h10l6 6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
-    <line x1="8" y1="12" x2="16" y2="12" />
-    <line x1="8" y1="16" x2="14" y2="16" />
-  </svg>
-  Transcript
-</div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: "6px" }}
+                >
+                  <path d="M4 4h10l6 6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                  <line x1="8" y1="16" x2="14" y2="16" />
+                </svg>
+                Transcript
+              </div>
 
               {transcriptData.structured_transcript?.map((item, i) => (
                 <div key={i} className="transcript-entry">

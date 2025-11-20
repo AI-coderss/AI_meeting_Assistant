@@ -210,22 +210,29 @@ body {
 
 /* Navigation Tabs */
 .tabs {
-  /* max-width: 1200px; */
-  margin: 0 auto;
-  padding: 0 2rem;
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: sticky;
-  top: 70px;
-  z-index: 90;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  width: 100%;
-  justify-content: space-between;
-  max-width: 1136px;
-  align-items: center;
-  margin-top: 20px;
-  justify-content: center;
+    /* max-width: 1200px; */
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: sticky;
+    top: 70px;
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    width: 100%;
+    justify-content: space-between;
+    max-width: 1136px;
+    top: 109px;
+    left: 0;
+    margin-top: 20px;
+    justify-content: center;
+    position: fixed;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.tab-content {
+    margin-top: 47px;
 }
 span.napbar__brandText {
   color: #000;
@@ -282,7 +289,7 @@ span.napbar__brandText {
 .tab-content {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .meeting-controls,
@@ -502,14 +509,30 @@ button.btn.btn-delete {
 }
 
 .spinner {
-  width: 40px;
-  height: 40px;
+  width: 60px;
+  height: 60px;
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-top: 4px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-
+.loader-box {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.dark-theme .loader-box p {
+    font-size: 31px;
+    color: #877d7d !important;
+    margin-top: 14px;
+}
+ .loader-box p {
+    font-size: 31px;
+    color: #000 !important;
+    margin-top: 14px;
+}
 /* Transcript */
 .transcript-section h3 {
   margin-bottom: 1rem;
@@ -930,6 +953,14 @@ button.btn.btn-delete {
 }
 
 @media (max-width: 768px) {
+  .tab-content {
+    margin-top: 0px;
+}
+.meeting-container {
+    box-shadow: 0 4px 12px rgba(0, 100, 100, 0.1);
+    transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+    margin-top: 0;
+}
   .modal-content.bg-space {
     margin: 0 28px;
 }
@@ -1243,4 +1274,13 @@ button.btn.btn-danger.btn-del.btn-sm {
 }
 .markdown-box ul {
     padding-left: 0;
+}
+.meeting-container {
+    margin-top: 45px;
+}
+.main-content {
+    margin-top: 45px;
+}
+.meetings-list .card-body {
+    min-height: 208px;
 }
