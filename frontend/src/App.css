@@ -1284,8 +1284,8 @@ button.btn.btn-danger.btn-del.btn-sm {
 .meetings-list .card-body {
     min-height: 208px;
 }
-@media (max-width: 400px) {
+@media (max-width: 500px) {
 canvas#waveCanvas {
-    height: 115px;
+    height: 96px;
 }
 }
