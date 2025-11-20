@@ -1,0 +1,261 @@
+.audio-visualizer-wrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* === Glassmorphic / plasmorphic card === */
+.audio-visualizer-card {
+  width: 100%;
+  max-width: 480px;
+  padding: 20px 20px 24px;
+  border-radius: 24px;
+  box-sizing: border-box;
+
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18),
+    rgba(255, 255, 255, 0.06)
+  );
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.45);
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* === Theme responsiveness via data-theme on html === */
+:root[data-theme="dark"] .audio-visualizer-card {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.80),
+    rgba(15, 23, 42, 0.65)
+  );
+  border-color: rgba(148, 163, 184, 0.4);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75);
+  color: #e5e7eb;
+}
+
+:root[data-theme="light"] .audio-visualizer-card {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.80),
+    rgba(248, 250, 252, 0.6)
+  );
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #0f172a;
+}
+
+/* === Header: title + status === */
+.av-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.av-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* === LIVE / Ready status === */
+.av-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.av-status--idle {
+  background: rgba(148, 163, 184, 0.18);
+  color: rgba(51, 65, 85, 0.9);
+}
+
+:root[data-theme="dark"] .av-status--idle {
+  background: rgba(15, 23, 42, 0.85);
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.av-status--live {
+  background: rgba(248, 113, 113, 0.12);
+  color: #b91c1c;
+}
+
+:root[data-theme="dark"] .av-status--live {
+  background: rgba(220, 38, 38, 0.24);
+  color: #fecaca;
+}
+
+.av-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f97373;
+}
+
+/* Pulse when live */
+.av-status--live .av-status-dot {
+  position: relative;
+}
+
+.av-status--live .av-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  animation: av-pulse 1.2s infinite ease-out;
+}
+
+@keyframes av-pulse {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+.av-status-text {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* === Timer row === */
+.av-timer-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.av-timer-label {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.av-timer-value {
+  font-family: "SF Mono", "Roboto Mono", ui-monospace, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* === Audio wave container (bottom center) === */
+.av-wave-container {
+  margin-top: 8px;
+  margin-bottom: 6px;
+}
+
+/* Ensure canvas fits nicely in the card */
+.av-wave-container .container-audio-wave {
+  width: 100%;
+}
+
+.av-wave-container canvas {
+  width: 100% !important;
+  height: auto;
+  display: block;
+}
+
+/* === Controls (record button) === */
+.av-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.av-record-btn {
+  border: none;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background 0.12s ease, color 0.12s ease;
+}
+
+/* Start state */
+.av-record-btn--start {
+  background: radial-gradient(circle at 20% 0%, #f97373 0, #ef4444 40%, #b91c1c 100%);
+  color: #fef2f2;
+  box-shadow: 0 12px 25px rgba(248, 113, 113, 0.5);
+}
+
+/* Stop state */
+.av-record-btn--stop {
+  background: linear-gradient(135deg, #0f172a, #1f2937);
+  color: #e5e7eb;
+  box-shadow: 0 12px 25px rgba(15, 23, 42, 0.55);
+}
+
+.av-record-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 15px 30px rgba(15, 23, 42, 0.45);
+}
+
+.av-record-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Small circular icon in button */
+.av-record-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fee2e2;
+}
+
+.av-record-btn--stop .av-record-icon {
+  border-radius: 4px;
+  background: #fecaca;
+}
+
+/* Error text */
+.av-error {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #b91c1c;
+}
+
+/* === Mobile tweaks === */
+@media (max-width: 480px) {
+  .audio-visualizer-card {
+    padding: 16px 16px 20px;
+    border-radius: 20px;
+  }
+
+  .av-title {
+    font-size: 1rem;
+  }
+
+  .av-timer-value {
+    font-size: 1.05rem;
+  }
+
+  .av-record-btn {
+    width: 100%;
+  }
+}

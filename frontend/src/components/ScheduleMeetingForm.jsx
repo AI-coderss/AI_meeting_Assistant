@@ -11,6 +11,7 @@ const MedicalMeetingScheduler = () => {
   });
 
   const [response, setResponse] = useState({ type: "", message: "" });
+const [isScheduling, setIsScheduling] = useState(false);
 
   // Prefill host email from localStorage
 useEffect(() => {
@@ -66,6 +67,7 @@ useEffect(() => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsScheduling(true);
     setResponse({ type: "", message: "" });
 
     try {
@@ -90,7 +92,7 @@ useEffect(() => {
 
       // Send to n8n webhook
       const n8nWebhookUrl =
-        "https://n8n-latest-h3pu.onrender.com/webhook/0ca8d94d-a335-43f8-90c7-130fe37292b3";
+        "https://n8n-latest-h3pu.onrender.com/webhook/e6ed149a-7494-4477-b2dd-f6a254fa36de";
       await fetch(n8nWebhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -130,11 +132,17 @@ useEffect(() => {
         type: "error",
         message: "❌ Network issue — unable to connect to server.",
       });
-    }
+    }finally { setIsScheduling(false); }
   };
 
   return (
     <div className="meeting-container">
+      {isScheduling && (
+  <div className="fullscreen-loader">
+    <div className="loader-text">⏳ Scheduling your meeting...</div>
+  </div>
+)}
+
       <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
       <form onSubmit={handleSubmit} className="meeting-form">
         <div className="fex-sec">
@@ -226,8 +234,8 @@ useEffect(() => {
                 <option value="">Select Role</option>
                 <option value="Doctor">Doctor</option>
                 <option value="Nurse">Nurse</option>
-                <option value="Patient">Patient</option>
-                <option value="Technician">Technician</option>
+                <option value="Patient">Department manager</option>
+                <option value="Technician">Employee</option>
                 <option value="Admin Staff">Admin Staff</option>
               </select>
 

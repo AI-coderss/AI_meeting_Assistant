@@ -453,22 +453,34 @@ def get_meetings_by_host(host_name):
         search = request.args.get('search')
         participant = request.args.get('participant')
 
-        # Always filter by host
-        query = {"host": {"$regex": host_name, "$options": "i"}}
-
-        # Add search within this host’s meetings
-        if search:
-            query["$or"] = [
-                {"title": {"$regex": search, "$options": "i"}},
-                {"summary": {"$regex": search, "$options": "i"}}
+        # MAIN FILTER:
+        # 1. Host matches
+        # 2. OR participants array contains the email
+        query = {
+            "$or": [
+                {"host": {"$regex": host_name, "$options": "i"}},
+                {"participants": {"$elemMatch": {"$regex": host_name, "$options": "i"}}}
             ]
+        }
 
-        # Add participant filter
+        # SEARCH FILTER (applies on top of the above)
+        if search:
+            query.setdefault("$and", []).append({
+                "$or": [
+                    {"title": {"$regex": search, "$options": "i"}},
+                    {"summary": {"$regex": search, "$options": "i"}}
+                ]
+            })
+
+        # PARTICIPANT FILTER (email string inside array)
         if participant:
-            query["participants"] = {"$in": [participant]}
+            query.setdefault("$and", []).append({
+                "participants": {"$elemMatch": {"$regex": participant, "$options": "i"}}
+            })
 
         cur = db.meetings.find(query).sort("timestamp", DESCENDING).limit(100)
         meetings = list(cur)
+
         return jsonify([Meeting(**m).model_dump() for m in meetings])
 
     except Exception as e:
@@ -769,7 +781,7 @@ def meeting_reminder_cron():
                 meeting_id = m.get("meeting_title") + str(meeting_time)
                 if 59 <= diff_minutes <= 60 and meeting_id not in notified_meetings:
                 # if 0 <= diff_minutes <= 2 and meeting_id not in notified_meetings:  # test for meetings within next 2 minutes
-                    webhook_url = "https://n8n-latest-h3pu.onrender.com/webhook/13ed840c-a10f-4a27-8e1e-9eb1283353b3"
+                    webhook_url = "https://n8n-latest-h3pu.onrender.com/webhook/5d86f865-1eab-41e6-bab0-bd8f26d36cf1"
                     requests.post(webhook_url, json={"meeting": m})
                     notified_meetings.add(meeting_id)
                     print(f"Webhook called for: {m['meeting_title']}")
@@ -853,13 +865,43 @@ Participants:
 Transcript:
 {transcript}
 
-Produce ONLY valid JSON.
+📌 IMPORTANT INSTRUCTIONS  
+- Return ONLY valid JSON  
+- No markdown, no backticks  
+- All output must strictly follow JSON schema below  
+- Keep summary crisp, professional, medically accurate  
 
-Return:
-- "summary"
-- "key_points"
-- "action_items"
-- "decisions_made"
+Your JSON must follow this exact structure:
+
+{{
+  "overview": "<A concise 4–7 sentence high-level summary of the full meeting>",
+
+  "action_items": [
+    {{
+      "task": "<Clear task>",
+      "owner": "<Person or team responsible>",
+      "due_date": "<If mentioned, else null>"
+    }}
+  ],
+
+  "insights": [
+    "<Key insights or observations>",
+    "<Trends, risks, opportunities, operational notes>"
+  ],
+
+  "outline": [
+    {{
+      "heading": "<Topic/Section Heading>",
+      "points": [
+        "<Bullet point 1>",
+        "<Bullet point 2>",
+        "<Bullet point 3>"
+      ]
+    }}
+  ]
+}}
+
+Return ONLY the JSON above.
 """
 
         response = client.chat.completions.create(

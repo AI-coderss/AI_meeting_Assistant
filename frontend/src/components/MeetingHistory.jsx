@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const MeetingHistory = () => {
   const [meetings, setMeetings] = useState([]);
@@ -61,8 +63,8 @@ const MeetingHistory = () => {
   return (
     <div className="tab-content">
       <div className="history-header">
-        <h2 class="fs-4 fs-sm-3 fs-md-2 fw-semibold mb-3 text-center text-md-start text-dark dark:text-white">
-          Meeting History (by Host)
+        <h2 className="fs-4 fs-sm-3 fs-md-2 fw-semibold mb-3 text-center text-md-start text-dark dark:text-white">
+          Meeting History
         </h2>
 
         <div className="search-controls">
@@ -136,7 +138,7 @@ const MeetingHistory = () => {
       {/* ✅ Modal Content */}
       {selectedMeeting && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content bg-space" onClick={(e) => e.stopPropagation()}>
             <div className="btn-close-modal">
               <button className="btn btn-close" onClick={closeModal}></button>
             </div>
@@ -157,17 +159,24 @@ const MeetingHistory = () => {
             </p>
 
             {/* ✅ Render summary object safely */}
+            {/* Summary Section */}
             {selectedMeeting.summary && (
-              <div className="meeting-summary">
-                <h3>Summary</h3>
-                <p>
-                  {selectedMeeting.summary.summary || "No summary available"}
-                </p>
+              <div className="summary-section">
+                <h3 className="section-title">Summary</h3>
 
+                <div className="markdown-box">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {selectedMeeting.summary.full_summary ||
+                      selectedMeeting.summary.summary ||
+                      "No summary available"}
+                  </ReactMarkdown>
+                </div>
+
+                {/* Key Points */}
                 {selectedMeeting.summary.key_points?.length > 0 && (
                   <>
-                    <h4>Key Points</h4>
-                    <ul>
+                    <h4 className="sub-title">Key Points</h4>
+                    <ul className="nice-list">
                       {selectedMeeting.summary.key_points.map((point, idx) => (
                         <li key={idx}>{point}</li>
                       ))}
@@ -175,10 +184,11 @@ const MeetingHistory = () => {
                   </>
                 )}
 
+                {/* Action Items */}
                 {selectedMeeting.summary.action_items?.length > 0 && (
                   <>
-                    <h4>Action Items</h4>
-                    <ul>
+                    <h4 className="sub-title">Action Items </h4>
+                    <ul className="nice-list">
                       {selectedMeeting.summary.action_items.map((item, idx) => (
                         <li key={idx}>{item}</li>
                       ))}
@@ -186,15 +196,14 @@ const MeetingHistory = () => {
                   </>
                 )}
 
+                {/* Decisions */}
                 {selectedMeeting.summary.decisions_made?.length > 0 && (
                   <>
-                    <h4>Decisions Made</h4>
-                    <ul>
-                      {selectedMeeting.summary.decisions_made.map(
-                        (decision, idx) => (
-                          <li key={idx}>{decision}</li>
-                        )
-                      )}
+                    <h4 className="sub-title">Decisions Made</h4>
+                    <ul className="nice-list">
+                      {selectedMeeting.summary.decisions_made.map((d, idx) => (
+                        <li key={idx}>{d}</li>
+                      ))}
                     </ul>
                   </>
                 )}
@@ -202,13 +211,18 @@ const MeetingHistory = () => {
             )}
 
             {/* ✅ Render transcript */}
+            {/* Transcript */}
             {selectedMeeting.transcript?.length > 0 && (
-              <div className="meeting-transcript">
-                <h3>Transcript</h3>
+              <div className="transcript-section">
+                <h3 className="section-title">Transcript</h3>
+
                 {selectedMeeting.transcript.map((t, idx) => (
-                  <p key={idx}>
-                    <strong>{t.speaker}:</strong> {t.text}
-                  </p>
+                  <div key={idx} className="transcript-line">
+                    <strong>{t.speaker}:</strong>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {t.text}
+                    </ReactMarkdown>
+                  </div>
                 ))}
               </div>
             )}
@@ -271,6 +285,96 @@ const MeetingHistory = () => {
         .btn-close-modal .btn.btn-close {
           box-shadow: unset;
         }
+        .section-title {
+          font-size: 22px;
+          margin-top: 20px;
+          margin-bottom: 10px;
+          font-weight: 700;
+          color: #0066cc;
+        }
+
+        .sub-title {
+          font-size: 18px;
+          margin-top: 15px;
+          color: #444;
+          font-weight: 600;
+        }
+
+        .markdown-box {
+          background: #f8f9fc;
+          border: 1px solid #e3e6f0;
+          padding: 15px 20px;
+          border-radius: 10px;
+          margin-bottom: 15px;
+          font-size: 15px;
+          line-height: 1.6;
+          color: #333;
+        }
+
+        .markdown-box p {
+          margin-bottom: 12px;
+        }
+
+        .nice-list {
+          background: #f8f9fc;
+          padding: 12px 20px;
+          border-radius: 10px;
+          border-left: 4px solid #0073e6;
+        }
+
+        .nice-list li {
+          margin-bottom: 8px;
+        }
+
+        .transcript-section {
+          margin-top: 25px;
+        }
+
+        .transcript-line {
+          background: #fafafa;
+          padding: 10px 15px;
+          margin-bottom: 10px;
+          border-radius: 8px;
+          border: 1px solid #eee;
+        }
+
+        .transcript-line strong {
+          display: block;
+          color: #333;
+          margin-bottom: 5px;
+        }
+          .modal-content.bg-space {
+    flex: 1 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    width: 100%;
+    animation: fadeIn 0.5s 
+ease-out;
+    padding-top: 20px;
+}
+ .dark-theme .modal-content.bg-space {
+    background-color: rgb(19 24 32);
+    box-shadow: rgb(177 177 186 / 25%) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgb(153 162 171 / 35%) 0px -2px 6px 0px inset;
+}
+    .dark-theme .markdown-box {
+    background: #131820;
+    border: 1px solid #48494c;
+}
+    .dark-theme .btn-close-modal .btn.btn-close {
+    box-shadow: unset;
+    filter: invert(1);
+}
+    .dark-theme .summary-section li {
+    color: #ffff;
+}
+    .dark-theme .transcript-line {
+    background: #131820;
+    border: 1px solid #48494c;
+}
+    .dark-theme  .transcript-line strong {
+    color: #fff;
+}
       `}</style>
     </div>
   );

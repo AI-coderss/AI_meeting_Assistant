@@ -786,10 +786,7 @@ button.btn.btn-delete {
   left: -8px;
   border-radius: 100%;
 }
-.dark-theme .btn {
-  background: linear-gradient(45deg, #9ee7e7, #23aaaa);
-  font-weight: 600;
-}
+
 .dark-theme {
   color: #f1f5f9;
   background: #0f172a;
@@ -933,10 +930,22 @@ button.btn.btn-delete {
 }
 
 @media (max-width: 768px) {
+  .modal-content.bg-space {
+    margin: 0 28px;
+}
+.summary-section {
+    padding: 10px;
+}
   .theme-toggle {
     background: rgb(58 84 236);
     border: 1px solid rgb(88 93 114);
   }
+  .modal-content h3 {
+    font-size: 16px;
+}
+.modal-content h2 {
+    font-size: 18px;
+}
   .search-input {
     font-size: 14px;
   }
@@ -1199,6 +1208,11 @@ button.btn.btn-danger.btn-del.btn-sm {
   visibility: hidden;
 }
 @media (max-width: 600px) {
+ .btn-close-modal .btn.btn-close {
+    position: relative;
+    top: -10px;
+    left: 13px;
+}
   .app-header h1 {
     font-size: 12px;
   }
@@ -1226,4 +1240,7 @@ button.btn.btn-danger.btn-del.btn-sm {
 }
 .btn-danger {
   border: transparent !important;
+}
+.markdown-box ul {
+    padding-left: 0;
 }
