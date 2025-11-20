@@ -779,7 +779,7 @@ def meeting_reminder_cron():
                 diff_minutes = (meeting_time - now).total_seconds() / 60
 
                 meeting_id = m.get("meeting_title") + str(meeting_time)
-                if 59 <= diff_minutes <= 60 and meeting_id not in notified_meetings:
+                if 9 <= diff_minutes <= 10 and meeting_id not in notified_meetings:
                 # if 0 <= diff_minutes <= 2 and meeting_id not in notified_meetings:  # test for meetings within next 2 minutes
                     webhook_url = "https://n8n-latest-h3pu.onrender.com/webhook/5d86f865-1eab-41e6-bab0-bd8f26d36cf1"
                     requests.post(webhook_url, json={"meeting": m})
