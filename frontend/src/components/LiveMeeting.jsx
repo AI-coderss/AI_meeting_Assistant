@@ -19,7 +19,7 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const [actionItems, setActionItems] = useState([]);
-
+  const [recordBtnLoading, setRecordBtnLoading] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [newItem, setNewItem] = useState("");
 
@@ -216,46 +216,46 @@ ${
     return [];
   };
 
-  const startRecording = async () => {
-    try {
-      // 🧩 Step 1: Ensure a meeting exists before recording
-      if (!currentMeeting) {
-        showToast && showToast("Creating a new meeting...");
-        const newMeeting = await createMeetingIfNeeded();
-        if (!newMeeting) {
-          showToast &&
-            showToast(
-              "Failed to create meeting, cannot start recording.",
-              "error"
-            );
-          return;
-        }
-        setCurrentMeeting(newMeeting);
-        console.log("🆕 Created meeting:", newMeeting);
+ const startRecording = async () => {
+  try {
+    setRecordBtnLoading(true);   // ← show loader + disable button
+
+    // Prevent double click for 2 seconds
+    setTimeout(() => setRecordBtnLoading(false), 2000);
+
+    if (!currentMeeting) {
+      showToast && showToast("Creating a new meeting...");
+      const newMeeting = await createMeetingIfNeeded();
+      if (!newMeeting) {
+        setRecordBtnLoading(false);
+        showToast("Failed to create meeting", "error");
+        return;
       }
-
-      // 🎤 Step 2: Start microphone capture
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      setAudioStream(stream);
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioBlob(audioBlob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-      showToast && showToast("Recording started...");
-    } catch (err) {
-      console.error("❌ Error starting recording:", err);
-      showToast &&
-        showToast("Microphone access denied or meeting creation failed");
+      setCurrentMeeting(newMeeting);
     }
-  };
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    setAudioStream(stream);
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = mediaRecorder;
+    chunksRef.current = [];
+
+    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+      setAudioBlob(audioBlob);
+    };
+
+    mediaRecorder.start();
+    setIsRecording(true);
+    showToast && showToast("Recording started...");
+  } catch (err) {
+    setRecordBtnLoading(false);
+    console.error("❌ Error starting recording:", err);
+    showToast("Microphone access denied or meeting creation failed", "error");
+  }
+};
+
 
   const stopRecording = async () => {
     if (mediaRecorderRef.current) {
@@ -390,13 +390,14 @@ ${
             </button>
 
             {!isRecording ? (
-              <button
-                className="btn btn-record"
-                onClick={startRecording}
-                disabled={participants.length === 0}
-              >
-                🎤 Start Recording
-              </button>
+             <button
+  className="btn btn-record"
+  onClick={startRecording}
+  disabled={recordBtnLoading || participants.length === 0}
+>
+  {recordBtnLoading ? "⏳ Starting..." : "🎤 Start Recording"}
+</button>
+
             ) : (
               <button className="btn btn-stop" onClick={stopRecording}>
                 ⏹️ Stop Recording
