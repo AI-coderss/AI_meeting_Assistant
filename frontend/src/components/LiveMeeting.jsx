@@ -339,16 +339,21 @@ ${
       // -----------------------------------------------------------
       // 4️⃣ Send to n8n
       // -----------------------------------------------------------
+
       try {
         await axios.post(
           "https://n8n-latest-h3pu.onrender.com/webhook/85637224-7bfe-42fa-bdb0-7bfa84b16001",
           {
-            summary: finalData.summary || "",
-            key_points: finalData.key_points || [],
-            action_items: finalData.action_items || [],
-            decisions_made: finalData.decisions_made || [],
-            structured_transcript: finalData.structured_transcript || [],
+            summary: finalData?.summary || "",
+            overview: finalData?.overview || "",
+            insights: finalData?.insights || [],
+            outline: finalData?.outline || [],
+            key_points: finalData?.key_points || [],
+            action_items: actionItems || [],
+            decisions_made: finalData?.decisions_made || [],
+            structured_transcript: finalData?.structured_transcript || [],
             participants,
+            meeting_id: currentMeeting?.id,
             timestamp: new Date().toISOString(),
           }
         );
