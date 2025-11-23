@@ -3,8 +3,9 @@ import axios from "axios";
 import "../styles/LiveMeeting.css";
 import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
 import AudioVisualizer from "./AudioVisualizer.jsx";
+import Swal from "sweetalert2";
 
-const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
+const LiveMeeting = ({ participants,setParticipants, setShowParticipantModal, showToast }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [transcriptData, setTranscriptData] = useState(null);
@@ -22,12 +23,61 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
   const [recordBtnLoading, setRecordBtnLoading] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [newItem, setNewItem] = useState("");
+   const [notified, setNotified] = useState(false);
 
   const toggleComplete = (index) => {
     const updated = [...actionItems];
     updated[index].completed = !updated[index].completed;
     setActionItems(updated);
   };
+
+useEffect(() => {
+    const userEmail = localStorage.getItem("email");
+
+    const interval = setInterval(async () => {
+      try {
+         const res = await fetch(
+      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
+        userEmail
+      )}`
+    );
+        const meetings = await res.json();
+
+        const now = new Date();
+
+        meetings.forEach((m) => {
+          const meetingTime = new Date(m.meeting_time);
+
+          // Check if meeting is live within last 5 minutes
+          if (
+            now >= meetingTime &&
+            now - meetingTime <= 5 * 60 * 1000 && 
+            !notified
+          ) {
+            // Check if the user is a participant
+            const isParticipant = m.participants.some(
+              (p) => p.email === userEmail
+            );
+
+            if (isParticipant) {
+              Swal.fire({
+                title: "Your meeting has started",
+                text: `Meeting: ${m.meeting_title}`,
+                icon: "info",
+                confirmButtonText: "Join Now",
+              });
+
+              setNotified(true); // Prevent multiple popups
+            }
+          }
+        });
+      } catch (e) {
+        console.error("Error checking meeting:", e);
+      }
+    }, 10000); // check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [notified]);
 
   const addNewItem = () => {
     if (!newItem.trim()) return;
@@ -78,6 +128,58 @@ const LiveMeeting = ({ participants, setShowParticipantModal, showToast }) => {
       localStorage.setItem("mom_actionItems", JSON.stringify(formatted));
     }
   }, [transcriptData]);
+
+  useEffect(() => {
+  const token = localStorage.getItem("token");
+  const BACKEND_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com";
+
+  async function checkScheduledMeeting() {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/get_medical_meetings`);
+      const meetings = await res.json();
+
+      const now = new Date();
+
+      const upcoming = meetings.find((m) => {
+        const t = new Date(m.meeting_time);
+        return t >= now && (t - now) <= 5 * 60 * 1000; // within 5 minutes
+      });
+
+     if (upcoming) {
+  const userEmail = localStorage.getItem("email")?.toLowerCase();
+
+  const isParticipant = upcoming.participants.some((p) =>
+    p.email?.toLowerCase() === userEmail ||
+    p?.toLowerCase() === userEmail
+  );
+
+  if (!isParticipant) {
+    console.log("⛔ User is not a participant, popup blocked");
+    return; // ❌ do not show popup
+  }
+
+  // ✅ Show popup only if user is participant
+  Swal.fire({
+    title: "Scheduled Meeting Detected",
+    html: `
+      <b>${upcoming.meeting_title}</b><br/>
+      ${new Date(upcoming.meeting_time).toLocaleString()}
+    `,
+    icon: "info",
+    confirmButtonText: "Load Meeting"
+  }).then(() => {
+    setCurrentMeeting(upcoming);
+    setParticipants(upcoming.participants);
+  });
+}
+
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  checkScheduledMeeting();
+}, []);
 
   const createMeetingIfNeeded = async () => {
     const token = localStorage.getItem("token");

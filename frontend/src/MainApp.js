@@ -125,6 +125,7 @@ function MainApp() {
               setTranscript={setTranscript}
               transcriptRef={transcriptRef}
               participants={participants}
+              setParticipants={setParticipants}
               setShowParticipantModal={setShowParticipantModal}
               currentService="gpt-40-transcribe"
               diarizationSegments={diarizationSegments}
