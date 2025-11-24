@@ -8,10 +8,29 @@ const MedicalMeetingScheduler = () => {
     meeting_time: "",
     host_email: "",
     participants: [{ name: "", email: "", role: "" }],
+    agenda: [""],  
   });
 
   const [response, setResponse] = useState({ type: "", message: "" });
 const [isScheduling, setIsScheduling] = useState(false);
+const handleAgendaChange = (index, value) => {
+  const updated = [...formData.agenda];
+  updated[index] = value;
+  setFormData((prev) => ({ ...prev, agenda: updated }));
+};
+
+const addAgendaItem = () => {
+  setFormData((prev) => ({
+    ...prev,
+    agenda: [...prev.agenda, ""],
+  }));
+};
+
+const removeAgendaItem = (index) => {
+  const updated = [...formData.agenda];
+  updated.splice(index, 1);
+  setFormData((prev) => ({ ...prev, agenda: updated }));
+};
 
   // Prefill host email from localStorage
 useEffect(() => {
@@ -119,6 +138,7 @@ useEffect(() => {
           meeting_time: "",
           host_email: localStorage.getItem("name") || "",
           participants: [{ name: "", email: "", role: "" }],
+          agenda: [""], 
         });
       } else {
         setResponse({
@@ -201,6 +221,39 @@ useEffect(() => {
             />
           </div>
         </div>
+        {/* Agenda Section */}
+<div className="participants-section">
+  <label>Agenda Items</label>
+
+  {formData.agenda.map((item, index) => (
+    <div key={index} className="participant-row">
+      <input
+        type="text"
+        placeholder={`Agenda item ${index + 1}`}
+        value={item}
+        onChange={(e) => handleAgendaChange(index, e.target.value)}
+        required
+      />
+
+      {index !== 0 && formData.agenda.length > 1 && (
+        <button
+          type="button"
+          onClick={() => removeAgendaItem(index)}
+          className="remove-btn"
+        >
+          ❌
+        </button>
+      )}
+    </div>
+  ))}
+
+  <div className="text-center mt-3 mb-3">
+    <button type="button" onClick={addAgendaItem} className="add-btn">
+      + Add Agenda Item
+    </button>
+  </div>
+</div>
+
         {/* Participants */}
         <div className="participants-section">
           <label>Add Participants</label>

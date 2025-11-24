@@ -114,6 +114,7 @@ const fetchUpcomingMeetings = async () => {
                 <th>Scheduled Time</th>
                 <th>Host</th>
                 <th>Participants</th>
+                <th>Agenda's</th>
               </tr>
             </thead>
             <tbody>
@@ -124,6 +125,14 @@ const fetchUpcomingMeetings = async () => {
                   <td>{formatDate(m.meeting_time)}</td>
                   <td>{m.host_email}</td>
                   <td>{m.participants.map((p) => p.email).join(", ")}</td>
+                  <td>
+  <ul style={{ margin: 0, paddingLeft: "20px" }}>
+    {m.agenda?.map((item, i) => (
+      <li key={i}>{item}</li>
+    ))}
+  </ul>
+</td>
+
                 </tr>
               ))}
             </tbody>

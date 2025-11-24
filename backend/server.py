@@ -679,8 +679,6 @@ def summarize_meeting(meeting_id: str):
         logger.error(f"Error generating summary for {meeting_id}: {str(e)}")
         abort(500, description=f"Summary generation error: {str(e)}")
 
-
-
 #save meeting when scheduling
 @app.route("/api/save_medical_meeting", methods=["POST"])
 def save_medical_meeting():
@@ -690,28 +688,38 @@ def save_medical_meeting():
     try:
         data = request.get_json()
 
-        required_fields = ["meeting_title", "meeting_type", "meeting_time", "host_email", "participants"]
+        # Include agenda as required
+        required_fields = [
+            "meeting_title",
+            "meeting_type",
+            "meeting_time",
+            "host_email",
+            "participants",
+            "agenda" 
+        ]
+
         missing = [f for f in required_fields if f not in data or not data[f]]
         if missing:
             return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
-        # Convert meeting_time to a datetime object
+        # Validate meeting time
         try:
             meeting_time = datetime.fromisoformat(data["meeting_time"])
         except Exception:
             return jsonify({"error": "Invalid meeting_time format. Must be ISO 8601."}), 400
 
-        # Build the document
+        # Build the meeting document
         meeting_doc = {
             "meeting_title": data["meeting_title"],
             "meeting_type": data["meeting_type"],
             "meeting_time": meeting_time,
             "host_email": data["host_email"],
-            "participants": data["participants"],  # list of dicts
+            "participants": data["participants"],   
+            "agenda": data["agenda"],              
             "created_at": datetime.utcnow()
         }
 
-        # Insert into new collection
+        # Insert into MongoDB
         result = db["medical_meetings"].insert_one(meeting_doc)
 
         return jsonify({

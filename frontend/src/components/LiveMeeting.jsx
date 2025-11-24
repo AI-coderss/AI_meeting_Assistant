@@ -4,8 +4,14 @@ import "../styles/LiveMeeting.css";
 import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
 import AudioVisualizer from "./AudioVisualizer.jsx";
 import Swal from "sweetalert2";
+import { Pencil, Trash2, Check, X } from "lucide-react";
 
-const LiveMeeting = ({ participants,setParticipants, setShowParticipantModal, showToast }) => {
+const LiveMeeting = ({
+  participants,
+  setParticipants,
+  setShowParticipantModal,
+  showToast,
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [transcriptData, setTranscriptData] = useState(null);
@@ -23,7 +29,34 @@ const LiveMeeting = ({ participants,setParticipants, setShowParticipantModal, sh
   const [recordBtnLoading, setRecordBtnLoading] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [newItem, setNewItem] = useState("");
-   const [notified, setNotified] = useState(false);
+  const [notified, setNotified] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
+  const [editText, setEditText] = useState("");
+
+  // Edit item
+  const startEditing = (index) => {
+    setEditIndex(index);
+    setEditText(actionItems[index].task);
+  };
+
+  const saveEdit = (index) => {
+    const updated = [...actionItems];
+    updated[index].task = editText;
+    setActionItems(updated);
+    setEditIndex(null);
+    setEditText("");
+  };
+
+  const cancelEdit = () => {
+    setEditIndex(null);
+    setEditText("");
+  };
+
+  // Delete item
+  const deleteItem = (index) => {
+    const updated = actionItems.filter((_, i) => i !== index);
+    setActionItems(updated);
+  };
 
   const toggleComplete = (index) => {
     const updated = [...actionItems];
@@ -31,16 +64,16 @@ const LiveMeeting = ({ participants,setParticipants, setShowParticipantModal, sh
     setActionItems(updated);
   };
 
-useEffect(() => {
+  useEffect(() => {
     const userEmail = localStorage.getItem("email");
 
     const interval = setInterval(async () => {
       try {
-         const res = await fetch(
-      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
-        userEmail
-      )}`
-    );
+        const res = await fetch(
+          `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
+            userEmail
+          )}`
+        );
         const meetings = await res.json();
 
         const now = new Date();
@@ -51,7 +84,7 @@ useEffect(() => {
           // Check if meeting is live within last 5 minutes
           if (
             now >= meetingTime &&
-            now - meetingTime <= 5 * 60 * 1000 && 
+            now - meetingTime <= 5 * 60 * 1000 &&
             !notified
           ) {
             // Check if the user is a participant
@@ -130,56 +163,57 @@ useEffect(() => {
   }, [transcriptData]);
 
   useEffect(() => {
-  const token = localStorage.getItem("token");
-  const BACKEND_URL = "https://ai-meeting-assistant-backend-suu9.onrender.com";
+    const token = localStorage.getItem("token");
+    const BACKEND_URL =
+      "https://ai-meeting-assistant-backend-suu9.onrender.com";
 
-  async function checkScheduledMeeting() {
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/get_medical_meetings`);
-      const meetings = await res.json();
+    async function checkScheduledMeeting() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/get_medical_meetings`);
+        const meetings = await res.json();
 
-      const now = new Date();
+        const now = new Date();
 
-      const upcoming = meetings.find((m) => {
-        const t = new Date(m.meeting_time);
-        return t >= now && (t - now) <= 5 * 60 * 1000; // within 5 minutes
-      });
+        const upcoming = meetings.find((m) => {
+          const t = new Date(m.meeting_time);
+          return t >= now && t - now <= 5 * 60 * 1000; // within 5 minutes
+        });
 
-     if (upcoming) {
-  const userEmail = localStorage.getItem("email")?.toLowerCase();
+        if (upcoming) {
+          const userEmail = localStorage.getItem("email")?.toLowerCase();
 
-  const isParticipant = upcoming.participants.some((p) =>
-    p.email?.toLowerCase() === userEmail ||
-    p?.toLowerCase() === userEmail
-  );
+          const isParticipant = upcoming.participants.some(
+            (p) =>
+              p.email?.toLowerCase() === userEmail ||
+              p?.toLowerCase() === userEmail
+          );
 
-  if (!isParticipant) {
-    console.log("⛔ User is not a participant, popup blocked");
-    return; // ❌ do not show popup
-  }
+          if (!isParticipant) {
+            console.log("⛔ User is not a participant, popup blocked");
+            return; // ❌ do not show popup
+          }
 
-  // ✅ Show popup only if user is participant
-  Swal.fire({
-    title: "Scheduled Meeting Detected",
-    html: `
+          // ✅ Show popup only if user is participant
+          Swal.fire({
+            title: "Scheduled Meeting Detected",
+            html: `
       <b>${upcoming.meeting_title}</b><br/>
       ${new Date(upcoming.meeting_time).toLocaleString()}
     `,
-    icon: "info",
-    confirmButtonText: "Load Meeting"
-  }).then(() => {
-    setCurrentMeeting(upcoming);
-    setParticipants(upcoming.participants);
-  });
-}
-
-    } catch (err) {
-      console.error(err);
+            icon: "info",
+            confirmButtonText: "Load Meeting",
+          }).then(() => {
+            setCurrentMeeting(upcoming);
+            setParticipants(upcoming.participants);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
-  }
 
-  checkScheduledMeeting();
-}, []);
+    checkScheduledMeeting();
+  }, []);
 
   const createMeetingIfNeeded = async () => {
     const token = localStorage.getItem("token");
@@ -221,7 +255,7 @@ useEffect(() => {
     currentMeeting,
     structuredTranscript,
     summaryData,
-    updatedActionItems // <-- pass your React state action items here
+    actionItems // <-- pass your React state action items here
   ) => {
     const token = localStorage.getItem("token");
     const BACKEND_URL =
@@ -232,9 +266,6 @@ useEffect(() => {
       const combinedSummary = `
 📝 **Overview**
 ${summaryData?.overview || "No overview available."}
-
-📝 **Summary**
-${summaryData?.summary || "No summary available."}
 
 🔹 **Insights**
 ${
@@ -260,7 +291,7 @@ ${
 
 ☑️ **Action Items**
 ${
-  updatedActionItems
+  actionItems
     .map(
       (item, i) =>
         `${i + 1}. ${item.task} ${item.completed ? "(Completed)" : ""}`
@@ -277,7 +308,7 @@ ${
         insights: summaryData?.insights || [],
         outline: summaryData?.outline || [],
         key_points: summaryData?.key_points || [],
-        action_items: updatedActionItems, // <-- NEW checklist version
+        action_items: actionItems, // <-- NEW checklist version
         decisions_made: summaryData?.decisions_made || [],
       };
 
@@ -318,46 +349,45 @@ ${
     return [];
   };
 
- const startRecording = async () => {
-  try {
-    setRecordBtnLoading(true);   // ← show loader + disable button
+  const startRecording = async () => {
+    try {
+      setRecordBtnLoading(true); // ← show loader + disable button
 
-    // Prevent double click for 2 seconds
-    setTimeout(() => setRecordBtnLoading(false), 2000);
+      // Prevent double click for 2 seconds
+      setTimeout(() => setRecordBtnLoading(false), 2000);
 
-    if (!currentMeeting) {
-      showToast && showToast("Creating a new meeting...");
-      const newMeeting = await createMeetingIfNeeded();
-      if (!newMeeting) {
-        setRecordBtnLoading(false);
-        showToast("Failed to create meeting", "error");
-        return;
+      if (!currentMeeting) {
+        showToast && showToast("Creating a new meeting...");
+        const newMeeting = await createMeetingIfNeeded();
+        if (!newMeeting) {
+          setRecordBtnLoading(false);
+          showToast("Failed to create meeting", "error");
+          return;
+        }
+        setCurrentMeeting(newMeeting);
       }
-      setCurrentMeeting(newMeeting);
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioBlob(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      showToast && showToast("Recording started...");
+    } catch (err) {
+      setRecordBtnLoading(false);
+      console.error("❌ Error starting recording:", err);
+      showToast("Microphone access denied or meeting creation failed", "error");
     }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    setAudioStream(stream);
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
-    chunksRef.current = [];
-
-    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
-      setAudioBlob(audioBlob);
-    };
-
-    mediaRecorder.start();
-    setIsRecording(true);
-    showToast && showToast("Recording started...");
-  } catch (err) {
-    setRecordBtnLoading(false);
-    console.error("❌ Error starting recording:", err);
-    showToast("Microphone access denied or meeting creation failed", "error");
-  }
-};
-
+  };
 
   const stopRecording = async () => {
     if (mediaRecorderRef.current) {
@@ -492,14 +522,13 @@ ${
             </button>
 
             {!isRecording ? (
-             <button
-  className="btn btn-record"
-  onClick={startRecording}
-  disabled={recordBtnLoading || participants.length === 0}
->
-  {recordBtnLoading ? "⏳ Starting..." : "🎤 Start Recording"}
-</button>
-
+              <button
+                className="btn btn-record"
+                onClick={startRecording}
+                disabled={recordBtnLoading || participants.length === 0}
+              >
+                {recordBtnLoading ? "⏳ Starting..." : "🎤 Start Recording"}
+              </button>
             ) : (
               <button className="btn btn-stop" onClick={stopRecording}>
                 ⏹️ Stop Recording
@@ -605,32 +634,85 @@ ${
               </div>
 
               <div className="space-y-3">
-                {actionItems.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 cursor-pointer"
-                    onClick={() => toggleComplete(i)} // <-- CLICK ANYWHERE
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.completed}
-                      onChange={() => toggleComplete(i)}
-                      className="mt-1 h-4 w-4 cursor-pointer me-2"
-                      onClick={(e) => e.stopPropagation()} // prevent double toggle
-                    />
+{actionItems.map((item, i) => (
+  <div
+  key={i}
+  className="flex items-center justify-between px-2 py-2  rounded-md mb-2"
+>
+  {/* LEFT SIDE */}
+  <div className="flex items-center gap-3 w-full">
+    <input
+      type="checkbox"
+      checked={item.completed}
+      onChange={() => toggleComplete(i)}
+      className="h-4 w-4 cursor-pointer"
+    />
 
-                    <span
-                      className={`text-sm ${
-                        item.completed
-                          ? "line-through text-gray-400"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {item.task} - {item.owner}
-                    </span>
-                  </div>
-                ))}
+    {editIndex === i ? (
+      <input
+        type="text"
+        value={editText}
+        className="border p-2 rounded w-72 text-sm"
+        onChange={(e) => setEditText(e.target.value)}
+      />
+    ) : (
+      <span
+        className={`text-sm ${
+          item.completed ? "line-through text-gray-400" : "text-gray-700"
+        }`}
+      >
+        {item.task}
+        {item.owner ? ` — ${item.owner}` : ""}
+      </span>
+    )}
+  </div>
 
+  {/* RIGHT SIDE BUTTONS */}
+<div className="flex items-center gap-2 ml-4">
+  {editIndex === i ? (
+    <>
+      <button
+        className="px-3 py-2 rounded-lg border border-green-600 text-green-600 hover:bg-green-600 hover:text-white transition-all"
+        onClick={() => saveEdit(i)}
+      >
+        <Check size={16} />
+      </button>
+
+      <button
+        className="px-3 py-2 rounded-lg border border-gray-500 text-gray-600 hover:bg-gray-600 hover:text-white transition-all"
+        onClick={cancelEdit}
+      >
+        <X size={16} />
+      </button>
+    </>
+  ) : (
+    <>
+      <button
+        className="px-3 py-2 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"
+        onClick={(e) => {
+          e.stopPropagation();
+          startEditing(i);
+        }}
+      >
+        <Pencil size={16} />
+      </button>
+
+      <button
+        className="px-3 py-2 rounded-lg border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-all"
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteItem(i);
+        }}
+      >
+        <Trash2 size={16} />
+      </button>
+    </>
+  )}
+</div>
+
+</div>
+
+))}
                 {/* Add Action Item Button */}
                 {!showInput && (
                   <button
