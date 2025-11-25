@@ -20,7 +20,7 @@ from flask_cors import CORS, cross_origin
 # from flask_socketio import SocketIO, join_room, leave_room
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
-from faster_whisper import WhisperModel
+
 # MongoDB (PYMONGO SYNC)
 from pymongo import MongoClient, ASCENDING, DESCENDING
 
