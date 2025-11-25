@@ -191,5 +191,16 @@
 @keyframes spin2 {
   to { transform: rotate(-360deg); }
 }
-
-
+table td, th {
+    border: 1px solid #8080805c !important;
+    padding: 15px 36px;
+}
+.btn-edit {
+    background-color: #3a54ec;
+    color: #fff;
+    margin-right: 8px;
+}
+.btn-dlt {
+    background-color: #eb2f2f;
+    color: #fff;
+}

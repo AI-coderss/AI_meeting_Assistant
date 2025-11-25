@@ -633,125 +633,144 @@ ${
                 Action Items
               </div>
 
-              <div className="space-y-3">
-{actionItems.map((item, i) => (
-  <div
-  key={i}
-  className="flex items-center justify-between px-2 py-2  rounded-md mb-2"
->
-  {/* LEFT SIDE */}
-  <div className="flex items-center gap-3 w-full">
-    <input
-      type="checkbox"
-      checked={item.completed}
-      onChange={() => toggleComplete(i)}
-      className="h-4 w-4 cursor-pointer"
-    />
+   <div className="overflow-x-auto mt-3">
+  <table className="w-full border-collapse">
+    <thead>
+      <tr className="bg-gray-100 text-left text-sm text-gray-700">
+        <th className=" w-8"></th>
+        <th className="">Task</th>
+        <th className="">Assigned To</th>
+        <th className="">Due Date</th>
+        <th className="">Note</th>
+        <th className=" text-center w-28">Actions</th>
+      </tr>
+    </thead>
 
-    {editIndex === i ? (
+    <tbody>
+      {actionItems.map((item, i) => (
+        <tr
+          key={i}
+          className="border-b hover:bg-gray-50"
+        >
+          {/* Checkbox */}
+          <td className="p-2">
+            <input
+              type="checkbox"
+              checked={item.completed}
+              onChange={() => toggleComplete(i)}
+              className="h-4 w-4 cursor-pointer"
+            />
+          </td>
+
+          {/* Task */}
+          <td className="p-2">
+            {editIndex === i ? (
+              <input
+                type="text"
+                value={editText.task}
+                onChange={(e) =>
+                  setEditText({ ...editText, task: e.target.value })
+                }
+                className="border p-1 rounded w-full text-sm"
+              />
+            ) : (
+              <span
+                className={`text-sm ${
+                  item.completed
+                    ? "line-through text-gray-400"
+                    : "text-gray-700"
+                }`}
+              >
+                {item.task}
+              </span>
+            )}
+          </td>
+
+          {/* Owner */}
+          <td className="p-2 text-sm">{item.owner || "-"}</td>
+
+          {/* Due Date */}
+          <td className="p-2 text-sm">{item.due_date || "-"}</td>
+
+          {/* Note */}
+          <td className="p-2 text-sm">{item.note || "-"}</td>
+
+          {/* Actions */}
+          <td className="p-2 flex justify-center gap-2">
+            {editIndex === i ? (
+              <>
+                <button
+                  className="px-2 py-1 border border-green-600 text-green-600 rounded hover:bg-green-600 hover:text-white"
+                  onClick={() => saveEdit(i)}
+                >
+                  ✅
+                </button>
+
+                <button
+                  className="px-2 py-1 border border-gray-500 text-gray-600 rounded hover:bg-gray-600 hover:text-white"
+                  onClick={cancelEdit}
+                >
+                  ✖
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  className="px-2 py-1 border border-blue-600 text-blue-600 rounded hover:bg-blue-600 hover:text-white btn-edit"
+                  onClick={() => startEditing(i)}
+                >
+                  <Pencil></Pencil>
+                </button>
+
+                <button
+                  className="px-2 py-1 border border-red-600 text-red-600 rounded hover:bg-red-600 hover:text-whit btn-dlt"
+                  onClick={() => deleteItem(i)}
+                >
+                  <Trash2></Trash2>
+                </button>
+              </>
+            )}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  {/* Add Action Item */}
+  {!showInput && (
+    <button
+      onClick={() => setShowInput(true)}
+      className="mt-3 text-gray-600 hover:text-gray-900 text-sm"
+    >
+      + Add action item
+    </button>
+  )}
+
+  {showInput && (
+    <div className="flex gap-2 mt-3">
       <input
         type="text"
-        value={editText}
-        className="border p-2 rounded w-72 text-sm"
-        onChange={(e) => setEditText(e.target.value)}
+        placeholder="New action item..."
+        value={newItem}
+        onChange={(e) => setNewItem(e.target.value)}
+        className="border p-2 rounded w-80"
       />
-    ) : (
-      <span
-        className={`text-sm ${
-          item.completed ? "line-through text-gray-400" : "text-gray-700"
-        }`}
-      >
-        {item.task}
-        {item.owner ? ` — ${item.owner}` : ""}
-      </span>
-    )}
-  </div>
-
-  {/* RIGHT SIDE BUTTONS */}
-<div className="flex items-center gap-2 ml-4">
-  {editIndex === i ? (
-    <>
-      <button
-        className="px-3 py-2 rounded-lg border border-green-600 text-green-600 hover:bg-green-600 hover:text-white transition-all"
-        onClick={() => saveEdit(i)}
-      >
-        <Check size={16} />
+      <button onClick={addNewItem} className="btn-primary">
+        Save
       </button>
-
       <button
-        className="px-3 py-2 rounded-lg border border-gray-500 text-gray-600 hover:bg-gray-600 hover:text-white transition-all"
-        onClick={cancelEdit}
-      >
-        <X size={16} />
-      </button>
-    </>
-  ) : (
-    <>
-      <button
-        className="px-3 py-2 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all"
-        onClick={(e) => {
-          e.stopPropagation();
-          startEditing(i);
+        onClick={() => {
+          setShowInput(false);
+          setNewItem("");
         }}
+        className="btn-secondary"
       >
-        <Pencil size={16} />
+        Cancel
       </button>
-
-      <button
-        className="px-3 py-2 rounded-lg border border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-all"
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteItem(i);
-        }}
-      >
-        <Trash2 size={16} />
-      </button>
-    </>
+    </div>
   )}
 </div>
 
-</div>
-
-))}
-                {/* Add Action Item Button */}
-                {!showInput && (
-                  <button
-                    onClick={() => setShowInput(true)}
-                    className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm bg-button"
-                  >
-                    <span className="text-xl">+</span> Add action item
-                  </button>
-                )}
-
-                {/* Input Field (only shows after clicking button) */}
-                {showInput && (
-                  <div className="action-input-row">
-                    <input
-                      type="text"
-                      placeholder="New action item..."
-                      value={newItem}
-                      onChange={(e) => setNewItem(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && addNewItem()}
-                      className="action-input"
-                      autoFocus
-                    />
-
-                    <button onClick={addNewItem} className="btn-primary">
-                      Save
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setShowInput(false);
-                        setNewItem("");
-                      }}
-                      className="btn-secondary"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </div>
 
               <div className="section-title">
                 <svg
