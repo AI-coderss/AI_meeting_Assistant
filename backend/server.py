@@ -817,37 +817,68 @@ def shutdown_db_client():
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
+    print("✅ /api/process-meeting CALLED")
+
     try:
         # 0️⃣ GET AUDIO FILE
         audio = request.files.get("audio_data")
+        print("📥 Received audio:", audio.filename if audio else "None")
+
         if not audio:
+            print("❌ No audio_data in request")
             return jsonify({"error": "No audio_data file found in request"}), 400
 
-        participants = json.loads(request.form.get("participants", "[]"))
+        participants_raw = request.form.get("participants", "[]")
+        print("👥 Raw participants:", participants_raw)
 
-        # Save audio to disk
+        try:
+            participants = json.loads(participants_raw)
+        except Exception as e:
+            print("❌ Failed to parse participants JSON:", e)
+            participants = []
+
+        # Save audio
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
         audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
+
+        print("💾 Saving audio to:", audio_path)
 
         with open(audio_path, "wb") as f:
             import shutil
             shutil.copyfileobj(audio.stream, f)
 
+        print("✅ Audio saved")
+
         # 1️⃣ Send to external transcriber API
         transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
+        print("🌐 Sending to transcriber API:", transcribe_url)
 
-        with open(audio_path, "rb") as f:
-            external_res = requests.post(
-                transcribe_url,
-                files={"audio_data": (audio.filename, f, audio.mimetype)},
-                timeout=600
-            )
+        try:
+            with open(audio_path, "rb") as f:
+                external_res = requests.post(
+                    transcribe_url,
+                    files={"audio_data": (audio.filename, f, audio.mimetype)},
+                    timeout=600
+                )
+        except Exception as e:
+            print("❌ Transcriber request ERROR:", type(e).__name__, str(e))
+            raise
+
+        print("🔁 Transcriber status:", external_res.status_code)
 
         if external_res.status_code != 200:
+            print("❌ Transcriber returned:", external_res.text[:500])
             return jsonify({"error": "Transcription API failed", "details": external_res.text}), 500
 
-        transcript_json = external_res.json()
+        try:
+            transcript_json = external_res.json()
+            print("✅ Transcriber JSON received")
+        except Exception as e:
+            print("❌ Failed to parse transcriber JSON:", e)
+            print("RAW RESPONSE:", external_res.text[:500])
+            raise
+
         transcript = (
             transcript_json.get("transcript")
             or transcript_json.get("text")
@@ -855,67 +886,21 @@ def process_meeting():
             or ""
         )
 
+        print("📝 Transcript length:", len(transcript))
+
         if not transcript.strip():
+            print("❌ Empty transcript returned")
             return jsonify({"error": "Transcription returned empty text"}), 500
 
-        # 3️⃣ Participant context
-        participant_context = "\n".join(
-            [f"- {p.get('name')} ({p.get('role')})" for p in participants]
-        )
-
-        # 4️⃣ GPT Summary ONLY (no structured transcript)
-        prompt = f"""
-You are a professional medical meeting assistant.
-
-Participants:
-{participant_context}
-
-Transcript:
-{transcript}
-
-📌 IMPORTANT INSTRUCTIONS  
-- Return ONLY valid JSON  
-- No markdown, no backticks  
-- All output must strictly follow JSON schema below  
-- Keep summary crisp, professional, medically accurate  
-
-Your JSON must follow this exact structure:
-
-{{
-  "overview": "<A concise 4–7 sentence high-level summary of the full meeting>",
-
-  "action_items": [
-    {{
-      "task": "<Clear task>",
-      "owner": "<Person or team responsible>",
-      "due_date": "<If mentioned, else null>"
-    }}
-  ],
-
-  "insights": [
-    "<Key insights or observations>",
-    "<Trends, risks, opportunities, operational notes>"
-  ],
-
-  "outline": [
-    {{
-      "heading": "<Topic/Section Heading>",
-      "points": [
-        "<Bullet point 1>",
-        "<Bullet point 2>",
-        "<Bullet point 3>"
-      ]
-    }}
-  ]
-}}
-
-Return ONLY the JSON above.
-"""
+        # 4️⃣ GPT SUMMARY
+        print("🤖 Sending transcript to GPT...")
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": f"... transcript length {len(transcript)} ..."}]
         )
+
+        print("✅ GPT response received")
 
         cleaned = (
             response.choices[0].message.content
@@ -926,19 +911,25 @@ Return ONLY the JSON above.
 
         try:
             summary_data = json.loads(cleaned)
-        except:
+            print("✅ JSON parsed successfully")
+        except Exception as e:
+            print("❌ JSON parsing failed:", e)
+            print("RAW GPT OUTPUT:", cleaned[:500])
             summary_data = {"summary": "GPT returned invalid JSON", "raw_output": cleaned}
 
-        # ❗ Add transcript for 2nd API call
         summary_data["transcript"] = transcript
 
-        # Cleanup
+        print("✅ Returning response")
+
         try: os.remove(audio_path)
         except: pass
 
         return jsonify(summary_data)
 
     except Exception as e:
+        print("🔥 UNHANDLED ERROR:", type(e).__name__, str(e))
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/structured-transcript", methods=["POST"])
