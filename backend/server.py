@@ -850,6 +850,38 @@ def process_meeting():
 
         print("✅ Audio saved")
 
+        # ✅ ✅ AUDIO COMPRESSION STEP
+        import subprocess
+        compressed_path = audio_path + "_compressed.mp3"
+
+        print("🎧 Compressing audio to 32kbps mono...")
+
+        try:
+            subprocess.run([
+                "ffmpeg", "-y",
+                "-i", audio_path,
+                "-vn",
+                "-ac", "1",          # mono
+                "-ar", "16000",      # speech optimized sample rate
+                "-b:a", "32k",       # VERY small size
+                compressed_path
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+            print("✅ Compression complete")
+            print("📦 Using compressed audio")
+
+            audio_path = compressed_path
+
+        except Exception as e:
+            print("❌ Compression failed, using original audio:", e)
+
+        # ✅ Log file size
+        try:
+            size_mb = os.path.getsize(audio_path) / (1024*1024)
+            print(f"📏 Audio size after compression: {size_mb:.2f} MB")
+        except:
+            pass
+
         # 1️⃣ Send to external transcriber API
         transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
         print("🌐 Sending to transcriber API:", transcribe_url)
@@ -858,7 +890,7 @@ def process_meeting():
             with open(audio_path, "rb") as f:
                 external_res = requests.post(
                     transcribe_url,
-                    files={"audio_data": (audio.filename, f, audio.mimetype)},
+                    files={"audio_data": ("compressed.mp3", f, "audio/mpeg")},
                     timeout=600
                 )
         except Exception as e:
@@ -892,7 +924,6 @@ def process_meeting():
             print("❌ Empty transcript returned")
             return jsonify({"error": "Transcription returned empty text"}), 500
 
-        # 4️⃣ GPT SUMMARY
         print("🤖 Sending transcript to GPT...")
 
         response = client.chat.completions.create(
@@ -921,8 +952,10 @@ def process_meeting():
 
         print("✅ Returning response")
 
-        try: os.remove(audio_path)
-        except: pass
+        try:
+            os.remove(audio_path)
+        except:
+            pass
 
         return jsonify(summary_data)
 
