@@ -20,7 +20,7 @@ from flask_cors import CORS, cross_origin
 # from flask_socketio import SocketIO, join_room, leave_room
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
-
+from faster_whisper import WhisperModel
 # MongoDB (PYMONGO SYNC)
 from pymongo import MongoClient, ASCENDING, DESCENDING
 
@@ -815,6 +815,7 @@ def shutdown_db_client():
 
 # Initialize the new OpenAI client (v1.x+)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     print("✅ /api/process-meeting CALLED")
@@ -850,7 +851,7 @@ def process_meeting():
 
         print("✅ Audio saved")
 
-        # ✅ ✅ AUDIO COMPRESSION STEP
+        # ✅ AUDIO COMPRESSION STEP
         import subprocess
         compressed_path = audio_path + "_compressed.mp3"
 
@@ -861,9 +862,9 @@ def process_meeting():
                 "ffmpeg", "-y",
                 "-i", audio_path,
                 "-vn",
-                "-ac", "1",          # mono
-                "-ar", "16000",      # speech optimized sample rate
-                "-b:a", "32k",       # VERY small size
+                "-ac", "1",
+                "-ar", "16000",
+                "-b:a", "32k",
                 compressed_path
             ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -882,43 +883,22 @@ def process_meeting():
         except:
             pass
 
-        # 1️⃣ Send to external transcriber API
-        transcribe_url = "https://test-medic-transcriber-latest.onrender.com/transcribe"
-        print("🌐 Sending to transcriber API:", transcribe_url)
+        # ✅ ✅ WHISPER TRANSCRIPTION (OpenAI)
+        print("🎤 Transcribing using OpenAI Whisper...")
 
         try:
             with open(audio_path, "rb") as f:
-                external_res = requests.post(
-                    transcribe_url,
-                    files={"audio_data": ("compressed.mp3", f, "audio/mpeg")},
-                    timeout=600
+                whisper_res = client.audio.transcriptions.create(
+                    model="gpt-4o-transcribe",
+                    file=f
                 )
+
+            transcript = whisper_res.text
+            print("✅ Whisper transcription success, length:", len(transcript))
+
         except Exception as e:
-            print("❌ Transcriber request ERROR:", type(e).__name__, str(e))
-            raise
-
-        print("🔁 Transcriber status:", external_res.status_code)
-
-        if external_res.status_code != 200:
-            print("❌ Transcriber returned:", external_res.text[:500])
-            return jsonify({"error": "Transcription API failed", "details": external_res.text}), 500
-
-        try:
-            transcript_json = external_res.json()
-            print("✅ Transcriber JSON received")
-        except Exception as e:
-            print("❌ Failed to parse transcriber JSON:", e)
-            print("RAW RESPONSE:", external_res.text[:500])
-            raise
-
-        transcript = (
-            transcript_json.get("transcript")
-            or transcript_json.get("text")
-            or transcript_json.get("full_transcript")
-            or ""
-        )
-
-        print("📝 Transcript length:", len(transcript))
+            print("❌ Whisper transcription FAILED:", e)
+            return jsonify({"error": "Whisper API failed", "details": str(e)}), 500
 
         if not transcript.strip():
             print("❌ Empty transcript returned")
