@@ -41,6 +41,8 @@ from flask import Response
 from sendgrid.helpers.mail import Mail
 # from google_speech import google_bp
 from apscheduler.schedulers.background import BackgroundScheduler
+from uuid import uuid4
+import subprocess
 
 # ---------- Configuration ----------
 
@@ -816,102 +818,71 @@ def shutdown_db_client():
 # Initialize the new OpenAI client (v1.x+)
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
+processing_jobs = {}   # { job_id: {"status": "...", "result": {...}} }
+
 @app.route("/api/process-meeting", methods=["POST"])
 def process_meeting():
     print("✅ /api/process-meeting CALLED")
 
+    audio = request.files.get("audio_data")
+    if not audio:
+        return jsonify({"error": "No audio_data file found"}), 400
+
+    job_id = str(uuid4())
+    processing_jobs[job_id] = {"status": "processing", "result": None}
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
+
+    with open(audio_path, "wb") as f:
+        import shutil
+        shutil.copyfileobj(audio.stream, f)
+
+    print(f"💾 Saved audio for job {job_id}")
+
+    # ✅ START BACKGROUND THREAD
+    threading.Thread(
+        target=process_audio_background,
+        args=(job_id, audio_path),
+        daemon=False
+    ).start()
+
+    return jsonify({"status": "processing", "job_id": job_id}), 202
+
+
+def process_audio_background(job_id, audio_path):
+    print(f"🎧 Background worker started for {job_id}")
+
     try:
-        # 0️⃣ GET AUDIO FILE
-        audio = request.files.get("audio_data")
-        print("📥 Received audio:", audio.filename if audio else "None")
-
-        if not audio:
-            print("❌ No audio_data in request")
-            return jsonify({"error": "No audio_data file found in request"}), 400
-
-        participants_raw = request.form.get("participants", "[]")
-        print("👥 Raw participants:", participants_raw)
-
-        try:
-            participants = json.loads(participants_raw)
-        except Exception as e:
-            print("❌ Failed to parse participants JSON:", e)
-            participants = []
-
-        # Save audio
-        upload_dir = "uploads"
-        os.makedirs(upload_dir, exist_ok=True)
-        audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
-
-        print("💾 Saving audio to:", audio_path)
-
-        with open(audio_path, "wb") as f:
-            import shutil
-            shutil.copyfileobj(audio.stream, f)
-
-        print("✅ Audio saved")
-
-        # ✅ AUDIO COMPRESSION STEP
-        import subprocess
+        # ✅ compress
         compressed_path = audio_path + "_compressed.mp3"
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", audio_path,
+            "-vn",
+            "-ac", "1",
+            "-ar", "16000",
+            "-b:a", "32k",
+            compressed_path
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        print("🎧 Compressing audio to 32kbps mono...")
+        audio_path = compressed_path
 
-        try:
-            subprocess.run([
-                "ffmpeg", "-y",
-                "-i", audio_path,
-                "-vn",
-                "-ac", "1",
-                "-ar", "16000",
-                "-b:a", "32k",
-                compressed_path
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # ✅ transcribe
+        with open(audio_path, "rb") as f:
+            whisper_res = client.audio.transcriptions.create(
+                model="gpt-4o-transcribe",
+                file=f
+            )
 
-            print("✅ Compression complete")
-            print("📦 Using compressed audio")
+        transcript = whisper_res.text
 
-            audio_path = compressed_path
-
-        except Exception as e:
-            print("❌ Compression failed, using original audio:", e)
-
-        # ✅ Log file size
-        try:
-            size_mb = os.path.getsize(audio_path) / (1024*1024)
-            print(f"📏 Audio size after compression: {size_mb:.2f} MB")
-        except:
-            pass
-
-        # ✅ ✅ WHISPER TRANSCRIPTION (OpenAI)
-        print("🎤 Transcribing using OpenAI Whisper...")
-
-        try:
-            with open(audio_path, "rb") as f:
-                whisper_res = client.audio.transcriptions.create(
-                    model="gpt-4o-transcribe",
-                    file=f
-                )
-
-            transcript = whisper_res.text
-            print("✅ Whisper transcription success, length:", len(transcript))
-
-        except Exception as e:
-            print("❌ Whisper transcription FAILED:", e)
-            return jsonify({"error": "Whisper API failed", "details": str(e)}), 500
-
-        if not transcript.strip():
-            print("❌ Empty transcript returned")
-            return jsonify({"error": "Transcription returned empty text"}), 500
-
-        print("🤖 Sending transcript to GPT...")
-
+        # ✅ summarize
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": f"... transcript length {len(transcript)} ..."}]
+            messages=[{"role": "user", "content": transcript}]
         )
-
-        print("✅ GPT response received")
 
         cleaned = (
             response.choices[0].message.content
@@ -921,29 +892,35 @@ def process_meeting():
         )
 
         try:
-            summary_data = json.loads(cleaned)
-            print("✅ JSON parsed successfully")
-        except Exception as e:
-            print("❌ JSON parsing failed:", e)
-            print("RAW GPT OUTPUT:", cleaned[:500])
-            summary_data = {"summary": "GPT returned invalid JSON", "raw_output": cleaned}
-
-        summary_data["transcript"] = transcript
-
-        print("✅ Returning response")
-
-        try:
-            os.remove(audio_path)
+            summary_json = json.loads(cleaned)
         except:
-            pass
+            summary_json = {"summary": cleaned}
 
-        return jsonify(summary_data)
+        summary_json["transcript"] = transcript
+
+        processing_jobs[job_id] = {
+            "status": "done",
+            "result": summary_json
+        }
+
+        print(f"✅ Job {job_id} completed")
 
     except Exception as e:
-        print("🔥 UNHANDLED ERROR:", type(e).__name__, str(e))
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        processing_jobs[job_id] = {
+            "status": "error",
+            "result": str(e)
+        }
+        print(f"❌ Background job failed {job_id}: {e}")
+
+
+@app.route("/api/get-result/<job_id>")
+def get_result(job_id):
+    job = processing_jobs.get(job_id)
+
+    if not job:
+        return jsonify({"error": "Invalid job id"}), 404
+
+    return jsonify(job)
 
 @app.route("/api/structured-transcript", methods=["POST"])
 def structured_transcript():
