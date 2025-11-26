@@ -7,7 +7,7 @@ import atexit
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any,Union
 from functools import wraps
 import logging
 import base64
@@ -90,10 +90,17 @@ class TranscriptSegment(BaseModel):
     text: str
 
 
+class ActionItem(BaseModel):
+    task: str
+    owner: Optional[str] = None
+    due_date: Optional[str] = None
+    note: Optional[str] = None
+
+
 class MeetingSummary(BaseModel):
     summary: str = ""
     key_points: List[str] = []
-    action_items: List[str] = []
+    action_items: List[Union[str, ActionItem]] = []
     decisions_made: List[str] = []
 
 
@@ -445,6 +452,18 @@ def get_meetings():
     except Exception as e:
         logger.error(f"Error fetching meetings: {str(e)}")
         abort(500, description=str(e))
+
+@api_bp.route("/meetings/all", methods=["GET"])
+@auth_required
+def get_all_meetings():
+    try:
+        cur = db.meetings.find().sort("timestamp", DESCENDING)
+        meetings = list(cur)
+        return jsonify([Meeting(**m).model_dump() for m in meetings])
+    except Exception as e:
+        logger.error(f"Error fetching ALL meetings: {str(e)}")
+        abort(500, description=str(e))
+
 
 @api_bp.route("/meetings/host/<host_name>", methods=['GET'])
 @auth_required
