@@ -760,14 +760,13 @@ def save_medical_meeting():
     try:
         data = request.get_json()
 
-        # Include agenda as required
         required_fields = [
             "meeting_title",
             "meeting_type",
             "meeting_time",
             "host_email",
             "participants",
-            "agenda" 
+            "agenda"
         ]
 
         missing = [f for f in required_fields if f not in data or not data[f]]
@@ -777,21 +776,41 @@ def save_medical_meeting():
         # Validate meeting time
         try:
             meeting_time = datetime.fromisoformat(data["meeting_time"])
-        except Exception:
+        except:
             return jsonify({"error": "Invalid meeting_time format. Must be ISO 8601."}), 400
 
-        # Build the meeting document
+        # ✅ Validate agenda structure
+        agenda_items = []
+        for a in data["agenda"]:
+            if "item" not in a or not a["item"].strip():
+                return jsonify({"error": "Agenda item text required"}), 400
+
+            if "speaker_email" not in a or not a["speaker_email"]:
+                return jsonify({"error": "Speaker email required"}), 400
+
+            if "time_offset" not in a or not isinstance(a["time_offset"], int):
+                return jsonify({"error": "time_offset must be integer"}), 400
+
+            # ✅ Calculate actual scheduled time (optional but AMAZING for reminders / UI)
+            agenda_start_time = meeting_time + timedelta(minutes=a["time_offset"])
+
+            agenda_items.append({
+                "item": a["item"].strip(),
+                "speaker_email": a["speaker_email"],
+                "time_offset": a["time_offset"],
+                "scheduled_time": agenda_start_time
+            })
+
         meeting_doc = {
             "meeting_title": data["meeting_title"],
             "meeting_type": data["meeting_type"],
             "meeting_time": meeting_time,
             "host_email": data["host_email"],
-            "participants": data["participants"],   
-            "agenda": data["agenda"],              
+            "participants": data["participants"],
+            "agenda": agenda_items,
             "created_at": datetime.utcnow()
         }
 
-        # Insert into MongoDB
         result = db["medical_meetings"].insert_one(meeting_doc)
 
         return jsonify({
@@ -802,6 +821,7 @@ def save_medical_meeting():
     except Exception as e:
         logger.error(f"Error saving medical meeting: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
 
 @app.route("/api/get_user_medical_meetings", methods=["GET"])
 def get_user_medical_meetings():

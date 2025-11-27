@@ -125,14 +125,19 @@ const fetchUpcomingMeetings = async () => {
                   <td>{formatDate(m.meeting_time)}</td>
                   <td>{m.host_email}</td>
                   <td>{m.participants.map((p) => p.email).join(", ")}</td>
-                  <td>
+               <td>
   <ul style={{ margin: 0, paddingLeft: "20px" }}>
-    {m.agenda?.map((item, i) => (
-      <li key={i}>{item}</li>
+    {m.agenda?.map((ag, i) => (
+      <li key={i}>
+        {ag.item}{" "}
+        {ag.scheduled_time
+          ? `(${new Date(ag.scheduled_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
+          : ""}
+        {ag.speaker_email ? ` - ${ag.speaker_email}` : ""}
+      </li>
     ))}
   </ul>
 </td>
-
                 </tr>
               ))}
             </tbody>
