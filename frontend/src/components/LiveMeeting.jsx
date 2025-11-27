@@ -37,6 +37,10 @@ const LiveMeeting = ({
     due_date: "",
     note: "",
   });
+  const [agenda, setAgenda] = useState([]);
+const [meetingStartTime, setMeetingStartTime] = useState(null);
+const [shownAgendaPopups, setShownAgendaPopups] = useState([]);
+
 
 const syncActionItemsToAPI = async (updatedItems) => {
   if (!currentMeeting?.id) return;
@@ -143,12 +147,21 @@ syncActionItemsToAPI(updated);
             );
 
             if (isParticipant) {
-              Swal.fire({
-                title: "Your meeting has started",
-                text: `Meeting: ${m.meeting_title}`,
-                icon: "info",
-                confirmButtonText: "Join Now",
-              });
+             Swal.fire({
+  title: "Your meeting has started",
+  text: `Meeting: ${m.meeting_title}`,
+  icon: "info",
+  confirmButtonText: "Join Now",
+}).then(() => {
+  setCurrentMeeting(m);
+  setParticipants(m.participants || []);
+
+  // NEW → load agenda
+  if (Array.isArray(m.agenda)) {
+    setAgenda(m.agenda);
+  }
+});
+
 
               setNotified(true); // Prevent multiple popups
             }
@@ -171,6 +184,38 @@ syncActionItemsToAPI(updated);
     setNewItem("");
     setShowInput(false);
   };
+
+  useEffect(() => {
+  if (!meetingStartTime || agenda.length === 0) return;
+
+  const interval = setInterval(() => {
+    const now = new Date();
+    const elapsedMinutes = Math.floor((now - meetingStartTime) / 60000);
+
+    agenda.forEach((ag, idx) => {
+      if (
+        elapsedMinutes >= ag.time_offset &&
+        !shownAgendaPopups.includes(idx)
+      ) {
+        // Show popup alert
+        Swal.fire({
+          title: `⏱ Agenda Time Reached`,
+          html: `
+            <b>${ag.item}</b><br/>
+            Speaker: ${ag.speaker_name} (${ag.speaker_email})
+          `,
+          icon: "info",
+          confirmButtonText: "OK",
+        });
+
+        // Mark popup as shown
+        setShownAgendaPopups((prev) => [...prev, idx]);
+      }
+    });
+  }, 15000); // check every 15 seconds
+
+  return () => clearInterval(interval);
+}, [meetingStartTime, agenda, shownAgendaPopups]);
 
   useEffect(() => {
     const savedTranscript = localStorage.getItem("mom_transcriptData");
@@ -248,19 +293,24 @@ syncActionItemsToAPI(updated);
             return; // ❌ do not show popup
           }
 
-          // ✅ Show popup only if user is participant
-          Swal.fire({
-            title: "Scheduled Meeting Detected",
-            html: `
-      <b>${upcoming.meeting_title}</b><br/>
-      ${new Date(upcoming.meeting_time).toLocaleString()}
-    `,
-            icon: "info",
-            confirmButtonText: "Load Meeting",
-          }).then(() => {
-            setCurrentMeeting(upcoming);
-            setParticipants(upcoming.participants);
-          });
+      Swal.fire({
+  title: "Scheduled Meeting Detected",
+  html: `
+    <b>${upcoming.meeting_title}</b><br/>
+    ${new Date(upcoming.meeting_time).toLocaleString()}
+  `,
+  icon: "info",
+  confirmButtonText: "Load Meeting",
+}).then(() => {
+  setCurrentMeeting(upcoming);
+  setParticipants(upcoming.participants);
+
+  // ⬇️ NEW — Load agenda
+  if (Array.isArray(upcoming.agenda)) {
+    setAgenda(upcoming.agenda);
+  }
+});
+
         }
       } catch (err) {
         console.error(err);
@@ -419,6 +469,8 @@ ${
       };
 
       mediaRecorder.start();
+      setMeetingStartTime(new Date()); 
+
       setIsRecording(true);
       showToast && showToast("Recording started...");
     } catch (err) {
@@ -545,7 +597,7 @@ ${
   return (
     <div className="tab-content">
       <div className="meeting-controls">
-        <h2>Recorded Meeting</h2>
+        <h2>Live Meeting</h2>
 
         <div className="recording-panel">
           <div className="participant-info">
@@ -557,7 +609,7 @@ ${
               className="btn btn-participant"
               onClick={() => setShowParticipantModal(true)}
             >
-              <span class="filter-icon">👥 </span> Manage Participants
+              <span className="filter-icon">👥 </span> Manage Participants
             </button>
 
             {!isRecording ? (
@@ -587,6 +639,20 @@ ${
             )}
           </div>
         </div>
+        {agenda.length > 0 && (
+  <div className="agenda-box">
+    <h3>📋 Agenda</h3>
+    <ul>
+      {agenda.map((a, i) => (
+        <li key={i}>
+          <strong>{a.item}</strong> — {a.speaker_email}  
+          <span style={{ color: "#777" }}> (at {a.time_offset} min)</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
       </div>
       {isRecording && audioStream && (
         <div style={{ marginTop: "0px" }}>

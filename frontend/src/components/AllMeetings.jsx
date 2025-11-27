@@ -28,7 +28,7 @@ const AllMeetings = () => {
   const fetchAllMeetings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/meetings/all`, {
+      const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/all`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
