@@ -95,12 +95,13 @@ class ActionItem(BaseModel):
     owner: Optional[str] = None
     due_date: Optional[str] = None
     note: Optional[str] = None
+    completed: bool = False   # ✅ add this for checkbox state
 
 
 class MeetingSummary(BaseModel):
     summary: str = ""
     key_points: List[str] = []
-    action_items: List[Union[str, ActionItem]] = []
+    action_items: List[ActionItem] = []
     decisions_made: List[str] = []
 
 
@@ -111,9 +112,10 @@ class Meeting(BaseModel):
     host: str = "Unknown"
     participants: List[str] = []
     transcript: List[TranscriptSegment] = []
-    summary: Optional[MeetingSummary] = Field(default_factory=MeetingSummary)
+    summary: MeetingSummary = Field(default_factory=MeetingSummary)
     duration: Optional[float] = None
-    status: str = "active"  # active, completed, processing
+    status: str = "active"
+
 
 class MeetingCreate(BaseModel):
     title: str
@@ -375,6 +377,57 @@ def delete_user(user_id: str):
     return jsonify({"message": "User deleted"})
 
 # ---- Meeting endpoints (SYNC) ----
+
+@api_bp.route("/meetings/<meeting_id>/action-items", methods=["PUT", "PATCH"])
+@auth_required
+def update_action_items(meeting_id):
+    if not request.is_json:
+        abort(400, description="Invalid content type, expected application/json")
+
+    try:
+        data = request.get_json()
+        action_items = data.get("action_items")
+
+        if action_items is None:
+            abort(400, description="'action_items' field required")
+
+        # ✅ Normalize items into full ActionItem format
+        normalized_items = []
+        for item in action_items:
+            if isinstance(item, dict):
+                normalized_items.append({
+                    "task": item.get("task", ""),
+                    "owner": item.get("owner"),
+                    "due_date": item.get("due_date"),
+                    "note": item.get("note"),
+                    "completed": item.get("completed", False)
+                })
+            else:
+                # old format: string-only items
+                normalized_items.append({
+                    "task": str(item),
+                    "owner": None,
+                    "due_date": None,
+                    "note": None,
+                    "completed": False
+                })
+
+        result = db.meetings.update_one(
+            {"id": meeting_id},
+            {"$set": {"summary.action_items": normalized_items}}
+        )
+
+        if result.matched_count == 0:
+            abort(404, description=f"Meeting with ID {meeting_id} not found")
+
+        updated_meeting = db.meetings.find_one({"id": meeting_id})
+
+        return Response(dumps(updated_meeting), mimetype="application/json")
+
+    except Exception as e:
+        logger.error(f"❌ Error updating action items for meeting {meeting_id}: {str(e)}")
+        abort(500, description=str(e))
+
 
 @api_bp.route("/meetings", methods=['POST'])
 @auth_required

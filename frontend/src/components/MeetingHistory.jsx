@@ -190,7 +190,13 @@ const MeetingHistory = () => {
                     <h4 className="sub-title">Action Items </h4>
                     <ul className="nice-list">
                       {selectedMeeting.summary.action_items.map((item, idx) => (
-                        <li key={idx}>{item}</li>
+                        <li key={idx}>
+  <strong>{item.task}</strong>
+  {item.owner && ` — ${item.owner}`}
+  {item.due_date && ` (Due: ${new Date(item.due_date).toLocaleDateString()})`}
+  {item.note && <div style={{ fontSize: "13px", opacity: 0.8 }}>💬 {item.note}</div>}
+</li>
+
                       ))}
                     </ul>
                   </>

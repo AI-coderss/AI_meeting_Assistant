@@ -38,6 +38,28 @@ const LiveMeeting = ({
     note: "",
   });
 
+const syncActionItemsToAPI = async (updatedItems) => {
+  if (!currentMeeting?.id) return;
+
+  const token = localStorage.getItem("token");
+
+  try {
+    await axios.put(
+      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${currentMeeting.id}/action-items`,
+      { action_items: updatedItems },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    console.log("✅ Action items synced");
+  } catch (err) {
+    console.error("❌ Failed to sync action items:", err);
+  }
+};
+
   const startEditing = (index) => {
     setEditIndex(index);
     setEditItem({ ...actionItems[index] });
@@ -55,7 +77,7 @@ const LiveMeeting = ({
 
     updated[index] = { ...editItem };
     setActionItems(updated);
-
+syncActionItemsToAPI(updated);
     setEditIndex(null);
     setEditItem({
       task: "",
@@ -78,14 +100,18 @@ const cancelEdit = () => {
 
   // Delete item
   const deleteItem = (index) => {
-    const updated = actionItems.filter((_, i) => i !== index);
-    setActionItems(updated);
+const updated = actionItems.filter((_, i) => i !== index);
+setActionItems(updated);
+syncActionItemsToAPI(updated);
+
   };
 
   const toggleComplete = (index) => {
     const updated = [...actionItems];
     updated[index].completed = !updated[index].completed;
     setActionItems(updated);
+syncActionItemsToAPI(updated);
+
   };
 
   useEffect(() => {
@@ -138,11 +164,14 @@ const cancelEdit = () => {
 
   const addNewItem = () => {
     if (!newItem.trim()) return;
+const updated = [...actionItems, { task: newItem, completed: false }];
+setActionItems(updated);
+syncActionItemsToAPI(updated);
 
-    setActionItems([...actionItems, { task: newItem, completed: false }]);
     setNewItem("");
     setShowInput(false);
   };
+
   useEffect(() => {
     const savedTranscript = localStorage.getItem("mom_transcriptData");
     const savedItems = localStorage.getItem("mom_actionItems");
@@ -182,6 +211,8 @@ const cancelEdit = () => {
       }));
 
       setActionItems(formatted);
+      syncActionItemsToAPI(formatted);
+
       localStorage.setItem("mom_actionItems", JSON.stringify(formatted));
     }
   }, [transcriptData]);
@@ -303,22 +334,6 @@ ${
     .map(
       (section, i) =>
         `\n${i + 1}. ${section.heading}\n   - ${section.points.join("\n   - ")}`
-    )
-    .join("\n") || "None"
-}
-
-🧩 **Key Points**
-${
-  (summaryData?.key_points || []).map((p, i) => `${i + 1}. ${p}`).join("\n") ||
-  "None"
-}
-
-☑️ **Action Items**
-${
-  actionItems
-    .map(
-      (item, i) =>
-        `${i + 1}. ${item.task} ${item.completed ? "(Completed)" : ""}`
     )
     .join("\n") || "None"
 }
