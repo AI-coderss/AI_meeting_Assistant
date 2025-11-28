@@ -253,3 +253,12 @@ svg.lucide.lucide-trash2.lucide-trash-2 {
 .dark-theme .btn-edit {
     border: transparent !important;
 }
+.dark-theme .swal2-popup.swal2-modal.swal2-icon-info.swal2-show {
+    background-color: #3d4450;
+}
+.dark-theme div#swal2-html-container {
+    color: #ecdfdf;
+}
+.dark-bg-clr .swal2-confirm.swal2-styled {
+    background-color: #5f8b8b;
+}

@@ -314,17 +314,9 @@ const MedicalMeetingScheduler = () => {
         {/* Agenda Button (opens modal) */}
         <div className="participants-section">
           <label>Agenda Items</label>
-
-          <div className="text-center mt-3 mb-3">
-            <button type="button" className="add-btn" onClick={openAgendaModal}>
-              + Add / Edit Agenda Items
-            </button>
-            {modalError && <div className="response-error mt-2">{modalError}</div>}
-          </div>
-
-          {/* show quick summary of current agendas */}
+ {/* show quick summary of current agendas */}
           {formData.agenda && formData.agenda.length > 0 ? (
-            <div className="agenda-summary">
+            <div className=" block-line">
               {formData.agenda.map((a, i) => (
                 <div key={i} className="agenda-row">
                   <strong>{a.item}</strong>
@@ -337,6 +329,13 @@ const MedicalMeetingScheduler = () => {
           ) : (
             <div className="muted">No agenda items added yet.</div>
           )}
+          <div className="text-center mt-3 mb-3">
+            <button type="button" className="add-btn" onClick={openAgendaModal}>
+              + Add / Edit Agenda Items
+            </button>
+            {modalError && <div className="response-error mt-2">{modalError}</div>}
+          </div>
+
         </div>
         <button type="submit">💾 Schedule Meeting</button>
       </form>
@@ -357,7 +356,7 @@ const MedicalMeetingScheduler = () => {
       </div>
 
       {modalAgendaRows.map((row, idx) => (
-        <div className="agenda-row" key={idx}>
+        <div className="agenda-row mb-2" key={idx}>
           <input
             type="text"
             placeholder={`Agenda item ${idx + 1}`}

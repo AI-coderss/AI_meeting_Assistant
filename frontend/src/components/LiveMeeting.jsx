@@ -4,7 +4,7 @@ import "../styles/LiveMeeting.css";
 import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
 import AudioVisualizer from "./AudioVisualizer.jsx";
 import Swal from "sweetalert2";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, CloudCog } from "lucide-react";
 
 const LiveMeeting = ({
   participants,
@@ -153,7 +153,7 @@ syncActionItemsToAPI(updated);
   icon: "info",
   confirmButtonText: "Join Now",
 }).then(() => {
-  setCurrentMeeting(m);
+  // setCurrentMeeting(m);
   setParticipants(m.participants || []);
 
   // NEW → load agenda
@@ -441,11 +441,14 @@ ${
   const startRecording = async () => {
     try {
       setRecordBtnLoading(true); // ← show loader + disable button
-
+      
       // Prevent double click for 2 seconds
       setTimeout(() => setRecordBtnLoading(false), 2000);
+      console.log(currentMeeting,'----this is before meeting---------')
+      // alert(currentMeeting);
 
       if (!currentMeeting) {
+      console.log(currentMeeting,'----this is inside the meeting nffwe meeting---------')
         showToast && showToast("Creating a new meeting...");
         const newMeeting = await createMeetingIfNeeded();
         if (!newMeeting) {
