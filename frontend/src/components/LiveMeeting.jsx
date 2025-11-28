@@ -486,6 +486,14 @@ ${
       setIsRecording(false);
       showToast && showToast("Recording stopped.");
     }
+        localStorage.removeItem("mom_transcriptData");
+    localStorage.removeItem("mom_actionItems");
+    localStorage.removeItem("mom_activeTab");
+
+    // Optional: reset local state too
+    setTranscriptData(null);
+    setActionItems([]);
+    setActiveTab("summary");
   };
   const handleRecordingComplete = (blob) => {
     // 👉 send `blob` to your transcription endpoint here

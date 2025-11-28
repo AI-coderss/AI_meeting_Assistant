@@ -379,27 +379,37 @@ const MedicalMeetingScheduler = () => {
                 </option>
               ))}
           </select>
+       <div className="d-flex align-items-center gap-1">
 
-          <select
-            value={row.time_offset}
-            onChange={(e) =>
-              handleModalRowChange(idx, "time_offset", parseInt(e.target.value, 10))
-            }
-          >
-            <MinutesOptions max={180} />
-          </select>
+         <input
+  type="number"
+  min={0}
+  max={180}
+  step={1}
+  value={row.time_offset}
+  onChange={(e) =>
+    handleModalRowChange(idx, "time_offset", parseInt(e.target.value, 10))
+  }
+  className="time-offset-input"
+/>
+<p class="mins-m">mins</p></div>
+
 
           <button className="remove-icon" onClick={() => removeModalAgendaRow(idx)}>✕</button>
         </div>
       ))}
 
-      <button className="add-row-btn" onClick={addModalAgendaRow}>
-        + Add another agenda row
-      </button>
 
       <div className="modal-actions">
-        <button className="save-btn" onClick={saveModalAgenda}>Save Agendas</button>
+        <div className="">
+      <button className="add-row-btn" onClick={addModalAgendaRow}>
+        + Add
+      </button>
+      </div>
+      <div className="d-flex gap-2">
+        <button className="save-btn" onClick={saveModalAgenda}>Save</button>
         <button className="cancel-btn" onClick={closeAgendaModal}>Cancel</button>
+        </div>
       </div>
     </div>
   </div>

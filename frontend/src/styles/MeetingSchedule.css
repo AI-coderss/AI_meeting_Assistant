@@ -361,6 +361,21 @@ input#meeting_time,
 
 /* Responsive Styles */
 @media (max-width: 768px) {
+  .agenda-row input, .agenda-row select {
+    padding: 5px;
+    width: 100px;
+    font-size: 12px;
+}
+input.time-offset-input {
+    width: 50px;
+}
+.modal-actions button {
+    font-size: 13px;
+}
+.remove-icon {
+    width: 28px !important;
+    height: 28px !important;
+}
   .theme-toggle {
     width: 39px;
     height: 39px;
@@ -434,14 +449,17 @@ input#meeting_time,
   z-index: 2000;
 }
 
+.mins-m {
+    margin: 0;
+}
 .custom-modal {
   background: white;
-  width: 600px;
-  max-width: 95%;
-  padding: 25px;
+  padding: 10px;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   animation: fadeInScale 0.25s ease;
+      padding-top: 20px;
+    padding-bottom: 20px;
 }
 
 @keyframes fadeInScale {
@@ -453,6 +471,7 @@ input#meeting_time,
   font-size: 22px;
   font-weight: 700;
   margin-bottom: 8px;
+  text-align: center;
   color: #0A3D91; /* your theme blue */
 }
 
@@ -460,14 +479,15 @@ input#meeting_time,
   font-size: 14px;
   color: #666;
   margin-bottom: 20px;
+  text-align: center;
 }
 
 .agenda-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 100px 40px;
-  gap: 10px;
-  margin-bottom: 10px;
-  align-items: center;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
 }
 
 .agenda-row input,
@@ -494,7 +514,6 @@ input#meeting_time,
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
-  margin: 10px auto;
   display: block;
   font-weight: 600;
   cursor: pointer;
@@ -502,9 +521,10 @@ input#meeting_time,
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 8px;
   margin-top: 20px;
+  justify-content: center;
+  align-items: center;
 }
 
 .save-btn {
@@ -527,9 +547,75 @@ input#meeting_time,
   cursor: pointer;
 }
 .agenda-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 0.6fr 40px;
+  display: flex;
   gap: 10px;
   align-items: center;
   width: 100%;
+}
+.time-offset-input {
+  width: 80px;
+  padding: 6px;
+  font-size: 14px;
+}
+
+/* For Chrome — makes scrolling smoother */
+.time-offset-input::-webkit-inner-spin-button {
+  opacity: 1;
+  width: 16px;
+  height: 16px;
+}
+.dark-theme .custom-modal {
+    background-color: #2a2d30;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+}
+.dark-theme .add-row-btn {
+    background: #00bcbc;
+}
+.dark-theme .save-btn {
+    background: #00bcbc;
+}
+.dark-theme .agenda-row input,
+.dark-theme .agenda-row select {
+  border: 1px solid #635f5f;
+  background-color: #333;
+  color: #fff;
+}
+
+.light-theme .agenda-row input,
+.light-theme .agenda-row select {
+  border: 1px solid #635f5f;
+  background-color: #ffffff;
+  color: #000;
+}
+
+.dark-theme .modal-subtext {
+    color: #fff;
+}
+
+
+
+/* Remove up/down arrows (Chrome, Edge, Safari) */
+.dark-theme .time-offset-input::-webkit-inner-spin-button,
+.time-offset-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Custom white spinner arrows */
+.dark-theme .time-offset-input {
+  background-image:
+    /* TOP arrow now points DOWN */
+    linear-gradient(225deg, transparent 50%, #fff 50%),
+    linear-gradient(315deg, #fff 50%, transparent 50%),
+
+    /* BOTTOM arrow now points UP */
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%);
+  background-position:
+  calc(100% - 6px) calc(50% - 5px),
+    calc(100% - 12px) calc(50% - 5px),
+    calc(100% - 12px) calc(50% + 5px),
+    calc(100% - 6px) calc(50% + 5px);
+  background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
 }
