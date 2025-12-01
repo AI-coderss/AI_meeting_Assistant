@@ -302,7 +302,7 @@ syncActionItemsToAPI(updated);
   icon: "info",
   confirmButtonText: "Load Meeting",
 }).then(() => {
-  setCurrentMeeting(upcoming);
+  // setCurrentMeeting(upcoming);
   setParticipants(upcoming.participants);
 
   // ⬇️ NEW — Load agenda
