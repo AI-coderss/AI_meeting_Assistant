@@ -791,12 +791,16 @@ def save_medical_meeting():
             if "time_offset" not in a or not isinstance(a["time_offset"], int):
                 return jsonify({"error": "time_offset must be integer"}), 400
 
-            # ✅ Calculate actual scheduled time (optional but AMAZING for reminders / UI)
+            # ✅ NEW: Capture speaker_name (optional but included if sent)
+            speaker_name = a.get("speaker_name", "")
+
+            # Calculate actual scheduled time
             agenda_start_time = meeting_time + timedelta(minutes=a["time_offset"])
 
             agenda_items.append({
                 "item": a["item"].strip(),
                 "speaker_email": a["speaker_email"],
+                "speaker_name": speaker_name,   # ✅ Added here
                 "time_offset": a["time_offset"],
                 "scheduled_time": agenda_start_time
             })

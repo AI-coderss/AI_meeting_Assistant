@@ -656,7 +656,7 @@ ${
     <ul>
       {agenda.map((a, i) => (
         <li key={i}>
-          <strong>{a.item}</strong> — {a.speaker_email}  
+          <strong>{a.item}</strong> — {a.speaker_name} — {a.speaker_email}
           <span style={{ color: "#777" }}> (at {a.time_offset} min)</span>
         </li>
       ))}

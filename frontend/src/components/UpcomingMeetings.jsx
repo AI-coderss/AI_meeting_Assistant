@@ -133,7 +133,7 @@ const fetchUpcomingMeetings = async () => {
         {ag.scheduled_time
           ? `(${new Date(ag.scheduled_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`
           : ""}
-        {ag.speaker_email ? ` - ${ag.speaker_email}` : ""}
+        {ag.speaker_email ? ` - ${ag.speaker_name} (${ag.speaker_email})` : ""}
       </li>
     ))}
   </ul>

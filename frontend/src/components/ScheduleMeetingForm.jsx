@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../styles/MeetingSchedule.css";
 
-// MedicalMeetingScheduler.jsx
-// - Adds agenda modal (separate UI) where each agenda item has:
-//   - agenda text
-//   - speaker dropdown (from participants)
-//   - time offset (minutes into the meeting)
-// - Agendas only addable when meeting_time is set AND there is at least one participant other than host
-// - Stores agenda as array of objects: { item, speaker_email, speaker_name, time_offset }
-
 const formatMinutesLabel = (m) => `${m} min`;
 
 const MinutesOptions = ({ max = 180 }) => {
