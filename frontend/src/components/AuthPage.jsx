@@ -9,8 +9,8 @@ const LOGIN_URL =
   "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/login";
 const REGISTER_URL =
   "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/register";
-// const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/";
-const REDIRECT_URL = "http://localhost:3000/";
+const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/";
+// const REDIRECT_URL = "http://localhost:3000/";
 
 export default function AuthPage() {
   const [panelRightActive, setPanelRightActive] = useState(false);
