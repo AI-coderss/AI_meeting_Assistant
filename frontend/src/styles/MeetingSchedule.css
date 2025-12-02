@@ -17,7 +17,8 @@
 
 .border-right {
     border-right: 1px solid #8080805e;
-       width: 35%;
+    width: 35%;
+    padding-right: 15px;
 }
 .meeting-form {
     width: 55%;
@@ -372,6 +373,33 @@ input#meeting_time,
     width: 100px;
     font-size: 12px;
 }
+.main-content {
+    margin-top: 0px;
+    margin-bottom: 40px;
+}
+.add-btn, .remove-btn, button[type="submit"] {
+    width: 100%;
+}
+.mob-visible {
+    display: none;
+}
+.mob-visible {
+    display: block !important;
+}
+.border-right {
+    display: none;
+}
+.border-right {
+    border-right:transparent;
+    width: 100%;
+    order: 2;
+}
+.meeting-form {
+    width: 100%;
+}
+.mob {
+    flex-direction: column;
+}
 input.time-offset-input {
     width: 50px;
 }
@@ -633,4 +661,7 @@ label.agenda-item {
 .block-line >div {
     padding: 10px 0;
     text-transform: capitalize;
+}
+.mob-visible {
+    display: none;
 }
