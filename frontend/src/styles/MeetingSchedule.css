@@ -1,5 +1,4 @@
 .meeting-container {
-  max-width: 540px;
   margin: 0px auto;
   background: #f9fdfc;
   border-radius: 12px;
@@ -16,6 +15,13 @@
   color: #000;
 }
 
+.border-right {
+    border-right: 1px solid #8080805e;
+       width: 35%;
+}
+.meeting-form {
+    width: 55%;
+}
 .meeting-form {
   display: flex;
   flex-direction: column;
@@ -618,4 +624,13 @@ input.time-offset-input {
     calc(100% - 6px) calc(50% + 5px);
   background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px;
   background-repeat: no-repeat;
+}
+label.agenda-item {
+    font-size: 20px;
+    font-weight: 700;
+    padding-bottom: 7px;
+}
+.block-line >div {
+    padding: 10px 0;
+    text-transform: capitalize;
 }

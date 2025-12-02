@@ -241,6 +241,32 @@ const MedicalMeetingScheduler = () => {
       )}
 
       <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
+      <div className="d-flex gap-5">
+        <div className="participants-section border-right">
+          <label className="agenda-item">Agenda Items</label>
+ {/* show quick summary of current agendas */}
+          {formData.agenda && formData.agenda.length > 0 ? (
+            <div className=" block-line">
+              {formData.agenda.map((a, i) => (
+                <div key={i} className=" ">
+                  <strong>{a.item}</strong>
+                  <div>
+                    Speaker: {a.speaker_name || a.speaker_email} • At {formatMinutesLabel(a.time_offset)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="muted">No agenda items added yet.</div>
+          )}
+          <div className=" mt-3 mb-3">
+            <button type="button" className="add-btn" onClick={openAgendaModal}>
+              + Add / Edit Agenda Items
+            </button>
+            {modalError && <div className="response-error mt-2">{modalError}</div>}
+          </div>
+
+        </div>
       <form onSubmit={handleSubmit} className="meeting-form">
         <div className="fex-sec">
           {/* Meeting Title */}
@@ -294,7 +320,7 @@ const MedicalMeetingScheduler = () => {
               </select>
 
               {index !== 0 && formData.participants.length > 1 && (
-                <button type="button" onClick={() => removeParticipant(index)} className="remove-btn">❌</button>
+                <button type="button" onClick={() => removeParticipant(index)} className="remove-btn  remove-icon">X</button>
               )}
             </div>
           ))}
@@ -304,34 +330,11 @@ const MedicalMeetingScheduler = () => {
           </div>
         </div>
         {/* Agenda Button (opens modal) */}
-        <div className="participants-section">
-          <label>Agenda Items</label>
- {/* show quick summary of current agendas */}
-          {formData.agenda && formData.agenda.length > 0 ? (
-            <div className=" block-line">
-              {formData.agenda.map((a, i) => (
-                <div key={i} className="agenda-row">
-                  <strong>{a.item}</strong>
-                  <div>
-                    Speaker: {a.speaker_name || a.speaker_email} • At {formatMinutesLabel(a.time_offset)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="muted">No agenda items added yet.</div>
-          )}
-          <div className="text-center mt-3 mb-3">
-            <button type="button" className="add-btn" onClick={openAgendaModal}>
-              + Add / Edit Agenda Items
-            </button>
-            {modalError && <div className="response-error mt-2">{modalError}</div>}
-          </div>
-
-        </div>
+        
         <button type="submit">💾 Schedule Meeting</button>
       </form>
 
+        </div>
       {response.message && (
         <div className={`response-message ${response.type === "success" ? "response-success" : "response-error"}`}>
           {response.message}
