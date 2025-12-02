@@ -12,6 +12,7 @@ const REGISTER_URL =
 const REDIRECT_URL = "https://ai-meeting-assisstant-frontend.onrender.com/";
 // const REDIRECT_URL = "http://localhost:3000/";
 
+
 export default function AuthPage() {
   const [panelRightActive, setPanelRightActive] = useState(false);
 
