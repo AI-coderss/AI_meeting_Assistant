@@ -9,9 +9,7 @@ const LOGIN_URL =
   "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/login";
 const REGISTER_URL =
   "https://ai-meeting-assistant-backend-suu9.onrender.com/api/auth/register";
-const REDIRECT_URL = "https://ai-meeting-assisstant-frontend.onrender.com/";
-// const REDIRECT_URL = "http://localhost:3000/";
-
+const REDIRECT_URL = "https://ai-meeting-assistant-frontend.onrender.com/";
 
 export default function AuthPage() {
   const [panelRightActive, setPanelRightActive] = useState(false);
@@ -97,7 +95,7 @@ export default function AuthPage() {
         }
         // redirect to your index page (provided)
         setTimeout(() => {
-          window.location.href = REDIRECT_URL;
+          window.location.href = "https://ai-meeting-assistant-frontend.onrender.com/";
         }, 1300);
       } else {
         const msg = data?.message || "Invalid email or password";
