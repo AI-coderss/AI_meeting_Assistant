@@ -1129,6 +1129,8 @@ Your task:
 - Read the participants list.
 - Read the transcript lines.
 - Assign the correct speaker to every line.
+- If any part of the transcript is in a non-English language, translate ONLY that text into English.
+- Translation must preserve the meaning exactly and must NOT add extra details.
 - Clean grammar ONLY if needed for clarity.
 - DO NOT add, remove, or hallucinate content.
 - DO NOT include timestamps.
