@@ -20,7 +20,9 @@ from flask_cors import CORS, cross_origin
 # from flask_socketio import SocketIO, join_room, leave_room
 # Pydantic
 from pydantic import BaseModel, Field, ValidationError, EmailStr
-
+from pydub import AudioSegment
+import math
+import subprocess
 # MongoDB (PYMONGO SYNC)
 from pymongo import MongoClient, ASCENDING, DESCENDING
 
@@ -933,25 +935,23 @@ def process_meeting():
             print("❌ Failed to parse participants JSON")
             participants = []
 
-        # ✅ SAVE AUDIO
+        # 1️⃣ SAVE AUDIO
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
         audio_path = os.path.join(upload_dir, secure_filename(audio.filename))
 
         print("💾 Saving audio to:", audio_path)
-
         with open(audio_path, "wb") as f:
             import shutil
             shutil.copyfileobj(audio.stream, f)
 
         print("✅ Audio saved")
 
-        # ✅ AUDIO COMPRESSION
+        # 2️⃣ COMPRESS AUDIO USING FFMPEG
         compressed_path = audio_path + "_compressed.mp3"
         print("🎧 Compressing audio...")
 
         try:
-            import subprocess
             subprocess.run([
                 "ffmpeg", "-y",
                 "-i", audio_path,
@@ -968,109 +968,117 @@ def process_meeting():
         except Exception as e:
             print("❌ Compression failed, using original audio:", e)
 
-        # ✅ SPLIT INTO CHUNKS
-        print("🔪 Splitting audio into 5-minute chunks...")
+        # 3️⃣ LOAD AUDIO WITH PYDUB — REAL DURATION!
+        audio_seg = AudioSegment.from_file(audio_path)
+        audio_duration_sec = len(audio_seg) / 1000
+        print(f"⏱ Actual duration: {audio_duration_sec:.2f} seconds")
 
-        chunk_dir = os.path.join(upload_dir, "chunks")
-        os.makedirs(chunk_dir, exist_ok=True)
+        # For short recordings (< 4 min), don’t chunk
+        if audio_duration_sec <= 240:
+            print("⏳ Audio < 4 min → Using single chunk")
+            chunk_paths = [audio_path]
 
-        subprocess.run([
-            "ffmpeg", "-i", audio_path,
-            "-f", "segment",
-            "-segment_time", "300",
-            "-c", "copy",
-            os.path.join(chunk_dir, "chunk_%03d.mp3")
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            # 4️⃣ SAFE CHUNKING USING PYDUB
+            print("🔪 Creating safe chunks (no silent segments)...")
 
-        chunks = sorted([os.path.join(chunk_dir, f) for f in os.listdir(chunk_dir)])
-        print(f"✅ Created {len(chunks)} chunks")
+            chunk_paths = []
+            chunk_dir = os.path.join(upload_dir, "chunks")
+            os.makedirs(chunk_dir, exist_ok=True)
+            chunk_len_ms = 5 * 60 * 1000  # 5 minutes
 
-        if not chunks:
-            return jsonify({"error": "Failed to split audio"}), 500
+            for idx in range(0, len(audio_seg), chunk_len_ms):
+                chunk = audio_seg[idx : idx + chunk_len_ms]
 
-        # ✅ TRANSCRIBE EACH CHUNK
+                # Skip silence or tiny chunks
+                if chunk.duration_seconds < 1 or chunk.dBFS < -40:
+                    print("⏩ Skipping silent/empty chunk")
+                    continue
+
+                chunk_path = os.path.join(chunk_dir, f"chunk_{len(chunk_paths):03d}.mp3")
+                chunk.export(chunk_path, format="mp3")
+                chunk_paths.append(chunk_path)
+
+        print(f"✅ Kept {len(chunk_paths)} valid chunks")
+
+        if not chunk_paths:
+            return jsonify({"error": "All chunks silent or empty"}), 500
+
+        # 5️⃣ TRANSCRIBE + SUMMARIZE EACH CHUNK
         full_transcript = ""
         chunk_summaries = []
 
-        for i, chunk in enumerate(chunks):
-            print(f"🎤 Transcribing chunk {i+1}/{len(chunks)}: {chunk}")
+        for i, chunk in enumerate(chunk_paths):
+            print(f"🎤 Transcribing chunk {i+1}/{len(chunk_paths)}: {chunk}")
 
-            try:
-                with open(chunk, "rb") as f:
-                    whisper_res = client.audio.transcriptions.create(
-                        model="gpt-4o-transcribe",
-                        file=f
-                    )
-
-                chunk_text = whisper_res.text.strip()
-                print(f"✅ Chunk {i+1} transcription length: {len(chunk_text)}")
-
-                full_transcript += "\n" + chunk_text
-
-                # ✅ SUMMARIZE CHUNK
-                print(f"🧠 Summarizing chunk {i+1}/{len(chunks)}")
-
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": (
-                                "Summarize this meeting segment and extract key points clearly:\n"
-                                f"{chunk_text}"
-                            )
-                        }
-                    ]
+            with open(chunk, "rb") as f:
+                whisper_res = client.audio.transcriptions.create(
+                    model="gpt-4o-transcribe",
+                    file=f
                 )
 
-                chunk_summaries.append(res.choices[0].message.content)
+            chunk_text = whisper_res.text.strip()
+            print(f"✅ Chunk {i+1} transcription length: {len(chunk_text)}")
 
-            except Exception as e:
-                print(f"❌ Failed to process chunk {i+1}", e)
+            if len(chunk_text) < 5:
+                print("⏩ Skipping empty transcription")
+                continue
 
-        print("✅ All chunks transcribed and summarized")
+            full_transcript += "\n" + chunk_text
 
-        # ✅ FINAL SUMMARY
+            # Summarize chunk safely
+            print(f"🧠 Summarizing chunk {i+1}/{len(chunk_paths)}")
+
+            res = client.chat.completions.create(
+                model="gpt-5.1",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Summarize strictly based on text only. Do not add anything not present."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Summarize this meeting segment:\n\n{chunk_text}"
+                    }
+                ]
+            )
+
+            chunk_summaries.append(res.choices[0].message.content)
+
+        print("✅ All chunks processed")
+
+        # 6️⃣ FINAL SUMMARY
         print("🤖 Creating final combined summary...")
 
         final_res = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.1",
             messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a strict meeting summarizer. "
+                        "Do NOT hallucinate. Only use information from the transcript."
+                    )
+                },
                 {
                     "role": "user",
                     "content": (
                         "📌 IMPORTANT INSTRUCTIONS\n"
                         "- Return ONLY valid JSON\n"
                         "- No markdown, no backticks\n"
-                        "- All output must strictly follow JSON schema below\n"
-                        "- Keep summary crisp, professional, medically accurate\n\n"
-                        "Your JSON must follow this exact structure:\n\n"
+                        "- Follow schema strictly\n\n"
                         "{\n"
-                        "  \"overview\": \"<A concise 4–7 sentence high-level summary of the full meeting>\",\n"
+                        "  \"overview\": \"<4–7 sentence summary>\",\n"
                         "  \"action_items\": [\n"
-                        "    {\n"
-                        "      \"task\": \"<Clear task>\",\n"
-                        "      \"owner\": \"<Person or team responsible>\",\n"
-                        "      \"due_date\": \"<If mentioned, else null>\",\n"
-                        "      \"note\": \"<A short note about the action item>\",\n"
-                        "    }\n"
+                        "    {\"task\": \"\", \"owner\": \"\", \"due_date\": null, \"note\": \"\"}\n"
                         "  ],\n"
-                        "  \"insights\": [\n"
-                        "    \"<Key insights or observations>\",\n"
-                        "    \"<Trends, risks, opportunities, operational notes>\"\n"
-                        "  ],\n"
+                        "  \"insights\": [\"\"],\n"
                         "  \"outline\": [\n"
-                        "    {\n"
-                        "      \"heading\": \"<Topic/Section Heading>\",\n"
-                        "      \"points\": [\n"
-                        "        \"<Bullet point 1>\",\n"
-                        "        \"<Bullet point 2>\",\n"
-                        "        \"<Bullet point 3>\"\n"
-                        "      ]\n"
-                        "    }\n"
+                        "    {\"heading\": \"\", \"points\": [\"\", \"\", \"\"]}\n"
                         "  ]\n"
                         "}\n\n"
-                        "Return ONLY the JSON above.\n\n"
+                        "Return ONLY valid JSON.\n\n"
+                        "FULL TRANSCRIPT:\n"
                         + "\n".join(chunk_summaries)
                     )
                 }
@@ -1087,12 +1095,9 @@ def process_meeting():
         try:
             summary_data = json.loads(cleaned)
             print("✅ Final JSON parsed successfully")
-        except Exception as e:
-            print("❌ Final JSON parsing failed:", e)
-            summary_data = {
-                "summary": "GPT returned invalid JSON",
-                "raw_output": cleaned
-            }
+        except:
+            print("❌ Invalid JSON from GPT")
+            summary_data = {"summary": "Invalid JSON", "raw_output": cleaned}
 
         summary_data["transcript"] = full_transcript
 
@@ -1100,11 +1105,9 @@ def process_meeting():
         return jsonify(summary_data)
 
     except Exception as e:
-        print("🔥 UNHANDLED ERROR:", type(e).__name__, str(e))
-        import traceback
-        traceback.print_exc()
+        print("🔥 UNHANDLED ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-
+    
 @app.route("/api/structured-transcript", methods=["POST"])
 def structured_transcript():
     try:
@@ -1159,7 +1162,7 @@ Return ONLY the JSON object defined above.
 """
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5.1",
             messages=[{"role": "user", "content": prompt}]
         )
 

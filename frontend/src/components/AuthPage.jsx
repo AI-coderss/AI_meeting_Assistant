@@ -96,6 +96,7 @@ export default function AuthPage() {
         // redirect to your index page (provided)
         setTimeout(() => {
           window.location.href = "https://ai-meeting-assistant-frontend.onrender.com/";
+          // window.location.href = "http://localhost:3000/";
         }, 1300);
       } else {
         const msg = data?.message || "Invalid email or password";
