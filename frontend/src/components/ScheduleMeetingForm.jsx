@@ -23,7 +23,7 @@ const MedicalMeetingScheduler = () => {
     meeting_type: "",
     meeting_time: "",
     host_email: "",
-    participants: [{ name: "", email: "", role: "" }],
+    participants: [],
     // agenda will be an array of objects (saved only when user confirms in modal)
     agenda: [],
   });
@@ -39,22 +39,22 @@ const MedicalMeetingScheduler = () => {
 
   // Prefill host email & name from localStorage
   useEffect(() => {
-    const storedEmail = localStorage.getItem("email") || "";
-    const storedName = localStorage.getItem("name") || "";
+  const storedEmail = localStorage.getItem("email") || "";
+  const storedName = localStorage.getItem("name") || "";
 
-    setFormData((prev) => ({
-      ...prev,
-      host_email: storedEmail,
-      participants: [
-        {
-          name: storedName,
-          email: storedEmail,
-          role: "Host",
-        },
-        ...prev.participants,
-      ],
-    }));
-  }, []);
+  setFormData((prev) => ({
+    ...prev,
+    host_email: storedEmail,
+    participants: [
+      {
+        name: storedName,
+        email: storedEmail,
+        role: "Host",
+      }
+    ],
+  }));
+}, []);
+
 
   // Helpers
   const availableParticipants = () =>
@@ -63,6 +63,8 @@ const MedicalMeetingScheduler = () => {
   const nonHostCount = () =>
     formData.participants.filter((p) => p && p.role !== "Host").length;
 
+const agendaDisabled =
+  !formData.meeting_time || nonHostCount() < 1;
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
@@ -91,14 +93,14 @@ const MedicalMeetingScheduler = () => {
   const openAgendaModal = () => {
     setModalError("");
     // Validation: meeting_time must be set, and there must be at least one participant other than host
-    if (!formData.meeting_time) {
-      setModalError("Please select the meeting date & time before adding agenda items.");
-      return;
-    }
-    if (nonHostCount() < 1) {
-      setModalError("Please add at least one participant (other than the host) before creating agendas.");
-      return;
-    }
+    // if (!formData.meeting_time) {
+    //   setModalError("Please select the meeting date & time before adding agenda items.");
+    //   return;
+    // }
+    // if (nonHostCount() < 1) {
+    //   setModalError("Please add at least one participant (other than the host) before creating agendas.");
+    //   return;
+    // }
 
     // Prefill modal with existing agenda if present, else a single empty row
     if (formData.agenda && formData.agenda.length > 0) {
@@ -240,7 +242,6 @@ const MedicalMeetingScheduler = () => {
         </div>
       )}
 
-      <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
       <div className="d-flex gap-5 mob">
         <div className="participants-section border-right">
           <label className="agenda-item">Agenda Items</label>
@@ -260,7 +261,7 @@ const MedicalMeetingScheduler = () => {
             <div className="muted">No agenda items added yet.</div>
           )}
           <div className=" mt-3 mb-3">
-            <button type="button" className="add-btn" onClick={openAgendaModal}>
+            <button type="button" className="add-btn" onClick={openAgendaModal}   disabled={agendaDisabled}>
               + Add / Edit Agenda Items
             </button>
             {modalError && <div className="response-error mt-2">{modalError}</div>}
@@ -268,6 +269,8 @@ const MedicalMeetingScheduler = () => {
 
         </div>
       <form onSubmit={handleSubmit} className="meeting-form">
+      <h2 className="h3 h2-md h1-lg">Schedule a Meeting</h2>
+
         <div className="fex-sec">
           {/* Meeting Title */}
           <div>
@@ -310,14 +313,13 @@ const MedicalMeetingScheduler = () => {
             <div key={index} className="participant-row">
               <input type="text" placeholder="Name" value={p.name} onChange={(e) => handleParticipantChange(index, "name", e.target.value)} required />
               <input type="email" placeholder="Email" value={p.email} onChange={(e) => handleParticipantChange(index, "email", e.target.value)} required />
-              <select value={p.role} onChange={(e) => handleParticipantChange(index, "role", e.target.value)} required>
-                <option value="">Select Role</option>
-                <option value="Doctor">Doctor</option>
-                <option value="Nurse">Nurse</option>
-                <option value="Patient">Department manager</option>
-                <option value="Technician">Employee</option>
-                <option value="Admin Staff">Admin Staff</option>
-              </select>
+   <input
+  type="text"
+  placeholder="Role (e.g., Doctor, Nurse, Employee)"
+  value={p.role}
+  onChange={(e) => handleParticipantChange(index, "role", e.target.value)}
+  required
+/>
 
               {index !== 0 && formData.participants.length > 1 && (
                 <button type="button" onClick={() => removeParticipant(index)} className="remove-btn  remove-icon">X</button>
