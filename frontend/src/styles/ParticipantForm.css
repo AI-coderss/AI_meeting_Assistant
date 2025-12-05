@@ -433,9 +433,8 @@ body.dark-theme .form-close-btn {
   color: #bbb;
 }
 body.dark-theme .form-close-btn:hover {
-  color: #8fa9ff;
+    color: #00bcbc;
 }
-
 .common-meeting-fields .input-group,
 .add-participant .input-group {
   display: flex;

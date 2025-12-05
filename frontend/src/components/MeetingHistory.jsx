@@ -140,7 +140,7 @@ const MeetingHistory = () => {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content bg-space" onClick={(e) => e.stopPropagation()}>
             <div className="btn-close-modal">
-              <button className="btn btn-close" onClick={closeModal}></button>
+              <button className=" btn-close" onClick={closeModal}></button>
             </div>
             <h2>{selectedMeeting.title}</h2>
             <p>

@@ -1188,6 +1188,196 @@ Return ONLY the JSON object defined above.
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/rtc-connect", methods=["POST"])
+def rtc_connect():
+    try:
+        req = request.get_json()
+        sdp_offer = req.get("sdp")
+
+        if not sdp_offer:
+            return jsonify({"error": "Missing SDP"}), 400
+
+        # -------------------------
+        # SYSTEM PROMPT
+        # -------------------------
+        system_prompt = """
+        You are a voice-based AI assistant helping the user schedule medical meetings.
+
+        IMPORTANT:
+        - When calling set_field for the meeting time, ALWAYS output time in 24-hour format (HH:MM).
+        - NEVER output AM/PM.
+        - For datetime-local fields, the correct format is YYYY-MM-DDTHH:MM.
+        - If user only provides time, output just HH:MM.
+        - If user provides date and time together, output full datetime format.
+        - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meeting,Training Session]. Dont add anything other than this. 
+        
+        Available tools:
+        - set_meeting_title
+        - set_meeting_type
+        - set_meeting_datetime
+        - add_participant
+        - submit_meeting
+        - remove_participant
+        - add_agenda_item
+        - delete_agenda_item
+        - set_participant_field
+        """
+
+        # -------------------------
+        # MEETING TOOLS
+        # -------------------------
+        tools = [
+        {
+        "type": "function",
+        "name": "set_meeting_title",
+        "description": "Set the meeting title field",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "set_meeting_type",
+        "description": "Set the meeting type field",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "set_meeting_datetime",
+        "description": "Set the meeting datetime-local field (YYYY-MM-DDTHH:MM)",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "add_participant",
+        "description": "Add a new participant to the meeting",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "role": { "type": "string" }
+            },
+            "required": ["name", "email", "role"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "remove_participant",
+        "description": "Remove an existing participant",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "index": { "type": "number" }
+            },
+            "required": ["index"]
+        }
+        },
+        { "type": "function", "name": "set_participant_field", "description": "Set participant name/email/role", "parameters": { "type": "object", "properties": { "index": {"type": "number"}, "field": {"type": "string"}, "value": {"type": "string"} }, "required": ["index", "field", "value"] } },
+        {
+        "type": "function",
+        "name": "add_agenda_item",
+        "description": "Add a medical agenda item. Requires meeting date/time and at least 1 participant.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "item": { "type": "string" },
+            "minutes_into_meeting": { "type": "number" },
+            "assigned_to": { "type": "string" }
+            },
+            "required": ["item", "minutes_into_meeting", "assigned_to"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "delete_agenda_item",
+        "description": "Delete one agenda item",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "index": { "type": "number" }
+            },
+            "required": ["index"]
+        }
+        },
+        {
+            "type": "function",
+            "name": "submit_meeting",
+            "description": "Submit the entire meeting form",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    ]
+
+        # -------------------------
+        # CREATE SESSION (REST)
+        # -------------------------
+        session_payload = {
+            "model": "gpt-4o-realtime-preview",
+            "voice": "alloy",
+            "instructions": system_prompt,
+            "tools": tools,
+            "tool_choice": "auto"
+        }
+
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+
+        session_resp = requests.post(
+            "https://api.openai.com/v1/realtime/sessions",
+            headers=headers,
+            json=session_payload,
+            timeout=30
+        )
+
+        if not session_resp.ok:
+            return jsonify({"error": "Failed to create realtime session"}), 500
+
+        session_json = session_resp.json()
+        ephemeral_token = session_json["client_secret"]["value"]
+
+        # -------------------------
+        # EXCHANGE SDP (REST)
+        # -------------------------
+        sdp_headers = {
+            "Authorization": f"Bearer {ephemeral_token}",
+            "Content-Type": "application/sdp"
+        }
+
+        answer = requests.post(
+            "https://api.openai.com/v1/realtime",
+            headers=sdp_headers,
+            params={"model": "gpt-4o-realtime-preview", "voice": "alloy"},
+            data=sdp_offer,
+            timeout=60
+        )
+
+        if not answer.ok:
+            return jsonify({"error": "SDP exchange failed"}), 500
+
+        return Response(answer.content, mimetype="application/sdp")
+
+    except Exception as e:
+        print("RTC Error:", e)
+        return jsonify({"error": str(e)}), 500
+
 
 @app.get("/")
 async def test_home():

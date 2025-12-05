@@ -342,3 +342,12 @@ body .table-responsive {
 .table-responsive {
     overflow: hidden !important;
 }
+.upcoming-table ul {
+    padding: 13px !important;
+}
+.upcoming-table td {
+    font-size: 13px;
+}
+.upcoming-table th {
+    font-size: 14px;
+}

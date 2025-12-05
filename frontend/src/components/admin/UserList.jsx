@@ -152,7 +152,7 @@ export default function UserList() {
       {users.length === 0 ? (
         <p>No users found.</p>
       ) : (
-        <div className="table-responsive ">
+        <div className="table-responsive">
           <table className="table table-bordered table-hover">
             <thead className="table-light">
               <tr>
@@ -186,7 +186,7 @@ export default function UserList() {
 
                         {openDropdown === u.id && (
                           <div
-                            className="position-absolute bg-white border rounded shadow p-2 mt-1"
+                            className="admin-bg position-absolute bg-white border rounded shadow p-2 mt-1"
                             style={{ zIndex: 1000 }}
                           >
                             {availableRoles.map((role) => (

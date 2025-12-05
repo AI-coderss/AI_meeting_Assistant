@@ -1,0 +1,554 @@
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes radiation {
+  0% {
+    box-shadow: 0 0 0 0 rgba(57, 85, 236, 0.5),
+                0 0 0 10px rgba(57, 85, 236, 0.1),
+                0 0 0 20px rgba(57, 85, 236, 0.05);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(57, 85, 236, 0),
+                0 0 0 20px rgba(57, 85, 236, 0),
+                0 0 0 30px rgba(57, 85, 236, 0);
+  }
+}
+
+@keyframes rotateFan {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Apply enhanced styles */
+.voice-toggle-btn.left {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  bottom: 2rem;
+  right: 2rem;
+  background: #0475ee;
+  color: white !important;
+  border: none;
+  border-radius: 50%;
+  font-size: 2rem;
+  width: 56px;
+  height: 56px;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background 0.3s ease, transform 0.3s ease;
+  animation: pulse 2s infinite ease-in-out, radiation 2.5s infinite ease-out;
+}
+.dark-theme .voice-toggle-btn.left {
+    background: #00c7c7;
+}
+/* Fan spin effect on hover */
+.voice-toggle-btn.left:hover {
+  animation: rotateFan 0.7s linear infinite;
+}
+
+.voice-sidebar {
+  width: 320px;
+  height: 340px;
+  padding: 1.5rem;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.glassmorphic {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+}
+
+.voice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #222;
+  font-weight: bold;
+  user-select: none;
+  cursor: move;
+}
+
+.close-btn-green {
+  background: #00cc66;
+  border: none;
+  color: white;
+  font-size: 1.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.voice-controls {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mic-btn {
+  background: #0475ee;
+  height: 60px;
+  width: 60px;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.mic-btn.active {
+  background: #00cc66;
+}
+
+.status {
+  font-size: 0.85rem;
+  text-transform: capitalize;
+  color: #333;
+}
+
+.status.connecting {
+  color: orange;
+}
+.status.connected {
+  color: green;
+}
+.status.error {
+  color: red;
+}
+/* Add these new styles to your existing VoiceAssistant.css file */
+
+.voice-feedback {
+  padding: 10px 15px;
+  font-size: 14px;
+  color: #eee;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 100px;
+}
+
+.transcript-container,
+.response-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript-container p,
+.response-container p {
+  margin: 4px 0 0 0;
+  padding: 8px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-style: italic;
+  min-height: 24px;
+}
+
+.voice-sidebar {
+  /* Ensure the sidebar has a flex layout to accommodate new elements */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make sure your existing .voice-controls is positioned correctly */
+.voice-controls {
+  margin-top: auto; /* Pushes controls to the bottom */
+}
+/* Add these styles for the new visualizer container */
+.voice-visualizer-container {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 20px;
+  min-height: 150px; /* Give it some space */
+  box-sizing: border-box;
+}
+
+.visualizer-placeholder {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+.va2-wrap{
+  position: fixed;
+  top: 96px;
+  left: 96px;
+  z-index: 1001;
+  width: 340px;
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* inner controls opt-in */
+}
+
+.va2-body{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden; /* clip everything to cube bounds */
+}
+
+.va2-stack{
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* canvases */
+.va2-substance{
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;  /* allow hover ripples */
+  z-index: 1;
+}
+.va2-cube{
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Waveform INSIDE top */
+.va2-wave{
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* BIG amplitude — driven by CSS var set in JS */
+.va2-wave.va2-wave--big > *,
+.va2-wave.va2-wave--big canvas,
+.va2-wave.va2-wave--big svg{
+  width: 100%;
+  height: 100%;
+  transform: scaleY(var(--va2-wave-scale, 2.6));
+  transform-origin: bottom center;
+}
+.va2-wave-placeholder{
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(17,24,39,0.8);
+}
+
+/* Mic bottom-center */
+.va2-mic{
+  position: absolute;
+  left: 50%;
+  bottom: 22px; /* up a bit so it’s not too low */
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: auto;
+}
+.va2-micbtn{
+  width: 64px; height: 64px; border-radius: 999px; border:none; cursor:pointer;
+  display:grid; place-items:center; color:#fff;
+  background: linear-gradient(135deg, rgba(239,68,68,.90), rgba(220,38,38,.90));
+  box-shadow: 0 8px 18px rgba(0,0,0,.18), 0 0 12px rgba(239,68,68,.45), inset 0 0 0 1px rgba(255,255,255,.28);
+  backdrop-filter: blur(10px);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.va2-micbtn:active{ transform: scale(.98); }
+.va2-micbtn:disabled{ opacity:.6; cursor:not-allowed; }
+.va2-micbtn.active{
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18), 0 0 16px rgba(34,197,94,.65), inset 0 0 0 1px rgba(255,255,255,.28);
+  animation: va2Pulse 1.4s ease-out infinite;
+}
+.va2-micbtn.active::after{
+  content:"";
+  position:absolute; inset:-10px; border-radius:999px;
+  border:2px solid rgba(34,197,94,.5); opacity:.6; animation: va2PulseRing 1.4s ease-out infinite;
+}
+@keyframes va2Pulse { 0%{box-shadow:0 8px 18px rgba(0,0,0,.18),0 0 10px rgba(34,197,94,.50)} 50%{box-shadow:0 8px 18px rgba(0,0,0,.18),0 0 24px rgba(34,197,94,.85)} 100%{box-shadow:0 8px 18px rgba(0,0,0,.18),0 0 10px rgba(34,197,94,.50)} }
+@keyframes va2PulseRing { 0%{transform:scale(1);opacity:.45} 100%{transform:scale(1.35);opacity:0} }
+
+/* Close button INSIDE the cube, top-right */
+.va2-close{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 6;
+  border: none;
+  background: rgba(255,255,255,0.65);
+  color: #111;
+  font-size: 14px;
+  line-height: 1;
+  border-radius: 10px;
+  padding: 6px 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+.va2-close:hover{ background: rgba(255,255,255,0.85); }
+
+/* Misc */
+.va2-hidden-audio{ display:none; }
+.va2-visually-hidden{
+  position: absolute !important;
+  height: 1px; width: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px);
+  white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+/* ====== Layout ====== */
+.va2-wrap{
+  position: fixed;
+  top: 96px;
+  left: 96px;
+  z-index: 1001;
+  width: 340px;
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* inner controls opt-in */
+}
+
+.va2-body{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden; /* clip everything to cube bounds */
+  pointer-events: auto;
+}
+
+.va2-stack{
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* ====== Canvases ====== */
+.va2-substance{
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;  /* allow hover ripples */
+  z-index: 1;
+}
+
+.va2-cube{
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  pointer-events: none; /* let mouse reach substance */
+  z-index: 2;
+}
+
+/* ====== Mic fixed bottom center ====== */
+.va2-mic{
+  position: absolute;
+  left: 50%;
+  bottom: 22px; /* slightly raised as requested */
+  transform: translateX(-50%);
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.va2-micbtn{
+  width: 64px;
+  height: 64px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(135deg, rgba(239,68,68,0.90), rgba(220,38,38,0.90)); /* idle red */
+  box-shadow:
+    0 8px 18px rgba(0,0,0,0.18),
+    0 0 12px rgba(239,68,68,0.45),
+    inset 0 0 0 1px rgba(255,255,255,0.28);
+  backdrop-filter: blur(10px);
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.va2-micbtn:active{ transform: scale(0.98); }
+.va2-micbtn:disabled{ opacity: 0.6; cursor: not-allowed; }
+
+.va2-micbtn.active{
+  background: linear-gradient(135deg, #22c55e, #16a34a); /* active green */
+  box-shadow:
+    0 8px 18px rgba(0,0,0,0.18),
+    0 0 16px rgba(34,197,94,0.65),
+    inset 0 0 0 1px rgba(255,255,255,0.28);
+  animation: va2Pulse 1.4s ease-out infinite;
+  position: relative;
+}
+
+.va2-micbtn.active::after{
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 999px;
+  border: 2px solid rgba(34,197,94,0.5);
+  opacity: .6;
+  animation: va2PulseRing 1.4s ease-out infinite;
+}
+
+/* ====== Close button (inside top-right) ====== */
+.va2-close{
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  border: none;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(6px);
+  color: rgba(17,24,39,0.9);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background .2s ease, transform .15s ease;
+}
+.va2-close:hover{ background: rgba(255,255,255,0.7); }
+.va2-close:active{ transform: scale(0.98); }
+
+/* ====== Helpers ====== */
+.va2-hidden-audio{ display: none; }
+.va2-visually-hidden{
+  position: absolute !important;
+  height: 1px; width: 1px; overflow: hidden; clip: rect(1px,1px,1px,1px);
+  white-space: nowrap; border: 0; padding: 0; margin: -1px;
+}
+
+/* ====== Animations ====== */
+@keyframes va2Pulse {
+  0%   { box-shadow: 0 8px 18px rgba(0,0,0,0.18), 0 0 10px rgba(34,197,94,0.50); }
+  50%  { box-shadow: 0 8px 18px rgba(0,0,0,0.18), 0 0 24px rgba(34,197,94,0.85); }
+  100% { box-shadow: 0 8px 18px rgba(0,0,0,0.18), 0 0 10px rgba(34,197,94,0.50); }
+}
+
+@keyframes va2PulseRing {
+  0%   { transform: scale(1);   opacity: .45; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 520px){
+  .va2-wrap{
+    top: 16px;
+    left: 16px;
+    width: 300px;
+    height: 300px;
+  }
+  .va2-micbtn{ width: 56px; height: 56px; }
+}
+/* VoiceAssistant.css */
+.voice-sidebar canvas {
+  max-width: none !important;
+}
+/* Mic button states */
+.mic-btn {
+  position: relative;             /* needed for the slash stripe */
+  background: #0475ee;            /* default (connected but we add explicit states below) */
+  height: 60px;
+  width: 60px;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.12s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+.mic-btn:active { transform: scale(0.98); }
+
+/* ✅ Active (mic ON) — green */
+.mic-btn.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 8px 18px rgba(0,0,0,.18), 0 0 16px rgba(34,197,94,.65), inset 0 0 0 1px rgba(255,255,255,.22);
+}
+
+/* ✅ Inactive (mic OFF) — red with diagonal slash */
+/* Mic OFF — bright glowing red */
+/* ✅ MIC BUTTON — IDLE (OFF) STATE: Bright red with white slash */
+/* ✅ MIC BUTTON — IDLE (OFF) STATE: Bright red with bold white slash */
+.mic-btn.inactive {
+  background: linear-gradient(135deg, #ff0000, #ff3333);
+
+  color: #fff;
+  font-size: 1.8rem; /* 🔥 Increase icon size */
+  position: relative;
+  display :flex;
+  justify-content: center;
+  align-items: center
+}
+
+/* ⚪ Bold diagonal white slash */
+.mic-btn.inactive::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;     /* 🔺 wider */
+  height: 1px;     /* 🔺 thicker slash */
+  background: #ffffff;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* ✅ ACTIVE STATE (ON) — green */
+.mic-btn.active {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+  font-size: 1.8rem; /* match icon size when active */
+}
+
+/* ✅ Always red, even if disabled */
+.mic-btn.disabled,
+.mic-btn:disabled {
+  background: linear-gradient(135deg, #ff0000, #ff3333);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+
+/* Status text tweak to match states */
+.status {
+  font-size: 0.8rem;
+  text-transform: capitalize;
+  color: #333;
+}
+.status.connected { color: #16a34a; }
+.status.connecting { color: #f59e0b; }
+.status.error { color: #ef4444; }

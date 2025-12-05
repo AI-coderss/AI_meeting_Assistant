@@ -1296,3 +1296,38 @@ canvas#waveCanvas {
 .dark-theme .agenda-item {
     color: #fff;
 }
+.dark-theme .btn-close {
+    filter: invert(1);
+}
+.dark-theme .participant-form {
+    border: 1px solid var(--swal2-validation-message-color);
+}
+.dark-theme .nice-list {
+    background: #131820;
+    border-left: 4px solid #46afaf;
+}
+.dark-theme label input {
+    accent-color: #8dd7d7;
+}
+.dark-theme .btn-delete:hover {
+    color: #469393;
+}
+.nice-list li {
+    list-style: none;
+}
+.dark-theme .admin-bg label {
+    color: #fff;
+}
+.dark-theme .admin-bg {
+    background-color: #1e1e2f !important;
+    border: 1px solid #373131 !important;
+    color: #fff !important;
+}
+.dark-theme .empty-state {
+    color: #fff;
+}
+.dark-theme .swal2-show {
+    background-color: #12121c;
+    border: 1px solid #80808033;
+    box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+}
