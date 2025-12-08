@@ -611,12 +611,13 @@
     text-align: center;
 }
 .chat-input-row {
-  display: flex;
-  align-items: center;
-  padding: 10px;        /* WhatsApp-style light grey */
-  gap: 10px;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    gap: 10px;
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+    border-radius: 41px;
 }
-
 .chat-input {
     flex: 1 1;
     padding: 12px 16px;

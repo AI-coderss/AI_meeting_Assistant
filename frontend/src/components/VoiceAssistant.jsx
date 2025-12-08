@@ -1078,11 +1078,11 @@ const VoiceAssistant = () => {
             className="voice-sidebar glassmorphic"
             style={{
               position: "fixed",
-              top: 180,
+              top: 188,
               right: 20,
               zIndex: 1001,
               width: "380px",
-              height: "600px",
+              height: "642px",
               background: "transparent",
             }}
            
@@ -1129,30 +1129,38 @@ const VoiceAssistant = () => {
                     placeholder="Type your message..."
                   />
                   <button
-                    className="chat-send-btn"
-                    onClick={() => {
-                      if (!dataChannelRef.current) return;
-                      const text = transcript.trim();
-                      if (text.length === 0) return;
+  className="chat-send-btn"
+  onClick={() => {
+    if (!dataChannelRef.current) return;
+    const text = transcript.trim();
+    if (text.length === 0) return;
 
-                      // send text to AI
-                      try {
-                        dataChannelRef.current.send(
-                          JSON.stringify({
-                            type: "response.create",
-                            response: {
-                              modalities: ["text"],
-                              instructions: text,
-                            },
-                          })
-                        );
-                      } catch {}
+    try {
+      dataChannelRef.current.send(
+        JSON.stringify({
+          type: "response.create",
+          response: {
+            modalities: ["text"],
+            instructions: text,
+          },
+        })
+      );
+    } catch {}
 
-                      setTranscript("");
-                    }}
-                  >
-                    Send
-                  </button>
+    setTranscript("");
+  }}
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+  </svg>
+</button>
+
                 </div>
               </div>
             )}
