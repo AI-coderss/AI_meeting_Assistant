@@ -63,7 +63,7 @@ const useUiStore = create((set) => ({
   // -----------------------
   // Voice Settings
   // -----------------------
-  voice: "alloy",
+  voice: "ballad",
   chooseVoice: (voice) => set({ voice }),
 
   // -----------------------

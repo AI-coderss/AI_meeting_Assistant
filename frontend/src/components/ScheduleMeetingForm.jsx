@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import "../styles/MeetingSchedule.css";
 import VoiceAssistant from "./VoiceAssistant.jsx";
+import { FormContext } from "./context/FormContext.jsx";
 
 const formatMinutesLabel = (m) => `${m} min`;
 
@@ -24,18 +25,19 @@ const emptyAgendaRow = () => ({
 });
 
 const MedicalMeetingScheduler = () => {
-  const [formData, setFormData] = useState({
-    meeting_title: "",
-    meeting_type: "",
-    meeting_time: "",
-    host_email: "",
-    participants: [],
-    // agenda will be an array of objects (saved only when user confirms in modal)
-    agenda: [],
-  });
-  useEffect(() => {
-    console.log("🟦 Updated FORM DATA:", formData);
-  }, [formData]);
+  // const [formData, setFormData] = useState({
+  //   meeting_title: "",
+  //   meeting_type: "",
+  //   meeting_time: "",
+  //   host_email: "",
+  //   participants: [],
+  //   // agenda will be an array of objects (saved only when user confirms in modal)
+  //   agenda: [],
+  // });
+  // useEffect(() => {
+  //   console.log("🟦 Updated FORM DATA:", formData);
+  // }, [formData]);
+  const { formData, setFormData } = useContext(FormContext);
   const [response, setResponse] = useState({ type: "", message: "" });
   const [isScheduling, setIsScheduling] = useState(false);
 
@@ -649,7 +651,7 @@ const MedicalMeetingScheduler = () => {
           </div>
         </div>
       )}
-      <VoiceAssistant formData={formData} setFormData={setFormData} />
+      {/* <VoiceAssistant formData={formData} setFormData={setFormData} /> */}
     </div>
   );
 };

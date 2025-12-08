@@ -18,12 +18,27 @@ import AdminAnalytics from "./components/admin/AdminAnalytics";
 import ScheduleMeetingForm from "./components/ScheduleMeetingForm";
 import UpcomingMeetings from "./components/UpcomingMeetings";
 import MeetingMobileNav from "./components/MeetingMobileNav";
+import { FormContext } from "./components/context/FormContext";
+import VoiceAssistant from "./components/VoiceAssistant";
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState("schedule");
   const [participants, setParticipants] = useState([]);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [roles, setRoles] = useState([]);
+const [formData, setFormData] = useState({
+  meeting_title: "",
+  meeting_type: "",
+  meeting_time: "",
+  host_email: "",
+  participants: [],
+  agenda: [],
+});
+
+useEffect(() => {
+  console.log("🔵 GLOBAL formData updated:", formData);
+}, [formData]);
+
 
   useEffect(() => {
     const storedRoles = JSON.parse(localStorage.getItem("roles")) || [];
@@ -171,7 +186,12 @@ function MainApp() {
         {activeTab === "upcoming" && <UpcomingMeetings />}
 
         {isAdmin && activeTab === "userlist" && <UserList />}
-        {activeTab === "schedule" && <ScheduleMeetingForm />}
+     {activeTab === "schedule" && (
+  <FormContext.Provider value={{ formData, setFormData }}>
+    <ScheduleMeetingForm />
+  </FormContext.Provider>
+)}
+
 
         {(transcript.length > 0 || summary) && (
           <div className="actions-panel">
@@ -196,6 +216,10 @@ function MainApp() {
         />
       )}
       <MeetingMobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <FormContext.Provider value={{ formData, setFormData }}>
+    <VoiceAssistant />
+</FormContext.Provider>
+
     </div>
   );
 }

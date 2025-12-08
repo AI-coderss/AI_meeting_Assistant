@@ -283,7 +283,7 @@ button.btn.btn-participant {
 }
 select#meeting_type {
   font-size: 15px;
-  color: #79778b;
+  color: #000;
 }
 input#meeting_time,
 #host_email {

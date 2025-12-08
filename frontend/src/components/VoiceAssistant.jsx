@@ -6,7 +6,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable no-useless-concat */
 /* eslint-disable no-unused-vars */
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useContext } from "react";
 import { FaMicrophoneAlt, FaMicrophoneSlash } from "react-icons/fa";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,6 +15,7 @@ import AudioWave from "./AudioWave";
 import "../styles/VoiceAssistant.css";
 import useUiStore from "./store/useUiStore";
 import * as THREE from "three";
+import { FormContext } from "./context/FormContext";
 
 /* ---------- WebRTC refs ---------- */
 const peerConnectionRef = React.createRef();
@@ -613,7 +614,7 @@ const ReactiveOrb = ({ stream, size = 200, speed = 2.0 }) => {
 };
 
 /* --------------------------------- Main component --------------------------------- */
-const VoiceAssistant = ({ formData, setFormData }) => {
+const VoiceAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMicActive, setIsMicActive] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("idle");
@@ -622,6 +623,8 @@ const VoiceAssistant = ({ formData, setFormData }) => {
   const [remoteStream, setRemoteStream] = useState(null);
   const audioPlayerRef = useRef(null);
   const dragConstraintsRef = useRef(null);
+  const { formData, setFormData } = useContext(FormContext);
+  const [mode, setMode] = useState("voice");
 
   const toolBuffersRef = useRef(new Map());
   const recentClicksRef = useRef(new Map());
@@ -633,6 +636,19 @@ const VoiceAssistant = ({ formData, setFormData }) => {
       dragConstraintsRef.current = document.body;
     }
   }, []);
+
+  useEffect(() => {
+    if (mode === "chat") {
+      console.log("Switching to Chat Mode → stopping WebRTC");
+      cleanupWebRTC();
+    }
+
+    if (mode === "voice") {
+      console.log("Switching to Voice Mode → starting WebRTC");
+      chooseVoice();
+      startWebRTC();
+    }
+  }, [mode]);
 
   const cleanupWebRTC = () => {
     if (peerConnectionRef.current) {
@@ -990,15 +1006,18 @@ const VoiceAssistant = ({ formData, setFormData }) => {
       );
       await pc.setLocalDescription(offer);
 
-      const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/rtc-connect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sdp: offer.sdp,
-        }),
-      });
+      const res = await fetch(
+        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/rtc-connect",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sdp: offer.sdp,
+          }),
+        }
+      );
 
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
 
@@ -1059,68 +1078,131 @@ const VoiceAssistant = ({ formData, setFormData }) => {
             className="voice-sidebar glassmorphic"
             style={{
               position: "fixed",
-              top: 96,
-              right: 96,
+              top: 180,
+              right: 20,
               zIndex: 1001,
               width: "380px",
               height: "600px",
               background: "transparent",
             }}
-            drag
-            dragConstraints={dragConstraintsRef}
-            dragElastic={0.2}
+           
           >
             <audio ref={audioPlayerRef} style={{ display: "none" }} />
 
             <div className="voice-header">
-              <h3>Voice Assistant</h3>
+              <h3>Meeting Co-Pilot</h3>
               <button className="close-btn-green" onClick={toggleAssistant}>
                 ✖
               </button>
+              {/* 🔵 Mode Toggle */}
+              <div className="mode-toggle-container">
+               <div className="mode-toggle">
+  <button
+    className={`mode-btn ${mode === "chat" ? "active" : ""}`}
+    onClick={() => setMode("chat")}
+  >
+    Chat Mode
+  </button>
+
+  <button
+    className={`mode-btn ${mode === "voice" ? "active" : ""}`}
+    onClick={() => setMode("voice")}
+  >
+    Voice Mode
+  </button>
+</div>
+
+              </div>
             </div>
-
-            {/* ✅ perfect-circle, locked size, audio-reactive rotation & color */}
-            <ReactiveOrb stream={remoteStream} size={220} speed={2.2} />
-
-            <div className="voice-visualizer-container">
-              {remoteStream ? (
-                <AudioWave stream={remoteStream} />
-              ) : (
-                <div className="visualizer-placeholder">
-                  {connectionStatus === "connected"
-                    ? "Listening..."
-                    : "Connecting..."}
+            {mode === "chat" && (
+              <div className="chat-container">
+                <div className="chat-messages">
+                  <p style={{ whiteSpace: "pre-wrap" }}>{responseText}</p>
                 </div>
-              )}
-            </div>
 
-            <div className="voice-controls">
-              <button
-                className={`mic-btn ${isMicActive ? "active" : "inactive"} ${
-                  connectionStatus !== "connected" ? "disabled" : ""
-                }`}
-                onClick={toggleMic}
-                disabled={connectionStatus !== "connected"}
-                aria-pressed={isMicActive}
-                aria-label={
-                  isMicActive ? "Mute microphone" : "Unmute microphone"
-                }
-                title={
-                  isMicActive
-                    ? "Mic on — click to mute"
-                    : "Mic off — click to unmute"
-                }
-              >
-                {isMicActive ? <FaMicrophoneAlt /> : <FaMicrophoneSlash />}
-              </button>
-              <span className={`status ${connectionStatus}`}>
-                {isMicActive ? "listening" : "mic off"}
-              </span>
+                <div className="chat-input-row">
+                  <input
+                    type="text"
+                    className="chat-input"
+                    value={transcript}
+                    onChange={(e) => setTranscript(e.target.value)}
+                    placeholder="Type your message..."
+                  />
+                  <button
+                    className="chat-send-btn"
+                    onClick={() => {
+                      if (!dataChannelRef.current) return;
+                      const text = transcript.trim();
+                      if (text.length === 0) return;
 
-              <span className={`status ${connectionStatus}`}>
-                {connectionStatus}
-              </span>
-            </div>
+                      // send text to AI
+                      try {
+                        dataChannelRef.current.send(
+                          JSON.stringify({
+                            type: "response.create",
+                            response: {
+                              modalities: ["text"],
+                              instructions: text,
+                            },
+                          })
+                        );
+                      } catch {}
+
+                      setTranscript("");
+                    }}
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === "voice" && (
+              <>
+                {/* ✅ perfect-circle, locked size, audio-reactive rotation & color */}
+                <ReactiveOrb stream={remoteStream} size={220} speed={2.2} />
+
+                <div className="voice-visualizer-container">
+                  {remoteStream ? (
+                    <AudioWave stream={remoteStream} />
+                  ) : (
+                    <div className="visualizer-placeholder">
+                      {connectionStatus === "connected"
+                        ? "Listening..."
+                        : "Connecting..."}
+                    </div>
+                  )}
+                </div>
+
+                <div className="voice-controls">
+                  <button
+                    className={`mic-btn ${
+                      isMicActive ? "active" : "inactive"
+                    } ${connectionStatus !== "connected" ? "disabled" : ""}`}
+                    onClick={toggleMic}
+                    disabled={connectionStatus !== "connected"}
+                    aria-pressed={isMicActive}
+                    aria-label={
+                      isMicActive ? "Mute microphone" : "Unmute microphone"
+                    }
+                    title={
+                      isMicActive
+                        ? "Mic on — click to mute"
+                        : "Mic off — click to unmute"
+                    }
+                  >
+                    {isMicActive ? <FaMicrophoneAlt /> : <FaMicrophoneSlash />}
+                  </button>
+                  <span className={`status ${connectionStatus}`}>
+                    {isMicActive ? "listening" : "mic off"}
+                  </span>
+
+                  <span className={`status ${connectionStatus}`}>
+                    {connectionStatus}
+                  </span>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
