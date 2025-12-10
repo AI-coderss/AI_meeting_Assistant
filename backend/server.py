@@ -1214,6 +1214,13 @@ def rtc_connect():
         - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meeting,Training Session]. Dont add anything other than this. 
         - Always keep your responses clear, concise, and helpful, and remember to stick to English in all replies.
         
+        Your tasks:
+        Scheduling New Meetings: Guide the user through scheduling a meeting. Ask them for details such as the meeting title, date and time, participants' names, emails, their positions, and the agenda.
+
+        Summarizing Meetings: Offer to summarize the content of current or previous meetings.
+
+        Sharing Meeting Content: Help share meeting notes or summaries with other users as needed.
+
         Available tools:
         - set_meeting_title
         - set_meeting_type
@@ -1380,6 +1387,295 @@ def rtc_connect():
     except Exception as e:
         print("RTC Error:", e)
         return jsonify({"error": str(e)}), 500
+
+@app.route("/api/chat", methods=["POST"])
+def chat_mode():
+    data = request.json
+    user_message = data.get("message", "")
+    form_data = data.get("formData", {})
+    meeting_context = data.get("meetingContext")
+    today = datetime.now().strftime("%Y-%m-%d")
+    now = datetime.now()
+    current_year = now.year
+    system_prompt = f"""
+You are an AI Meeting Co-Pilot. Always reply in English.
+
+======================
+MEETING CONTEXT (IMPORTANT)
+======================
+The user is currently viewing or interacting with the following meeting:
+
+{meeting_context}
+
+You MUST use this meeting context when responding.
+
+If the user asks questions about:
+- transcript
+- summary
+- key points
+- action items
+- decisions
+- participants
+- agenda
+- metadata (title, host, time)
+
+then you MUST extract information strictly from **meeting_context**.
+
+If a detail does not exist in the context, say:
+“I could not find that information in the loaded meeting. Please check the Meeting History page.”
+
+Do NOT hallucinate missing details.
+Do NOT invent participants, decisions, or transcript lines.
+
+======================
+DATE HANDLING RULES
+======================
+Current Date Information:
+- Today's date is {today}.
+- The current year is {current_year}.
+- If the user gives a date without a year, assume they mean {current_year}.
+- Interpret “today”, “tomorrow”, “next Monday”, etc. relative to {today}.
+
+======================
+TIME FORMAT RULES
+======================
+- Always output time in 24-hour format (HH:MM).
+- Never use AM/PM.
+- Datetime-local fields must be formatted as YYYY-MM-DDTHH:MM.
+- If the user only gives time → output HH:MM.
+- If the user gives date + time → output full datetime.
+
+======================
+MEETING TYPE RULES
+======================
+Meeting type must be EXACTLY one of:
+[Consultation, Case Discussion, Follow-up, Team Meeting, Training Session]
+
+Never output anything outside this list.
+
+======================
+BEHAVIORAL INSTRUCTIONS
+======================
+
+1. **Scheduling New Meetings**
+   - Guide the user through scheduling.
+   - Ask for missing details: title, type, date/time, participants, emails, roles, agenda.
+   - When the user provides required details, call the appropriate tool.
+
+2. **Meeting Q&A**
+   - When the user asks about the loaded meeting, answer using ONLY the meeting context.
+   - You may extract, summarize, reformat, or clarify information from the context.
+
+3. **Summarizing Meetings**
+   - Provide bullet-point summaries, action items, insights, or transcript-derived answers.
+
+4. **Sharing or Rewriting Content**
+   - Rewrite summaries, improve clarity, answer questions about decisions, topics, or transcript.
+   - Never add information not present in meeting_context.
+
+======================
+TOOL CALL RULES
+======================
+- When calling a tool, you MUST also generate a natural-language assistant message.
+- Never return only a tool call.
+- Never return an empty assistant message.
+- Example: “Sure, I’ve scheduled the meeting for 2025-12-05 at 14:00.”
+
+======================
+RESPONSE FORMATTING RULES (VERY IMPORTANT)
+======================
+Always format your responses cleanly and professionally:
+
+- Use paragraphs with spacing.
+- Use bullet points for lists.
+- Use numbered steps for processes.
+- Use headers for sections.
+- Add blank lines between sections.
+- Never output long walls of text.
+- Always keep structure clean, readable, and well-spaced.
+
+Example formatting:
+
+**Summary**
+Here is the main explanation.
+
+**Key Points**
+- Point one  
+- Point two  
+
+**Steps**
+1. Step one  
+2. Step two  
+
+Apply this style to ALL replies.
+
+======================
+AVAILABLE TOOLS
+======================
+- set_meeting_title
+- set_meeting_type
+- set_meeting_datetime
+- add_participant
+- remove_participant
+- set_participant_field
+- add_agenda_item
+- delete_agenda_item
+- submit_meeting
+"""
+
+
+    if not user_message:
+        return jsonify({"error": "Message is required"}), 400
+
+    # -----------------------------
+    # CALL YOUR OPENAI MODEL HERE
+    # Same tool schema as voice mode
+    # -----------------------------
+
+    from openai import OpenAI
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    response = client.responses.create(
+        model="gpt-5.1",
+        instructions=(
+            "When you call a tool, you MUST also output an assistant message. "
+            "Never return only a tool call. "
+            "Never return an empty assistant message. "
+            "Always include a natural language explanation of what you changed, "
+            "in English only."
+        ),  
+        input=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },    
+                {
+                    "role": "user",
+                    "content": user_message
+                }
+            ],
+        tools= [
+        {
+        "type": "function",
+        "name": "set_meeting_title",
+        "description": "Set the meeting title field",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "set_meeting_type",
+        "description": "Set the meeting type field",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "set_meeting_datetime",
+        "description": "Set the meeting datetime-local field (YYYY-MM-DDTHH:MM)",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "value": { "type": "string" }
+            },
+            "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "add_participant",
+        "description": "Add a new participant to the meeting",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "name": { "type": "string" },
+            "email": { "type": "string" },
+            "role": { "type": "string" }
+            },
+            "required": ["name", "email", "role"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "remove_participant",
+        "description": "Remove an existing participant",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "index": { "type": "number" }
+            },
+            "required": ["index"]
+        }
+        },
+        { "type": "function", "name": "set_participant_field", "description": "Set participant name/email/role", "parameters": { "type": "object", "properties": { "index": {"type": "number"}, "field": {"type": "string"}, "value": {"type": "string"} }, "required": ["index", "field", "value"] } },
+        {
+        "type": "function",
+        "name": "add_agenda_item",
+        "description": "Add a medical agenda item. Requires meeting date/time and at least 1 participant.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "item": { "type": "string" },
+            "minutes_into_meeting": { "type": "number" },
+            "assigned_to": { "type": "string" }
+            },
+            "required": ["item", "minutes_into_meeting", "assigned_to"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "delete_agenda_item",
+        "description": "Delete one agenda item",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "index": { "type": "number" }
+            },
+            "required": ["index"]
+        }
+        },
+        {
+            "type": "function",
+            "name": "submit_meeting",
+            "description": "Submit the entire meeting form",
+            "parameters": {"type": "object", "properties": {}}
+        }
+    ],
+        tool_choice="auto"
+    )
+
+    # -----------------------------
+    # Parse model output
+    # -----------------------------
+    text_reply = ""
+    tool_call = None
+
+    for item in response.output:
+        # Model speaking
+        if item.type == "message" and item.role == "assistant":
+            text_reply += item.content[0].text
+
+        # Model calling function
+        if item.type == "function_call":
+            tool_call = {
+                "name": item.name,
+                "args": item.arguments
+            }
+
+    return jsonify({
+        "reply": text_reply.strip(),
+        "tool": tool_call
+    })
 
 
 @app.get("/")

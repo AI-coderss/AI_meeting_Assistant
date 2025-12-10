@@ -20,6 +20,7 @@ import UpcomingMeetings from "./components/UpcomingMeetings";
 import MeetingMobileNav from "./components/MeetingMobileNav";
 import { FormContext } from "./components/context/FormContext";
 import VoiceAssistant from "./components/VoiceAssistant";
+import MeetingContext from "./components/context/MeetingContext";
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState("schedule");
@@ -34,6 +35,7 @@ const [formData, setFormData] = useState({
   participants: [],
   agenda: [],
 });
+  const [selectedMeeting, setSelectedMeeting] = useState(null);
 
 useEffect(() => {
   console.log("🔵 GLOBAL formData updated:", formData);
@@ -152,6 +154,7 @@ useEffect(() => {
         {activeTab === "Analytics" && <AdminAnalytics />}
 
         {activeTab === "history" && (
+      <MeetingContext.Provider value={{ selectedMeeting, setSelectedMeeting }}>
           <MeetingHistory
             meetings={meetings}
             searchQuery={searchQuery}
@@ -167,6 +170,7 @@ useEffect(() => {
             setSummary={setSummary}
             setActiveTab={setActiveTab}
           />
+          </MeetingContext.Provider>
         )}
 
         {activeTab === "allMeetings" && (
@@ -204,6 +208,7 @@ useEffect(() => {
             />
           </div>
         )}
+        
       </main>
 
       <Toast toast={toast} />
@@ -216,10 +221,11 @@ useEffect(() => {
         />
       )}
       <MeetingMobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <MeetingContext.Provider value={{ selectedMeeting, setSelectedMeeting }}>
       <FormContext.Provider value={{ formData, setFormData }}>
     <VoiceAssistant />
 </FormContext.Provider>
-
+</MeetingContext.Provider>
     </div>
   );
 }

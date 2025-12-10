@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback,useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import MeetingContext from "./context/MeetingContext";
 
 const MeetingHistory = () => {
   const [meetings, setMeetings] = useState([]);
@@ -8,7 +9,25 @@ const MeetingHistory = () => {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [participantFilter, setParticipantFilter] = useState("");
-  const [selectedMeeting, setSelectedMeeting] = useState(null);
+  const [modalMeeting, setModalMeeting] = useState(null);
+ const { selectedMeeting, setSelectedMeeting } = useContext(MeetingContext);
+const getMeetingId = (m) => (m ? m.id || m._id : null);
+
+const handleSelectForAI = (meeting) => {
+  const currentId = getMeetingId(selectedMeeting);
+  const newId = getMeetingId(meeting);
+
+  console.log("Current selected ID:", currentId);
+  console.log("Clicked meeting ID:", newId);
+
+  if (currentId === newId) {
+    console.log("Unselecting meeting");
+    setSelectedMeeting(null);
+  } else {
+    console.log("Selecting meeting...");
+    setSelectedMeeting(meeting);
+  }
+};
 
   const token = localStorage.getItem("token");
 
@@ -53,10 +72,10 @@ const MeetingHistory = () => {
   }, [hostName, fetchMeetings]);
 
   const handleViewMeeting = (meeting) => {
-    setSelectedMeeting(meeting);
+    setModalMeeting(meeting);
   };
 
-  const closeModal = () => setSelectedMeeting(null);
+  const closeModal = () => setModalMeeting(null);
 
   const handleSearch = () => fetchMeetings();
 
@@ -93,7 +112,10 @@ const MeetingHistory = () => {
           <p>Loading meetings...</p>
         ) : meetings.length > 0 ? (
           meetings.map((meeting) => (
-            <div key={meeting.id || meeting._id} className="meeting-card">
+            <div key={meeting.id || meeting._id} className={`meeting-card ${
+    (selectedMeeting?.id ?? selectedMeeting?._id) === (meeting.id ?? meeting._id)
+ ? "selected-meeting" : ""
+  }`}>
               <div className="card-header">
                 <h3>{meeting.title}</h3>
                 <span className="meeting-date">
@@ -123,6 +145,17 @@ const MeetingHistory = () => {
                 >
                   View
                 </button>
+                <button
+  className={`btn btn-select ${
+    (selectedMeeting?.id ?? selectedMeeting?._id) === (meeting.id ?? meeting._id)
+ ? "selected" : ""
+  }`}
+  onClick={() => handleSelectForAI(meeting)}
+>
+  {(selectedMeeting?.id ?? selectedMeeting?._id) === (meeting.id ?? meeting._id)
+ ? "Unselect" : "Select"}
+</button>
+
               </div>
             </div>
           ))
@@ -136,48 +169,48 @@ const MeetingHistory = () => {
       </div>
 
       {/* ✅ Modal Content */}
-      {selectedMeeting && (
+      {modalMeeting && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content bg-space" onClick={(e) => e.stopPropagation()}>
             <div className="btn-close-modal">
               <button className=" btn-close" onClick={closeModal}></button>
             </div>
-            <h2>{selectedMeeting.title}</h2>
+            <h2>{modalMeeting.title}</h2>
             <p>
-              <strong>Host:</strong> {selectedMeeting.host}
+              <strong>Host:</strong> {modalMeeting.host}
             </p>
             <p>
               <strong>Participants:</strong>{" "}
-              {selectedMeeting.participants?.join(", ") || "None"}
+              {modalMeeting.participants?.join(", ") || "None"}
             </p>
             <p>
-              <strong>Status:</strong> {selectedMeeting.status}
+              <strong>Status:</strong> {modalMeeting.status}
             </p>
             <p>
               <strong>Date:</strong>{" "}
-              {new Date(selectedMeeting.timestamp).toLocaleString()}
+              {new Date(modalMeeting.timestamp).toLocaleString()}
             </p>
 
             {/* ✅ Render summary object safely */}
             {/* Summary Section */}
-            {selectedMeeting.summary && (
+            {modalMeeting.summary && (
               <div className="summary-section">
                 <h3 className="section-title">Summary</h3>
 
                 <div className="markdown-box">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {selectedMeeting.summary.full_summary ||
-                      selectedMeeting.summary.summary ||
+                    {modalMeeting.summary.full_summary ||
+                      modalMeeting.summary.summary ||
                       "No summary available"}
                   </ReactMarkdown>
                 </div>
 
                 {/* Key Points */}
-                {selectedMeeting.summary.key_points?.length > 0 && (
+                {modalMeeting.summary.key_points?.length > 0 && (
                   <>
                     <h4 className="sub-title">Key Points</h4>
                     <ul className="nice-list">
-                      {selectedMeeting.summary.key_points.map((point, idx) => (
+                      {modalMeeting.summary.key_points.map((point, idx) => (
                         <li key={idx}>{point}</li>
                       ))}
                     </ul>
@@ -185,11 +218,11 @@ const MeetingHistory = () => {
                 )}
 
                 {/* Action Items */}
-                {selectedMeeting.summary.action_items?.length > 0 && (
+                {modalMeeting.summary.action_items?.length > 0 && (
                   <>
                     <h4 className="sub-title">Action Items </h4>
                     <ul className="nice-list">
-                      {selectedMeeting.summary.action_items.map((item, idx) => (
+                      {modalMeeting.summary.action_items.map((item, idx) => (
                         <li key={idx}>
   <strong>{item.task}</strong>
   {item.owner && ` — ${item.owner}`}
@@ -203,11 +236,11 @@ const MeetingHistory = () => {
                 )}
 
                 {/* Decisions */}
-                {selectedMeeting.summary.decisions_made?.length > 0 && (
+                {modalMeeting.summary.decisions_made?.length > 0 && (
                   <>
                     <h4 className="sub-title">Decisions Made</h4>
                     <ul className="nice-list">
-                      {selectedMeeting.summary.decisions_made.map((d, idx) => (
+                      {modalMeeting.summary.decisions_made.map((d, idx) => (
                         <li key={idx}>{d}</li>
                       ))}
                     </ul>
@@ -218,11 +251,11 @@ const MeetingHistory = () => {
 
             {/* ✅ Render transcript */}
             {/* Transcript */}
-            {selectedMeeting.transcript?.length > 0 && (
+            {modalMeeting.transcript?.length > 0 && (
               <div className="transcript-section">
                 <h3 className="section-title">Transcript</h3>
 
-                {selectedMeeting.transcript.map((t, idx) => (
+                {modalMeeting.transcript.map((t, idx) => (
                   <div key={idx} className="transcript-line">
                     <strong>{t.speaker}:</strong>
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -380,6 +413,73 @@ ease-out;
 }
     .dark-theme  .transcript-line strong {
     color: #fff;
+}
+.meeting-card {
+  position: relative;
+  overflow: visible !important; /* allow glow outside */
+  border-radius: 14px; /* adjust to match your card */
+}
+
+/* when selected */
+.selected-meeting {
+  position: relative;
+  z-index: 2;
+  background: #F0F7FF !important;
+}
+
+/* OUTER GLOW LAYER (animation ONLY here) */
+.selected-meeting::after {
+  content: "";
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 9px;
+    bottom: 4px;
+    border-radius: 16px;
+    z-index: -1;
+    animation: pulseBorder 2s infinite 
+ease-in-out, radiationBorder 2.5s infinite 
+ease-out;
+}
+.dark-theme .btn-select.selected {
+    background-color: #307f7f !important;
+}
+/* soft blue pulse */
+@keyframes pulseBorder {
+  0% {
+    box-shadow: 0 0 0 0 rgba(74,144,226,0.4);
+  }
+  50% {
+    box-shadow: 0 0 18px 12px rgba(74,144,226,0.25);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(74,144,226,0);
+  }
+}
+
+/* slow breathing glow */
+@keyframes radiationBorder {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+
+.btn-select.selected {
+  background: #4A90E2 !important;
+  color: white !important;
+}
+  .btn-select {
+    color: #fff;
+}
+.btn-select:hover {
+    color: #ffffff;
+}
+    .btn-view:hover {
+    color: #fff;
+}
+    .dark-theme .selected-meeting {
+    background-color: #1e2637 !important;
 }
       `}</style>
     </div>

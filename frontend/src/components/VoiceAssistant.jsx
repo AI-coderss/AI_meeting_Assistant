@@ -8,6 +8,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { FaMicrophoneAlt, FaMicrophoneSlash } from "react-icons/fa";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { motion, AnimatePresence } from "framer-motion";
 import AudioWave from "./AudioWave";
@@ -16,6 +18,7 @@ import "../styles/VoiceAssistant.css";
 import useUiStore from "./store/useUiStore";
 import * as THREE from "three";
 import { FormContext } from "./context/FormContext";
+import MeetingContext from "./context/MeetingContext";
 
 /* ---------- WebRTC refs ---------- */
 const peerConnectionRef = React.createRef();
@@ -624,7 +627,26 @@ const VoiceAssistant = () => {
   const audioPlayerRef = useRef(null);
   const dragConstraintsRef = useRef(null);
   const { formData, setFormData } = useContext(FormContext);
-  const [mode, setMode] = useState("voice");
+  const { selectedMeeting } = useContext(MeetingContext);
+  const [mode, setMode] = useState("chat");
+  const [chatMessages, setChatMessages] = useState([
+    {
+      role: "assistant",
+      text: "Hi! I'm your Meeting Co-Pilot. How can I assist you today?",
+    },
+    {
+      role: "assistant",
+      text: "You can ask me to schedule meetings, update fields, add participants, or summarize tasks.",
+    },
+  ]);
+  const chatEndRef = useRef(null);
+  useEffect(() => {
+    setTimeout(() => {
+      if (chatEndRef.current) {
+        chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
+      }
+    }, 0); // run after DOM update
+  }, [chatMessages]);
 
   const toolBuffersRef = useRef(new Map());
   const recentClicksRef = useRef(new Map());
@@ -1031,18 +1053,37 @@ const VoiceAssistant = () => {
     }
   };
 
+  // const toggleAssistant = () => {
+  //   setIsOpen((prev) => {
+  //     const opening = !prev;
+  //     if (opening) {
+  //       chooseVoice();
+  //       startWebRTC();
+  //     } else {
+  //       cleanupWebRTC();
+  //     }
+  //     return !prev;
+  //   });
+  // };
+
   const toggleAssistant = () => {
-    setIsOpen((prev) => {
-      const opening = !prev;
-      if (opening) {
+  setIsOpen((prev) => {
+    const opening = !prev;
+
+    if (opening) {
+      // Only start voice pipeline if voice mode is selected
+      if (mode === "voice") {
         chooseVoice();
         startWebRTC();
-      } else {
-        cleanupWebRTC();
       }
-      return !prev;
-    });
-  };
+    } else {
+      cleanupWebRTC();
+    }
+
+    return opening;
+  });
+};
+
 
   const toggleMic = () => {
     if (connectionStatus === "connected" && localStreamRef.current) {
@@ -1082,10 +1123,9 @@ const VoiceAssistant = () => {
               right: 20,
               zIndex: 1001,
               width: "380px",
-              height: "642px",
+              height: "639px",
               background: "transparent",
             }}
-           
           >
             <audio ref={audioPlayerRef} style={{ display: "none" }} />
 
@@ -1096,28 +1136,45 @@ const VoiceAssistant = () => {
               </button>
               {/* 🔵 Mode Toggle */}
               <div className="mode-toggle-container">
-               <div className="mode-toggle">
-  <button
-    className={`mode-btn ${mode === "chat" ? "active" : ""}`}
-    onClick={() => setMode("chat")}
-  >
-    Chat Mode
-  </button>
+                <div className="mode-toggle">
+                  <button
+                    className={`mode-btn ${mode === "chat" ? "active" : ""}`}
+                    onClick={() => setMode("chat")}
+                  >
+                    Chat Mode
+                  </button>
 
-  <button
-    className={`mode-btn ${mode === "voice" ? "active" : ""}`}
-    onClick={() => setMode("voice")}
-  >
-    Voice Mode
-  </button>
-</div>
-
+                  <button
+                    className={`mode-btn ${mode === "voice" ? "active" : ""}`}
+                    onClick={() => setMode("voice")}
+                  >
+                    Voice Mode
+                  </button>
+                </div>
               </div>
             </div>
             {mode === "chat" && (
               <div className="chat-container">
-                <div className="chat-messages">
-                  <p style={{ whiteSpace: "pre-wrap" }}>{responseText}</p>
+                <div className="chat-messages" ref={chatEndRef}>
+                  {chatMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={`chat-bubble ${
+                        msg.role === "user" ? "user-bubble" : "assistant-bubble"
+                      }`}
+                    >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  ))}
+
+                  {/* live typing from model */}
+                  {responseText && (
+                    <div className="assistant-bubble typing">
+                      {responseText}
+                    </div>
+                  )}
                 </div>
 
                 <div className="chat-input-row">
@@ -1129,38 +1186,84 @@ const VoiceAssistant = () => {
                     placeholder="Type your message..."
                   />
                   <button
-  className="chat-send-btn"
-  onClick={() => {
-    if (!dataChannelRef.current) return;
-    const text = transcript.trim();
-    if (text.length === 0) return;
+                    className="chat-send-btn"
+                    onClick={async () => {
+                      const text = transcript.trim();
+                      if (!text) return;
 
-    try {
-      dataChannelRef.current.send(
-        JSON.stringify({
-          type: "response.create",
-          response: {
-            modalities: ["text"],
-            instructions: text,
-          },
-        })
-      );
-    } catch {}
+                      // Add User Message to chat UI
+                      setChatMessages((prev) => [
+                        ...prev,
+                        { role: "user", text },
+                      ]);
 
-    setTranscript("");
-  }}
->
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-  </svg>
-</button>
+                      setTranscript("");
 
+                      try {
+                      setResponseText("Thinking...");
+                        const res = await fetch(
+                          "https://ai-meeting-assistant-backend-suu9.onrender.com/api/chat",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              message: text,
+                              formData,
+                              meetingContext: selectedMeeting,
+                            }),
+                          }
+                        );
+
+                        const data = await res.json();
+                        setResponseText("");
+
+                        // Add Assistant reply to chat UI
+                        setChatMessages((prev) => [
+                          ...prev,
+                          {
+                            role: "assistant",
+                            text:
+                              data.reply ||
+                              "Done, Let me know if you need assistance with anything else?",
+                          },
+                        ]);
+
+                        // Run tool call if needed
+                        if (data.tool) {
+                          let parsedArgs = data.tool.args;
+                          try {
+                            if (typeof parsedArgs === "string") {
+                              parsedArgs = JSON.parse(parsedArgs);
+                            }
+                          } catch (err) {
+                            console.error("❌ Failed to parse tool args:", err);
+                          }
+
+                          handleToolCall(data.tool.name, parsedArgs);
+                        }
+                      } catch (err) {
+                        console.error(err);
+
+                        setChatMessages((prev) => [
+                          ...prev,
+                          {
+                            role: "assistant",
+                            text: "⚠️ Error sending message.",
+                          },
+                        ]);
+                      }
+                    }}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             )}
