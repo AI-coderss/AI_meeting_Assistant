@@ -19,6 +19,7 @@ import useUiStore from "./store/useUiStore";
 import * as THREE from "three";
 import { FormContext } from "./context/FormContext";
 import MeetingContext from "./context/MeetingContext";
+import ChatInputWidget from "./ChatInputWidget";
 
 /* ---------- WebRTC refs ---------- */
 const peerConnectionRef = React.createRef();
@@ -615,7 +616,17 @@ const ReactiveOrb = ({ stream, size = 200, speed = 2.0 }) => {
     />
   );
 };
-
+const initialQuestions = [
+  "What can the AI Meeting Assistant do?",
+  "How does AI Meeting Co-Pilot App work?",
+  "How Can I schedule a meeting?",
+  "How can I ask questions related to a meeting",
+  "How to use the AI Meeting Assistant?",
+  "How do I add or remove participants?",
+  "How do I set the meeting agenda?",
+  "Are there any decisions made in the meeting?",
+  "Can you generate a meeting summary?",
+];
 /* --------------------------------- Main component --------------------------------- */
 const VoiceAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -639,7 +650,84 @@ const VoiceAssistant = () => {
       text: "You can ask me to schedule meetings, update fields, add participants, or summarize tasks.",
     },
   ]);
+  const [visibleQuestions, setVisibleQuestions] = useState(initialQuestions);
+  const [accordionOpen, setAccordionOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
   const chatEndRef = useRef(null);
+  const [chatInputText, setChatInputText] = useState("");
+const chatInputRef = useRef(null);
+
+const sendChatMessage = async ({ text }) => {
+  const message = text.trim();
+  if (!message) return;
+
+  setChatMessages((prev) => [...prev, { role: "user", text: message }]);
+  setResponseText("");
+
+  const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      formData,
+      meetingContext: selectedMeeting,
+    }),
+  });
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+
+  let toolCall = null;
+  let assistantText = ""; // ✅ LOCAL BUFFER (IMPORTANT)
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split("\n\n").filter(Boolean);
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+
+      const payload = JSON.parse(line.slice(6));
+
+      if (payload.type === "text") {
+        assistantText += payload.delta;        // ✅ accumulate
+        setResponseText((prev) => prev + payload.delta); // UI typing
+      }
+
+      if (payload.type === "tool") {
+        toolCall = payload.tool;
+      }
+
+      if (payload.type === "done") {
+        // ✅ push FINAL assistant message
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: assistantText.trim(),
+          },
+        ]);
+
+        if (toolCall) {
+          let args = toolCall.args;
+          if (typeof args === "string") {
+            try {
+              args = JSON.parse(args);
+            } catch {}
+          }
+          handleToolCall(toolCall.name, args);
+        }
+
+        setResponseText("");
+        return;
+      }
+    }
+  }
+};
+
   useEffect(() => {
     setTimeout(() => {
       if (chatEndRef.current) {
@@ -702,6 +790,15 @@ const VoiceAssistant = () => {
     setRemoteStream(null);
     resetToggles();
   };
+const handleQuestionClick = (question) => {
+  sendChatMessage({ text: question });
+
+  // optional: collapse accordion after click
+  setAccordionOpen(false);
+
+  // optional: clear predefined questions after first use
+  // setVisibleQuestions([]);
+};
 
   const sendSessionUpdate = () => {
     const ch = dataChannelRef.current;
@@ -1037,6 +1134,7 @@ const VoiceAssistant = () => {
           },
           body: JSON.stringify({
             sdp: offer.sdp,
+            meetingContext: selectedMeeting,
           }),
         }
       );
@@ -1067,23 +1165,22 @@ const VoiceAssistant = () => {
   // };
 
   const toggleAssistant = () => {
-  setIsOpen((prev) => {
-    const opening = !prev;
+    setIsOpen((prev) => {
+      const opening = !prev;
 
-    if (opening) {
-      // Only start voice pipeline if voice mode is selected
-      if (mode === "voice") {
-        chooseVoice();
-        startWebRTC();
+      if (opening) {
+        // Only start voice pipeline if voice mode is selected
+        if (mode === "voice") {
+          chooseVoice();
+          startWebRTC();
+        }
+      } else {
+        cleanupWebRTC();
       }
-    } else {
-      cleanupWebRTC();
-    }
 
-    return opening;
-  });
-};
-
+      return opening;
+    });
+  };
 
   const toggleMic = () => {
     if (connectionStatus === "connected" && localStreamRef.current) {
@@ -1122,7 +1219,7 @@ const VoiceAssistant = () => {
               top: 188,
               right: 20,
               zIndex: 1001,
-              width: "380px",
+              width: "429px",
               height: "639px",
               background: "transparent",
             }}
@@ -1154,7 +1251,7 @@ const VoiceAssistant = () => {
               </div>
             </div>
             {mode === "chat" && (
-              <div className="chat-container">
+              <div className="chat-box">
                 <div className="chat-messages" ref={chatEndRef}>
                   {chatMessages.map((msg, i) => (
                     <div
@@ -1176,95 +1273,63 @@ const VoiceAssistant = () => {
                     </div>
                   )}
                 </div>
+                {visibleQuestions.length > 0 && (
+                  <div className="predefined-questions-container">
+                    {visibleQuestions.length > 3 ? (
+                      <>
+                        <div
+                          className="accordion-header"
+                          onClick={() => setAccordionOpen((prev) => !prev)}
+                        >
+                          <span>Show Suggested Questions</span>
+                          <span
+                            className={`chevron ${
+                              accordionOpen ? "rotate" : ""
+                            }`}
+                          >
+                            ▼
+                          </span>
+                        </div>
+                        <div
+                          className={`accordion-body ${
+                            accordionOpen ? "open" : ""
+                          }`}
+                        >
+                          <div className="accordion-content">
+                            {visibleQuestions.map((q, i) => (
+                              <button
+                                key={i}
+                                className="predefined-q fade-in"
+                                style={{ animationDelay: `${i * 0.05}s` }}
+                                onClick={() => handleQuestionClick(q)}
+                              >
+                                {q}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      visibleQuestions.map((q, i) => (
+                        <button
+                          key={i}
+                          className="predefined-q fade-in"
+                          style={{ animationDelay: `${i * 0.05}s` }}
+                          onClick={() => handleQuestionClick(q)}
+                        >
+                          {q}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+               <ChatInputWidget
+  ref={chatInputRef}
+  inputText={chatInputText}
+  setInputText={setChatInputText}
+  onSendMessage={sendChatMessage}
+/>
 
-                <div className="chat-input-row">
-                  <input
-                    type="text"
-                    className="chat-input"
-                    value={transcript}
-                    onChange={(e) => setTranscript(e.target.value)}
-                    placeholder="Type your message..."
-                  />
-                  <button
-                    className="chat-send-btn"
-                    onClick={async () => {
-                      const text = transcript.trim();
-                      if (!text) return;
-
-                      // Add User Message to chat UI
-                      setChatMessages((prev) => [
-                        ...prev,
-                        { role: "user", text },
-                      ]);
-
-                      setTranscript("");
-
-                      try {
-                      setResponseText("Thinking...");
-                        const res = await fetch(
-                          "https://ai-meeting-assistant-backend-suu9.onrender.com/api/chat",
-                          {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              message: text,
-                              formData,
-                              meetingContext: selectedMeeting,
-                            }),
-                          }
-                        );
-
-                        const data = await res.json();
-                        setResponseText("");
-
-                        // Add Assistant reply to chat UI
-                        setChatMessages((prev) => [
-                          ...prev,
-                          {
-                            role: "assistant",
-                            text:
-                              data.reply ||
-                              "Done, Let me know if you need assistance with anything else?",
-                          },
-                        ]);
-
-                        // Run tool call if needed
-                        if (data.tool) {
-                          let parsedArgs = data.tool.args;
-                          try {
-                            if (typeof parsedArgs === "string") {
-                              parsedArgs = JSON.parse(parsedArgs);
-                            }
-                          } catch (err) {
-                            console.error("❌ Failed to parse tool args:", err);
-                          }
-
-                          handleToolCall(data.tool.name, parsedArgs);
-                        }
-                      } catch (err) {
-                        console.error(err);
-
-                        setChatMessages((prev) => [
-                          ...prev,
-                          {
-                            role: "assistant",
-                            text: "⚠️ Error sending message.",
-                          },
-                        ]);
-                      }
-                    }}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                    >
-                      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-                    </svg>
-                  </button>
-                </div>
               </div>
             )}
 

@@ -11,6 +11,8 @@ const LiveMeeting = ({
   setParticipants,
   setShowParticipantModal,
   showToast,
+  meetingTitle,
+  setMeetingTitle
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -304,7 +306,7 @@ syncActionItemsToAPI(updated);
 }).then(() => {
   // setCurrentMeeting(upcoming);
   setParticipants(upcoming.participants);
-
+  setMeetingTitle(upcoming.meeting_title)
   // ⬇️ NEW — Load agenda
   if (Array.isArray(upcoming.agenda)) {
     setAgenda(upcoming.agenda);
@@ -327,7 +329,7 @@ syncActionItemsToAPI(updated);
       "https://ai-meeting-assistant-backend-suu9.onrender.com";
     const today = new Date();
     const formattedDate = today.toLocaleDateString("en-GB");
-
+    console.log('Meeting Title: ',meetingTitle);
     try {
       const res = await fetch(`${BACKEND_URL}/api/meetings`, {
         method: "POST",
@@ -336,11 +338,11 @@ syncActionItemsToAPI(updated);
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          title: `Live Meeting - ${formattedDate}`,
+          title: meetingTitle,
           host: localStorage.getItem("email") || "Host",
           participants: [
-            localStorage.getItem("email") || "Host", // add host here
-            ...participants.map((p) => p.email || p.name),
+            localStorage.getItem("name") || localStorage.getItem("email") || "Host", // add host here
+            ...participants.map((p) => p.name || p.email),
           ],
         }),
       });

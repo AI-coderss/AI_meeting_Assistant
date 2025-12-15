@@ -21,12 +21,16 @@ import MeetingMobileNav from "./components/MeetingMobileNav";
 import { FormContext } from "./components/context/FormContext";
 import VoiceAssistant from "./components/VoiceAssistant";
 import MeetingContext from "./components/context/MeetingContext";
+// import ChatInputWidget from "./components/ChatInputWidget";
+// import ChatBot from "./components/ChatBot";
 
 function MainApp() {
   const [activeTab, setActiveTab] = useState("schedule");
   const [participants, setParticipants] = useState([]);
   const [showParticipantModal, setShowParticipantModal] = useState(false);
   const [roles, setRoles] = useState([]);
+  const [meetingTitle, setMeetingTitle] = useState("");
+
 const [formData, setFormData] = useState({
   meeting_title: "",
   meeting_type: "",
@@ -129,6 +133,8 @@ useEffect(() => {
                     setParticipants={setParticipants}
                     currentMeeting={currentMeeting}
                     closeForm={() => setShowParticipantModal(false)}
+                    setMeetingTitle={setMeetingTitle}
+                    meetingTitle={meetingTitle}
                   />
                 </div>
               </div>
@@ -147,6 +153,8 @@ useEffect(() => {
               currentService="gpt-40-transcribe"
               diarizationSegments={diarizationSegments}
               setDiarizationSegments={setDiarizationSegments}
+              setMeetingTitle={setMeetingTitle}
+              meetingTitle={meetingTitle}
             />
           </>
         )}
@@ -226,6 +234,9 @@ useEffect(() => {
     <VoiceAssistant />
 </FormContext.Provider>
 </MeetingContext.Provider>
+
+{/* <ChatInputWidget></ChatInputWidget> */}
+{/* <ChatBot></ChatBot> */}
     </div>
   );
 }

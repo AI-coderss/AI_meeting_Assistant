@@ -14,7 +14,7 @@ import base64
 # from pyannote.audio import Pipeline
 # import torch
 # Flask and extensions
-from flask import Flask, Blueprint, request, jsonify, abort
+from flask import Flask, Blueprint, request, jsonify, abort, stream_with_context
 from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 # from flask_socketio import SocketIO, join_room, leave_room
@@ -1193,6 +1193,7 @@ def rtc_connect():
     try:
         req = request.get_json()
         sdp_offer = req.get("sdp")
+        meeting_context = req.get("meetingContext")
 
         if not sdp_offer:
             return jsonify({"error": "Missing SDP"}), 400
@@ -1200,7 +1201,7 @@ def rtc_connect():
         # -------------------------
         # SYSTEM PROMPT
         # -------------------------
-        system_prompt = """
+        system_prompt = f"""
         You are an AI Meeting Co-Pilot. As your mode of communication, you must always respond and communicate strictly in English, regardless of the language the user uses.
 
         IMPORTANT:
@@ -1213,11 +1214,38 @@ def rtc_connect():
         - If user provides date and time together, output full datetime format.
         - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meeting,Training Session]. Dont add anything other than this. 
         - Always keep your responses clear, concise, and helpful, and remember to stick to English in all replies.
-        
+
+        ======================
+        MEETING CONTEXT (IMPORTANT)
+        ======================
+        The user is currently viewing or interacting with the following meeting:
+
+        {meeting_context}
+
+        You MUST use this meeting context when responding.
+
+        If the user asks questions about:
+        - transcript
+        - summary
+        - key points
+        - action items
+        - decisions
+        - participants
+        - agenda
+        - metadata (title, host, time)
+
+        then you MUST extract information strictly from **meeting_context**.
+
+        If a detail does not exist in the context, say:
+        “I could not find that information in the loaded meeting. Please check the Meeting History page.”
+
+        Do NOT hallucinate missing details.
+        Do NOT invent participants, decisions, or transcript lines.
+
         Your tasks:
         Scheduling New Meetings: Guide the user through scheduling a meeting. Ask them for details such as the meeting title, date and time, participants' names, emails, their positions, and the agenda.
 
-        Summarizing Meetings: Offer to summarize the content of current or previous meetings.
+        Summarizing Meetings: Offer to summarize the content of current or previous meetings. Use Meeting Context for this case
 
         Sharing Meeting Content: Help share meeting notes or summaries with other users as needed.
 
@@ -1523,38 +1551,26 @@ AVAILABLE TOOLS
 - submit_meeting
 """
 
-
     if not user_message:
         return jsonify({"error": "Message is required"}), 400
 
-    # -----------------------------
-    # CALL YOUR OPENAI MODEL HERE
-    # Same tool schema as voice mode
-    # -----------------------------
+    def event_stream():
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    from openai import OpenAI
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        tool_call = None
 
-    response = client.responses.create(
-        model="gpt-5.1",
-        instructions=(
-            "When you call a tool, you MUST also output an assistant message. "
-            "Never return only a tool call. "
-            "Never return an empty assistant message. "
-            "Always include a natural language explanation of what you changed, "
-            "in English only."
-        ),  
-        input=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },    
-                {
-                    "role": "user",
-                    "content": user_message
-                }
+        with client.responses.stream(
+            model="gpt-5.1",
+            instructions=(
+                "When you call a tool, you MUST also output an assistant message. "
+                "Never return only a tool call. "
+                "Never return an empty assistant message."
+            ),
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
             ],
-        tools= [
+            tools= [
         {
         "type": "function",
         "name": "set_meeting_title",
@@ -1651,31 +1667,41 @@ AVAILABLE TOOLS
             "parameters": {"type": "object", "properties": {}}
         }
     ],
-        tool_choice="auto"
+            tool_choice="auto",
+        ) as stream:
+
+            for event in stream:
+
+                # 🔹 Text token
+                if event.type == "response.output_text.delta":
+                    yield f"data: {json.dumps({'type': 'text', 'delta': event.delta})}\n\n"
+
+                # 🔹 Tool call created
+                elif (
+                    event.type == "response.output_item.added"
+                    and event.item.type == "function_call"
+                ):
+                    tool_call = {"name": event.item.name, "args": ""}
+
+                # 🔹 Tool args streaming
+                elif event.type == "response.function_call_arguments.delta":
+                    tool_call["args"] += event.delta
+
+                # 🔹 Tool call completed
+                elif event.type == "response.function_call_arguments.done":
+                    yield f"data: {json.dumps({'type': 'tool', 'tool': tool_call})}\n\n"
+
+            # 🔹 Final signal
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return Response(
+        stream_with_context(event_stream()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        },
     )
-
-    # -----------------------------
-    # Parse model output
-    # -----------------------------
-    text_reply = ""
-    tool_call = None
-
-    for item in response.output:
-        # Model speaking
-        if item.type == "message" and item.role == "assistant":
-            text_reply += item.content[0].text
-
-        # Model calling function
-        if item.type == "function_call":
-            tool_call = {
-                "name": item.name,
-                "args": item.arguments
-            }
-
-    return jsonify({
-        "reply": text_reply.strip(),
-        "tool": tool_call
-    })
 
 
 @app.get("/")

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "../styles/ParticipantForm.css";
 
-const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
-  const [meetingTitle, setMeetingTitle] = useState("");
+const ParticipantForm = ({ participants, setParticipants, closeForm,meetingTitle, setMeetingTitle}) => {
+  // const [meetingTitle, setMeetingTitle] = useState("");
   const [category, setCategory] = useState("Medical Meeting");
 
   const [newParticipant, setNewParticipant] = useState({
@@ -117,7 +117,7 @@ const ParticipantForm = ({ participants, setParticipants, closeForm }) => {
   return (
     <div className="participant-form">
       <div className="participant-form-header">
-        <h4> Schedule Medical Meeting</h4>
+        <h4>Start a Meeting</h4>
         <button className="form-close-btn" onClick={closeForm}>
           ×
         </button>
