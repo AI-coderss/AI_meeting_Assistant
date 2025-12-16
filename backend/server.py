@@ -756,9 +756,6 @@ def summarize_meeting(meeting_id: str):
 #save meeting when scheduling
 @app.route("/api/save_medical_meeting", methods=["POST"])
 def save_medical_meeting():
-    """
-    Save medical meeting form data to MongoDB
-    """
     try:
         data = request.get_json()
 
@@ -767,23 +764,22 @@ def save_medical_meeting():
             "meeting_type",
             "meeting_time",
             "host_email",
-            "participants",
-            "agenda"
+            "participants"
         ]
 
         missing = [f for f in required_fields if f not in data or not data[f]]
         if missing:
             return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
 
-        # Validate meeting time
         try:
             meeting_time = datetime.fromisoformat(data["meeting_time"])
         except:
             return jsonify({"error": "Invalid meeting_time format. Must be ISO 8601."}), 400
 
-        # ✅ Validate agenda structure
+        agenda_data = data.get("agenda", [])
         agenda_items = []
-        for a in data["agenda"]:
+
+        for a in agenda_data:
             if "item" not in a or not a["item"].strip():
                 return jsonify({"error": "Agenda item text required"}), 400
 
@@ -793,16 +789,13 @@ def save_medical_meeting():
             if "time_offset" not in a or not isinstance(a["time_offset"], int):
                 return jsonify({"error": "time_offset must be integer"}), 400
 
-            # ✅ NEW: Capture speaker_name (optional but included if sent)
             speaker_name = a.get("speaker_name", "")
-
-            # Calculate actual scheduled time
             agenda_start_time = meeting_time + timedelta(minutes=a["time_offset"])
 
             agenda_items.append({
                 "item": a["item"].strip(),
                 "speaker_email": a["speaker_email"],
-                "speaker_name": speaker_name,   # ✅ Added here
+                "speaker_name": speaker_name,
                 "time_offset": a["time_offset"],
                 "scheduled_time": agenda_start_time
             })
@@ -813,7 +806,7 @@ def save_medical_meeting():
             "meeting_time": meeting_time,
             "host_email": data["host_email"],
             "participants": data["participants"],
-            "agenda": agenda_items,
+            "agenda": agenda_items,   # ✅ empty list if none
             "created_at": datetime.utcnow()
         }
 
