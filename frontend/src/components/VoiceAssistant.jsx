@@ -20,6 +20,7 @@ import * as THREE from "three";
 import { FormContext } from "./context/FormContext";
 import MeetingContext from "./context/MeetingContext";
 import ChatInputWidget from "./ChatInputWidget";
+import { NavigationContext } from "./context/NavigationContext";
 
 /* ---------- WebRTC refs ---------- */
 const peerConnectionRef = React.createRef();
@@ -655,6 +656,8 @@ const VoiceAssistant = () => {
   const [inputValue, setInputValue] = useState("");
   const chatEndRef = useRef(null);
   const [chatInputText, setChatInputText] = useState("");
+  const { activeTab, setActiveTab } = useContext(NavigationContext);
+
 const chatInputRef = useRef(null);
 
 const sendChatMessage = async ({ text }) => {
@@ -760,6 +763,14 @@ const sendChatMessage = async ({ text }) => {
     }
   }, [mode]);
 
+const ensureCorrectTab = (requiredTab) => {
+  if (activeTab !== requiredTab) {
+    console.log(`🔀 Auto-navigating to ${requiredTab}`);
+    setActiveTab(requiredTab);
+  }
+};
+
+
   const cleanupWebRTC = () => {
     if (peerConnectionRef.current) {
       try {
@@ -826,6 +837,7 @@ const handleQuestionClick = (question) => {
       // SET MEETING TITLE
       // ---------------------------------------------------------
       case "set_meeting_title": {
+        ensureCorrectTab("schedule");
         setFormData((prev) => ({
           ...prev,
           meeting_title: args.value || "",
@@ -837,6 +849,7 @@ const handleQuestionClick = (question) => {
       // SET MEETING TYPE
       // ---------------------------------------------------------
       case "set_meeting_type": {
+        ensureCorrectTab("schedule");
         setFormData((prev) => ({
           ...prev,
           meeting_type: args.value || "",
@@ -848,6 +861,7 @@ const handleQuestionClick = (question) => {
       // SET MEETING FULL DATETIME (YYYY-MM-DDTHH:MM)
       // ---------------------------------------------------------
       case "set_meeting_datetime": {
+        ensureCorrectTab("schedule");
         setFormData((prev) => ({
           ...prev,
           meeting_time: args.value || "",
@@ -860,6 +874,7 @@ const handleQuestionClick = (question) => {
       // Keep existing time or default 00:00
       // ---------------------------------------------------------
       case "set_meeting_date": {
+        ensureCorrectTab("schedule");
         setFormData((prev) => {
           const oldTime = prev.meeting_time?.split("T")[1] || "00:00";
           return {
@@ -875,6 +890,7 @@ const handleQuestionClick = (question) => {
       // Keep existing date or default today
       // ---------------------------------------------------------
       case "set_meeting_time": {
+        ensureCorrectTab("schedule");
         setFormData((prev) => {
           const oldDate =
             prev.meeting_time?.split("T")[0] ||
@@ -892,6 +908,7 @@ const handleQuestionClick = (question) => {
       // ADD PARTICIPANT (name, email, role)
       // ---------------------------------------------------------
       case "add_participant": {
+        ensureCorrectTab("schedule");
         window.dispatchEvent(
           new CustomEvent("voice_participant", {
             detail: {
@@ -906,6 +923,7 @@ const handleQuestionClick = (question) => {
       }
 
       case "set_participant_field": {
+        ensureCorrectTab("schedule");
         window.dispatchEvent(
           new CustomEvent("voice_participant", {
             detail: {
@@ -923,6 +941,7 @@ const handleQuestionClick = (question) => {
       // REMOVE PARTICIPANT BY INDEX
       // ---------------------------------------------------------
       case "remove_participant": {
+        ensureCorrectTab("schedule");
         window.dispatchEvent(
           new CustomEvent("voice_remove_participant", {
             detail: args, // {index}
@@ -935,6 +954,7 @@ const handleQuestionClick = (question) => {
       // ADD AGENDA ITEM (item, minutes_into_meeting, assigned_to)
       // ---------------------------------------------------------
       case "add_agenda_item": {
+        ensureCorrectTab("schedule");
         window.dispatchEvent(
           new CustomEvent("voice_add_agenda", {
             detail: args,
@@ -947,6 +967,7 @@ const handleQuestionClick = (question) => {
       // DELETE AGENDA ITEM BY INDEX
       // ---------------------------------------------------------
       case "delete_agenda_item": {
+        ensureCorrectTab("schedule");
         window.dispatchEvent(
           new CustomEvent("voice_delete_agenda", {
             detail: args,
@@ -959,12 +980,19 @@ const handleQuestionClick = (question) => {
       // SUBMIT FORM
       // ---------------------------------------------------------
       case "submit_meeting": {
+        ensureCorrectTab("schedule");
         document
           .querySelector("form")
           ?.dispatchEvent(new Event("submit", { bubbles: true }));
         break;
       }
-
+      // ---------------------------------------------------------
+      // Navigation Tool 
+      // ---------------------------------------------------------
+      case "navigate_tab": {
+        setActiveTab(args.tab);
+        break;
+      }
       // ---------------------------------------------------------
       // UNKNOWN TOOL
       // ---------------------------------------------------------

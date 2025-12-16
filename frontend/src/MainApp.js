@@ -21,6 +21,7 @@ import MeetingMobileNav from "./components/MeetingMobileNav";
 import { FormContext } from "./components/context/FormContext";
 import VoiceAssistant from "./components/VoiceAssistant";
 import MeetingContext from "./components/context/MeetingContext";
+import { NavigationContext } from "./components/context/NavigationContext";
 // import ChatInputWidget from "./components/ChatInputWidget";
 // import ChatBot from "./components/ChatBot";
 
@@ -31,20 +32,19 @@ function MainApp() {
   const [roles, setRoles] = useState([]);
   const [meetingTitle, setMeetingTitle] = useState("");
 
-const [formData, setFormData] = useState({
-  meeting_title: "",
-  meeting_type: "",
-  meeting_time: "",
-  host_email: "",
-  participants: [],
-  agenda: [],
-});
+  const [formData, setFormData] = useState({
+    meeting_title: "",
+    meeting_type: "",
+    meeting_time: "",
+    host_email: "",
+    participants: [],
+    agenda: [],
+  });
   const [selectedMeeting, setSelectedMeeting] = useState(null);
 
-useEffect(() => {
-  console.log("🔵 GLOBAL formData updated:", formData);
-}, [formData]);
-
+  useEffect(() => {
+    console.log("🔵 GLOBAL formData updated:", formData);
+  }, [formData]);
 
   useEffect(() => {
     const storedRoles = JSON.parse(localStorage.getItem("roles")) || [];
@@ -162,22 +162,24 @@ useEffect(() => {
         {activeTab === "Analytics" && <AdminAnalytics />}
 
         {activeTab === "history" && (
-      <MeetingContext.Provider value={{ selectedMeeting, setSelectedMeeting }}>
-          <MeetingHistory
-            meetings={meetings}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            participantFilter={participantFilter}
-            setParticipantFilter={setParticipantFilter}
-            fetchMeetings={() => {
-              const hostEmail = localStorage.getItem("email");
-              fetchMeetings(hostEmail);
-            }}
-            setCurrentMeeting={setCurrentMeeting}
-            setTranscript={setTranscript}
-            setSummary={setSummary}
-            setActiveTab={setActiveTab}
-          />
+          <MeetingContext.Provider
+            value={{ selectedMeeting, setSelectedMeeting }}
+          >
+            <MeetingHistory
+              meetings={meetings}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              participantFilter={participantFilter}
+              setParticipantFilter={setParticipantFilter}
+              fetchMeetings={() => {
+                const hostEmail = localStorage.getItem("email");
+                fetchMeetings(hostEmail);
+              }}
+              setCurrentMeeting={setCurrentMeeting}
+              setTranscript={setTranscript}
+              setSummary={setSummary}
+              setActiveTab={setActiveTab}
+            />
           </MeetingContext.Provider>
         )}
 
@@ -198,12 +200,11 @@ useEffect(() => {
         {activeTab === "upcoming" && <UpcomingMeetings />}
 
         {isAdmin && activeTab === "userlist" && <UserList />}
-     {activeTab === "schedule" && (
-  <FormContext.Provider value={{ formData, setFormData }}>
-    <ScheduleMeetingForm />
-  </FormContext.Provider>
-)}
-
+        {activeTab === "schedule" && (
+          <FormContext.Provider value={{ formData, setFormData }}>
+            <ScheduleMeetingForm />
+          </FormContext.Provider>
+        )}
 
         {(transcript.length > 0 || summary) && (
           <div className="actions-panel">
@@ -216,7 +217,6 @@ useEffect(() => {
             />
           </div>
         )}
-        
       </main>
 
       <Toast toast={toast} />
@@ -229,14 +229,17 @@ useEffect(() => {
         />
       )}
       <MeetingMobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
-      <MeetingContext.Provider value={{ selectedMeeting, setSelectedMeeting }}>
-      <FormContext.Provider value={{ formData, setFormData }}>
-    <VoiceAssistant />
-</FormContext.Provider>
-</MeetingContext.Provider>
-
-{/* <ChatInputWidget></ChatInputWidget> */}
-{/* <ChatBot></ChatBot> */}
+      <NavigationContext.Provider value={{ activeTab, setActiveTab }}>
+        <MeetingContext.Provider
+          value={{ selectedMeeting, setSelectedMeeting }}
+        >
+          <FormContext.Provider value={{ formData, setFormData }}>
+            <VoiceAssistant />
+          </FormContext.Provider>
+        </MeetingContext.Provider>
+      </NavigationContext.Provider>
+      {/* <ChatInputWidget></ChatInputWidget> */}
+      {/* <ChatBot></ChatBot> */}
     </div>
   );
 }

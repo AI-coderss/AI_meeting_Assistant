@@ -1259,6 +1259,7 @@ def rtc_connect():
         - add_agenda_item
         - delete_agenda_item
         - set_participant_field
+        - navigate_tab ( available tabs : "schedule", "history","live","allMeetings","upcoming","userlist" )
         """
 
         # -------------------------
@@ -1352,6 +1353,17 @@ def rtc_connect():
             "index": { "type": "number" }
             },
             "required": ["index"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "navigate_tab",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "tab": { "type": "string", "enum": ["schedule", "history","live","allMeetings","upcoming","userlist"] }
+            },
+            "required": ["tab"]
         }
         },
         {
@@ -1549,6 +1561,7 @@ AVAILABLE TOOLS
 - add_agenda_item
 - delete_agenda_item
 - submit_meeting
+- navigate_tab ( available tabs : "schedule", "history","live","allMeetings","upcoming","userlist" )
 """
 
     if not user_message:
@@ -1658,6 +1671,17 @@ AVAILABLE TOOLS
             "index": { "type": "number" }
             },
             "required": ["index"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "navigate_tab",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "tab": { "type": "string", "enum": ["schedule", "history","live","allMeetings","upcoming","userlist"] }
+            },
+            "required": ["tab"]
         }
         },
         {
