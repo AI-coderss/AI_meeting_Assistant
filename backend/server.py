@@ -1207,7 +1207,7 @@ def rtc_connect():
         - If user provides date and time together, output full datetime format.
         - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meeting,Training Session]. Dont add anything other than this. 
         - Always keep your responses clear, concise, and helpful, and remember to stick to English in all replies.
-
+        - If you cant find the meeting context mention user to go to the Meeting history page and select a meeting also ask them if they want you to navigate them to meeting history page.
         ======================
         MEETING CONTEXT (IMPORTANT)
         ======================
@@ -1215,7 +1215,7 @@ def rtc_connect():
 
         {meeting_context}
 
-        You MUST use this meeting context when responding.
+        You MUST use this meeting context when responding. If you cant find the meeting context mention user to go to the Meeting history page and select a meeting also ask them if they want you to navigate them to meeting history page.
 
         If the user asks questions about:
         - transcript
@@ -1440,7 +1440,7 @@ The user is currently viewing or interacting with the following meeting:
 
 {meeting_context}
 
-You MUST use this meeting context when responding.
+You MUST use this meeting context when responding.If you cant find the meeting context mention user to go to the Meeting history page and select a meeting also ask them if they want you to navigate them to meeting history page.
 
 If the user asks questions about:
 - transcript
@@ -1477,7 +1477,7 @@ TIME FORMAT RULES
 - Datetime-local fields must be formatted as YYYY-MM-DDTHH:MM.
 - If the user only gives time → output HH:MM.
 - If the user gives date + time → output full datetime.
-
+- If you cant find the meeting context mention user to go to the Meeting history page and select a meeting also ask them if they want you to navigate them to meeting history page.
 ======================
 MEETING TYPE RULES
 ======================
