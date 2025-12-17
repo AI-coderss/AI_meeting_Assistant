@@ -106,13 +106,17 @@ class MeetingSummary(BaseModel):
     action_items: List[ActionItem] = []
     decisions_made: List[str] = []
 
+class Participant(BaseModel):
+    name: str
+    email: str
+    role: Optional[str] = "participant"
 
 class Meeting(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     host: str = "Unknown"
-    participants: List[str] = []
+    participants: List[Participant] = Field(default_factory=list)
     transcript: List[TranscriptSegment] = []
     summary: MeetingSummary = Field(default_factory=MeetingSummary)
     duration: Optional[float] = None
@@ -122,7 +126,8 @@ class Meeting(BaseModel):
 class MeetingCreate(BaseModel):
     title: str
     host: str = "Unknown"
-    participants: List[str] = []
+    participants: List[Participant] = Field(default_factory=list)
+
 
 # Auth models
 class User(BaseModel):
@@ -487,26 +492,60 @@ def update_meeting(meeting_id):
         logger.error(f"❌ Error updating meeting {meeting_id}: {str(e)}")
         abort(500, description=str(e))
 
-@api_bp.route("/meetings", methods=['GET'])
+@api_bp.route("/meetings", methods=["GET"])
 @auth_required
 def get_meetings():
     try:
-        search = request.args.get('search')
-        participant = request.args.get('participant')
+        search = request.args.get("search")
+        participant = request.args.get("participant")
+
         query = {}
+
+        # SEARCH (title / host / participant name / email)
         if search:
             query["$or"] = [
                 {"title": {"$regex": search, "$options": "i"}},
-                {"host": {"$regex": search, "$options": "i"}}
+                {"host": {"$regex": search, "$options": "i"}},
+                {
+                    "participants": {
+                        "$elemMatch": {
+                            "$or": [
+                                {"name": {"$regex": search, "$options": "i"}},
+                                {"email": {"$regex": search, "$options": "i"}},
+                            ]
+                        }
+                    }
+                },
             ]
+
+        # PARTICIPANT FILTER (name OR email)
         if participant:
-            query["participants"] = {"$in": [participant]}
-        cur = db.meetings.find(query).sort("timestamp", DESCENDING).limit(100)
+            query["participants"] = {
+                "$elemMatch": {
+                    "$or": [
+                        {"name": {"$regex": participant, "$options": "i"}},
+                        {"email": {"$regex": participant, "$options": "i"}},
+                    ]
+                }
+            }
+
+        cur = (
+            db.meetings.find(query)
+            .sort("timestamp", DESCENDING)
+            .limit(100)
+        )
+
         meetings = list(cur)
-        return jsonify([Meeting(**m).model_dump() for m in meetings])
+
+        return jsonify([
+            Meeting(**m).model_dump(mode="json")
+            for m in meetings
+        ])
+
     except Exception as e:
         logger.error(f"Error fetching meetings: {str(e)}")
         abort(500, description=str(e))
+
 
 @api_bp.route("/meetings/all", methods=["GET"])
 @auth_required
@@ -514,45 +553,83 @@ def get_all_meetings():
     try:
         cur = db.meetings.find().sort("timestamp", DESCENDING)
         meetings = list(cur)
-        return jsonify([Meeting(**m).model_dump() for m in meetings])
+
+        return jsonify([
+            Meeting(**m).model_dump(mode="json")
+            for m in meetings
+        ])
+
     except Exception as e:
         logger.error(f"Error fetching ALL meetings: {str(e)}")
         abort(500, description=str(e))
 
 
-@api_bp.route("/meetings/host/<host_name>", methods=['GET'])
+@api_bp.route("/meetings/host/<host_name>", methods=["GET"])
 @auth_required
 def get_meetings_by_host(host_name):
     try:
-        search = request.args.get('search')
-        participant = request.args.get('participant')
+        search = request.args.get("search")
+        participant = request.args.get("participant")
 
-        # MAIN FILTER:
-        # 1. Host matches
-        # 2. OR participants array contains the email
+        # BASE QUERY
         query = {
             "$or": [
+                # Host email
                 {"host": {"$regex": host_name, "$options": "i"}},
-                {"participants": {"$elemMatch": {"$regex": host_name, "$options": "i"}}}
+
+                # Participant email
+                {
+                    "participants": {
+                        "$elemMatch": {
+                            "email": {"$regex": host_name, "$options": "i"}
+                        }
+                    }
+                },
+
+                # Participant name
+                {
+                    "participants": {
+                        "$elemMatch": {
+                            "name": {"$regex": host_name, "$options": "i"}
+                        }
+                    }
+                },
             ]
         }
 
-        # SEARCH FILTER (applies on top of the above)
+        # SEARCH FILTER (title / summary)
         if search:
-            query.setdefault("$and", []).append({
-                "$or": [
-                    {"title": {"$regex": search, "$options": "i"}},
-                    {"summary": {"$regex": search, "$options": "i"}}
-                ]
-            })
+            query.setdefault("$and", []).append(
+                {
+                    "$or": [
+                        {"title": {"$regex": search, "$options": "i"}},
+                        {"summary.full_summary": {"$regex": search, "$options": "i"}},
+                        {"summary.summary": {"$regex": search, "$options": "i"}},
+                    ]
+                }
+            )
 
-        # PARTICIPANT FILTER (email string inside array)
+        # PARTICIPANT FILTER (name OR email)
         if participant:
-            query.setdefault("$and", []).append({
-                "participants": {"$elemMatch": {"$regex": participant, "$options": "i"}}
-            })
+            query.setdefault("$and", []).append(
+                {
+                    "participants": {
+                        "$elemMatch": {
+                            "$or": [
+                                {"name": {"$regex": participant, "$options": "i"}},
+                                {"email": {"$regex": participant, "$options": "i"}},
+                            ]
+                        }
+                    }
+                }
+            )
 
-        cur = db.meetings.find(query).sort("timestamp", DESCENDING).limit(100)
+        cur = (
+            db.meetings.find(query)
+            .sort("timestamp", DESCENDING)
+            .limit(100)
+        )
+
         meetings = list(cur)
 
         return jsonify([Meeting(**m).model_dump() for m in meetings])
@@ -560,6 +637,7 @@ def get_meetings_by_host(host_name):
     except Exception as e:
         logger.error(f"Error fetching meetings by host: {str(e)}")
         abort(500, description=str(e))
+
 
 @api_bp.route("/meetings/<string:meeting_id>", methods=['DELETE'])
 @auth_required

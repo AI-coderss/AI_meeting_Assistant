@@ -12,7 +12,7 @@ const LiveMeeting = ({
   setShowParticipantModal,
   showToast,
   meetingTitle,
-  setMeetingTitle
+  setMeetingTitle,
 }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
@@ -40,31 +40,30 @@ const LiveMeeting = ({
     note: "",
   });
   const [agenda, setAgenda] = useState([]);
-const [meetingStartTime, setMeetingStartTime] = useState(null);
-const [shownAgendaPopups, setShownAgendaPopups] = useState([]);
+  const [meetingStartTime, setMeetingStartTime] = useState(null);
+  const [shownAgendaPopups, setShownAgendaPopups] = useState([]);
 
+  const syncActionItemsToAPI = async (updatedItems) => {
+    if (!currentMeeting?.id) return;
 
-const syncActionItemsToAPI = async (updatedItems) => {
-  if (!currentMeeting?.id) return;
+    const token = localStorage.getItem("token");
 
-  const token = localStorage.getItem("token");
+    try {
+      await axios.put(
+        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${currentMeeting.id}/action-items`,
+        { action_items: updatedItems },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-  try {
-    await axios.put(
-      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${currentMeeting.id}/action-items`,
-      { action_items: updatedItems },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    console.log("✅ Action items synced");
-  } catch (err) {
-    console.error("❌ Failed to sync action items:", err);
-  }
-};
+      console.log("✅ Action items synced");
+    } catch (err) {
+      console.error("❌ Failed to sync action items:", err);
+    }
+  };
 
   const startEditing = (index) => {
     setEditIndex(index);
@@ -83,7 +82,7 @@ const syncActionItemsToAPI = async (updatedItems) => {
 
     updated[index] = { ...editItem };
     setActionItems(updated);
-syncActionItemsToAPI(updated);
+    syncActionItemsToAPI(updated);
     setEditIndex(null);
     setEditItem({
       task: "",
@@ -93,31 +92,28 @@ syncActionItemsToAPI(updated);
     });
   };
 
-const cancelEdit = () => {
-  setEditIndex(null);
-  setEditItem({
-    task: "",
-    owner: "",
-    due_date: "",
-    priority: ""
-  });
-};
-
+  const cancelEdit = () => {
+    setEditIndex(null);
+    setEditItem({
+      task: "",
+      owner: "",
+      due_date: "",
+      priority: "",
+    });
+  };
 
   // Delete item
   const deleteItem = (index) => {
-const updated = actionItems.filter((_, i) => i !== index);
-setActionItems(updated);
-syncActionItemsToAPI(updated);
-
+    const updated = actionItems.filter((_, i) => i !== index);
+    setActionItems(updated);
+    syncActionItemsToAPI(updated);
   };
 
   const toggleComplete = (index) => {
     const updated = [...actionItems];
     updated[index].completed = !updated[index].completed;
     setActionItems(updated);
-syncActionItemsToAPI(updated);
-
+    syncActionItemsToAPI(updated);
   };
 
   useEffect(() => {
@@ -149,21 +145,20 @@ syncActionItemsToAPI(updated);
             );
 
             if (isParticipant) {
-             Swal.fire({
-  title: "Your meeting has started",
-  text: `Meeting: ${m.meeting_title}`,
-  icon: "info",
-  confirmButtonText: "Join Now",
-}).then(() => {
-  // setCurrentMeeting(m);
-  setParticipants(m.participants || []);
+              Swal.fire({
+                title: "Your meeting has started",
+                text: `Meeting: ${m.meeting_title}`,
+                icon: "info",
+                confirmButtonText: "Join Now",
+              }).then(() => {
+                // setCurrentMeeting(m);
+                setParticipants(m.participants || []);
 
-  // NEW → load agenda
-  if (Array.isArray(m.agenda)) {
-    setAgenda(m.agenda);
-  }
-});
-
+                // NEW → load agenda
+                if (Array.isArray(m.agenda)) {
+                  setAgenda(m.agenda);
+                }
+              });
 
               setNotified(true); // Prevent multiple popups
             }
@@ -179,45 +174,45 @@ syncActionItemsToAPI(updated);
 
   const addNewItem = () => {
     if (!newItem.trim()) return;
-const updated = [...actionItems, { task: newItem, completed: false }];
-setActionItems(updated);
-syncActionItemsToAPI(updated);
+    const updated = [...actionItems, { task: newItem, completed: false }];
+    setActionItems(updated);
+    syncActionItemsToAPI(updated);
 
     setNewItem("");
     setShowInput(false);
   };
 
   useEffect(() => {
-  if (!meetingStartTime || agenda.length === 0) return;
+    if (!meetingStartTime || agenda.length === 0) return;
 
-  const interval = setInterval(() => {
-    const now = new Date();
-    const elapsedMinutes = Math.floor((now - meetingStartTime) / 60000);
+    const interval = setInterval(() => {
+      const now = new Date();
+      const elapsedMinutes = Math.floor((now - meetingStartTime) / 60000);
 
-    agenda.forEach((ag, idx) => {
-      if (
-        elapsedMinutes >= ag.time_offset &&
-        !shownAgendaPopups.includes(idx)
-      ) {
-        // Show popup alert
-        Swal.fire({
-          title: `⏱ Agenda Time Reached`,
-          html: `
+      agenda.forEach((ag, idx) => {
+        if (
+          elapsedMinutes >= ag.time_offset &&
+          !shownAgendaPopups.includes(idx)
+        ) {
+          // Show popup alert
+          Swal.fire({
+            title: `⏱ Agenda Time Reached`,
+            html: `
             <b>${ag.item}</b><br/>
             Speaker: ${ag.speaker_name} (${ag.speaker_email})
           `,
-          icon: "info",
-          confirmButtonText: "OK",
-        });
+            icon: "info",
+            confirmButtonText: "OK",
+          });
 
-        // Mark popup as shown
-        setShownAgendaPopups((prev) => [...prev, idx]);
-      }
-    });
-  }, 15000); // check every 15 seconds
+          // Mark popup as shown
+          setShownAgendaPopups((prev) => [...prev, idx]);
+        }
+      });
+    }, 15000); // check every 15 seconds
 
-  return () => clearInterval(interval);
-}, [meetingStartTime, agenda, shownAgendaPopups]);
+    return () => clearInterval(interval);
+  }, [meetingStartTime, agenda, shownAgendaPopups]);
 
   useEffect(() => {
     const savedTranscript = localStorage.getItem("mom_transcriptData");
@@ -295,24 +290,23 @@ syncActionItemsToAPI(updated);
             return; // ❌ do not show popup
           }
 
-      Swal.fire({
-  title: "Scheduled Meeting Detected",
-  html: `
+          Swal.fire({
+            title: "Scheduled Meeting Detected",
+            html: `
     <b>${upcoming.meeting_title}</b><br/>
     ${new Date(upcoming.meeting_time).toLocaleString()}
   `,
-  icon: "info",
-  confirmButtonText: "Load Meeting",
-}).then(() => {
-  // setCurrentMeeting(upcoming);
-  setParticipants(upcoming.participants);
-  setMeetingTitle(upcoming.meeting_title)
-  // ⬇️ NEW — Load agenda
-  if (Array.isArray(upcoming.agenda)) {
-    setAgenda(upcoming.agenda);
-  }
-});
-
+            icon: "info",
+            confirmButtonText: "Load Meeting",
+          }).then(() => {
+            // setCurrentMeeting(upcoming);
+            setParticipants(upcoming.participants);
+            setMeetingTitle(upcoming.meeting_title);
+            // ⬇️ NEW — Load agenda
+            if (Array.isArray(upcoming.agenda)) {
+              setAgenda(upcoming.agenda);
+            }
+          });
         }
       } catch (err) {
         console.error(err);
@@ -329,9 +323,9 @@ syncActionItemsToAPI(updated);
       "https://ai-meeting-assistant-backend-suu9.onrender.com";
     const today = new Date();
     const formattedDate = today.toLocaleDateString("en-GB");
-    console.log('Meeting Title: ',meetingTitle);
+    console.log("Meeting Title: ", meetingTitle);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/meetings`, {
+      const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -340,14 +334,30 @@ syncActionItemsToAPI(updated);
         body: JSON.stringify({
           title: meetingTitle,
           host: localStorage.getItem("email") || "Host",
+
           participants: [
-            localStorage.getItem("name") || localStorage.getItem("email") || "Host", // add host here
-            ...participants.map((p) => p.name || p.email),
+            // Host as participant
+            {
+              name:
+                localStorage.getItem("name") ||
+                localStorage.getItem("email") ||
+                "Host",
+              email: localStorage.getItem("email") || "",
+              role: "host",
+            },
+
+            // Other participants
+            ...participants.map((p) => ({
+              name: p.name || "",
+              email: p.email || "",
+              role: p.role || "participant",
+            })),
           ],
         }),
       });
 
       if (!res.ok) throw new Error(`Failed to create meeting: ${res.status}`);
+
       const data = await res.json();
       console.log("✅ Meeting created:", data);
       setCurrentMeeting(data);
@@ -443,14 +453,17 @@ ${
   const startRecording = async () => {
     try {
       setRecordBtnLoading(true); // ← show loader + disable button
-      
+
       // Prevent double click for 2 seconds
       setTimeout(() => setRecordBtnLoading(false), 2000);
-      console.log(currentMeeting,'----this is before meeting---------')
+      console.log(currentMeeting, "----this is before meeting---------");
       // alert(currentMeeting);
 
       if (!currentMeeting) {
-      console.log(currentMeeting,'----this is inside the meeting nffwe meeting---------')
+        console.log(
+          currentMeeting,
+          "----this is inside the meeting nffwe meeting---------"
+        );
         showToast && showToast("Creating a new meeting...");
         const newMeeting = await createMeetingIfNeeded();
         if (!newMeeting) {
@@ -474,7 +487,7 @@ ${
       };
 
       mediaRecorder.start();
-      setMeetingStartTime(new Date()); 
+      setMeetingStartTime(new Date());
 
       setIsRecording(true);
       showToast && showToast("Recording started...");
@@ -491,7 +504,7 @@ ${
       setIsRecording(false);
       showToast && showToast("Recording stopped.");
     }
-        localStorage.removeItem("mom_transcriptData");
+    localStorage.removeItem("mom_transcriptData");
     localStorage.removeItem("mom_actionItems");
     localStorage.removeItem("mom_activeTab");
 
@@ -653,19 +666,22 @@ ${
           </div>
         </div>
         {agenda.length > 0 && (
-  <div className="agenda-box">
-    <h3>📋 Agenda</h3>
-    <ul>
-      {agenda.map((a, i) => (
-        <li key={i}>
-          <strong>{a.item}</strong> — {a.speaker_name} — {a.speaker_email}
-          <span style={{ color: "#777" }}> (at {a.time_offset} min)</span>
-        </li>
-      ))}
-    </ul>
-  </div>
-)}
-
+          <div className="agenda-box">
+            <h3>📋 Agenda</h3>
+            <ul>
+              {agenda.map((a, i) => (
+                <li key={i}>
+                  <strong>{a.item}</strong> — {a.speaker_name} —{" "}
+                  {a.speaker_email}
+                  <span style={{ color: "#777" }}>
+                    {" "}
+                    (at {a.time_offset} min)
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       {isRecording && audioStream && (
         <div style={{ marginTop: "0px" }}>
@@ -923,7 +939,10 @@ ${
                       onChange={(e) => setNewItem(e.target.value)}
                       className="border p-2 rounded w-80"
                     />
-                    <button onClick={addNewItem} className="btn-primary btn-prime">
+                    <button
+                      onClick={addNewItem}
+                      className="btn-primary btn-prime"
+                    >
                       Save
                     </button>
                     <button

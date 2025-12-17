@@ -115,17 +115,26 @@ const AllMeetings = () => {
   };
 
   // Safe participants renderer (handles strings, objects, mixed arrays)
-  const renderParticipants = (participants) => {
-    if (!participants) return "None listed";
-    if (!Array.isArray(participants)) return String(participants);
-    return participants
-      .map((p) => {
-        if (typeof p === "string") return p;
-        // try common keys
-        return p.name || p.email || p.id || JSON.stringify(p);
-      })
-      .join(", ");
-  };
+ const renderParticipants = (participants) => {
+  if (!participants || participants.length === 0) return "None listed";
+
+  if (!Array.isArray(participants)) return String(participants);
+
+  return participants
+    .map((p) => {
+      // OLD DATA (string)
+      if (typeof p === "string") return p;
+
+      // NEW DATA (object)
+      if (typeof p === "object") {
+        if (p.name && p.email) return `${p.name}`;
+        return p.name || p.email || "Unknown participant";
+      }
+
+      return "Unknown participant";
+    })
+    .join(", ");
+};
 
   // Safe action item cells (ensure we don't try to render objects directly)
   const renderActionItemsRow = (ai) => {
