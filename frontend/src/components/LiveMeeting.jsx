@@ -324,37 +324,52 @@ const LiveMeeting = ({
     const today = new Date();
     const formattedDate = today.toLocaleDateString("en-GB");
     console.log("Meeting Title: ", meetingTitle);
+    const hostEmail = (localStorage.getItem("email") || "").toLowerCase();
+    const hostName =
+      localStorage.getItem("name") || localStorage.getItem("email") || "Host";
+
+    // Normalize other participants
+    const normalizedParticipants = participants.map((p) => ({
+      name: p.name || "",
+      email: (p.email || "").toLowerCase(),
+      role: p.role || "participant",
+    }));
+
+    // Check if host already exists
+    const hostExists = normalizedParticipants.some(
+      (p) => p.email && p.email === hostEmail
+    );
     try {
-      const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: meetingTitle,
-          host: localStorage.getItem("email") || "Host",
+      const res = await fetch(
+        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: meetingTitle,
+            host: localStorage.getItem("email") || "Host",
 
-          participants: [
-            // Host as participant
-            {
-              name:
-                localStorage.getItem("name") ||
-                localStorage.getItem("email") ||
-                "Host",
-              email: localStorage.getItem("email") || "",
-              role: "host",
-            },
+            participants: [
+              // ✅ Add host ONLY if missing
+              ...(!hostExists && hostEmail
+                ? [
+                    {
+                      name: hostName,
+                      email: hostEmail,
+                      role: "host",
+                    },
+                  ]
+                : []),
 
-            // Other participants
-            ...participants.map((p) => ({
-              name: p.name || "",
-              email: p.email || "",
-              role: p.role || "participant",
-            })),
-          ],
-        }),
-      });
+              // Other participants
+              ...normalizedParticipants,
+            ],
+          }),
+        }
+      );
 
       if (!res.ok) throw new Error(`Failed to create meeting: ${res.status}`);
 
