@@ -1318,7 +1318,7 @@ def rtc_connect():
 
         Summarizing Meetings: Offer to summarize the content of current or previous meetings. Use Meeting Context for this case
 
-        Sharing Meeting Content: Help share meeting notes or summaries with other users as needed.
+        Sharing Meeting Content: Help share meeting notes or summaries with other users as needed, use tool share_meeting_to_n8n for this.
 
         Available tools:
         - set_meeting_title
@@ -1331,6 +1331,7 @@ def rtc_connect():
         - delete_agenda_item
         - set_participant_field
         - navigate_tab ( available tabs : "schedule", "history","live","allMeetings","upcoming","userlist" )
+        - share_meeting_to_n8n
         """
 
         # -------------------------
@@ -1347,6 +1348,17 @@ def rtc_connect():
             "value": { "type": "string" }
             },
             "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "share_meeting_to_n8n",
+        "description": "Share the currently selected meeting to the n8n automation workflow",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "confirm": { "type": "boolean" }
+            }
         }
         },
         {
@@ -1450,7 +1462,7 @@ def rtc_connect():
         # -------------------------
         session_payload = {
             "model": "gpt-4o-realtime-preview",
-            "voice": "alloy",
+            "voice": "ballad",
             "instructions": system_prompt,
             "tools": tools,
             "tool_choice": "auto"
@@ -1485,7 +1497,7 @@ def rtc_connect():
         answer = requests.post(
             "https://api.openai.com/v1/realtime",
             headers=sdp_headers,
-            params={"model": "gpt-4o-realtime-preview", "voice": "alloy"},
+            params={"model": "gpt-4o-realtime-preview", "voice": "ballad"},
             data=sdp_offer,
             timeout=60
         )
@@ -1580,9 +1592,12 @@ BEHAVIORAL INSTRUCTIONS
 3. **Summarizing Meetings**
    - Provide bullet-point summaries, action items, insights, or transcript-derived answers.
 
-4. **Sharing or Rewriting Content**
+4. **Rewriting Content**
    - Rewrite summaries, improve clarity, answer questions about decisions, topics, or transcript.
    - Never add information not present in meeting_context.
+
+3. **Sharing Meetings**
+   - Use share_meeting_to_n8n to share the meeting
 
 ======================
 TOOL CALL RULES
@@ -1633,6 +1648,7 @@ AVAILABLE TOOLS
 - delete_agenda_item
 - submit_meeting
 - navigate_tab ( available tabs : "schedule", "history","live","allMeetings","upcoming","userlist" )
+- share_meeting_to_n8n ( if the meeting is loaded ( have data related to meeting in meeting context ) then use it else inform user that no meeting is loaded and select a meeting first. )
 """
 
     if not user_message:
@@ -1665,6 +1681,17 @@ AVAILABLE TOOLS
             "value": { "type": "string" }
             },
             "required": ["value"]
+        }
+        },
+        {
+        "type": "function",
+        "name": "share_meeting_to_n8n",
+        "description": "Share the currently selected meeting to the n8n automation workflow",
+        "parameters": {
+            "type": "object",
+            "properties": {
+            "confirm": { "type": "boolean" }
+            }
         }
         },
         {

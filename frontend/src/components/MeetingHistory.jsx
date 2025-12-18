@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import MeetingContext from "./context/MeetingContext";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { shareMeetingToN8n } from "../utils/shareToN8n";
 
 const MeetingHistory = () => {
   const [meetings, setMeetings] = useState([]);
@@ -45,23 +46,7 @@ const MeetingHistory = () => {
       },
     });
 
-    await axios.post(
-      "https://n8n-latest-h3pu.onrender.com/webhook/85637224-7bfe-42fa-bdb0-7bfa84b16001",
-      {
-        meeting_id: meeting.id || meeting._id,
-        title: meeting.title,
-        host: meeting.host,
-        participants:  (meeting.participants || [])
-      .map((p) => p.email)
-      .filter(Boolean),
-        status: meeting.status,
-        timestamp: meeting.timestamp,
-        summary: meeting.summary || {},
-        transcript: meeting.transcript || [],
-        source: "meeting_history",
-        shared_at: new Date().toISOString(),
-      }
-    );
+await shareMeetingToN8n(meeting);
 
     Swal.fire({
       icon: "success",

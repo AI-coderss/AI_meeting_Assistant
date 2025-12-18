@@ -21,6 +21,8 @@ import { FormContext } from "./context/FormContext";
 import MeetingContext from "./context/MeetingContext";
 import ChatInputWidget from "./ChatInputWidget";
 import { NavigationContext } from "./context/NavigationContext";
+import Swal from "sweetalert2";
+import { shareMeetingToN8n } from "../utils/shareToN8n";
 
 /* ---------- WebRTC refs ---------- */
 const peerConnectionRef = React.createRef();
@@ -658,14 +660,14 @@ const VoiceAssistant = () => {
   const [chatInputText, setChatInputText] = useState("");
   const { activeTab, setActiveTab } = useContext(NavigationContext);
 
-const chatInputRef = useRef(null);
+  const chatInputRef = useRef(null);
 
-const sendChatMessage = async ({ text }) => {
-  const message = text.trim();
-  if (!message) return;
+  const sendChatMessage = async ({ text }) => {
+    const message = text.trim();
+    if (!message) return;
 
-  setChatMessages((prev) => [...prev, { role: "user", text: message }]);
-  setResponseText("");
+    setChatMessages((prev) => [...prev, { role: "user", text: message }]);
+    setResponseText("");
 
   const res = await fetch("https://ai-meeting-assistant-backend-suu9.onrender.com/api/chat", {
     method: "POST",
@@ -677,59 +679,59 @@ const sendChatMessage = async ({ text }) => {
     }),
   });
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder("utf-8");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
 
-  let toolCall = null;
-  let assistantText = ""; // ✅ LOCAL BUFFER (IMPORTANT)
+    let toolCall = null;
+    let assistantText = ""; // ✅ LOCAL BUFFER (IMPORTANT)
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
 
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split("\n\n").filter(Boolean);
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n\n").filter(Boolean);
 
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
 
-      const payload = JSON.parse(line.slice(6));
+        const payload = JSON.parse(line.slice(6));
 
-      if (payload.type === "text") {
-        assistantText += payload.delta;        // ✅ accumulate
-        setResponseText((prev) => prev + payload.delta); // UI typing
-      }
-
-      if (payload.type === "tool") {
-        toolCall = payload.tool;
-      }
-
-      if (payload.type === "done") {
-        // ✅ push FINAL assistant message
-        setChatMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: assistantText.trim(),
-          },
-        ]);
-
-        if (toolCall) {
-          let args = toolCall.args;
-          if (typeof args === "string") {
-            try {
-              args = JSON.parse(args);
-            } catch {}
-          }
-          handleToolCall(toolCall.name, args);
+        if (payload.type === "text") {
+          assistantText += payload.delta; // ✅ accumulate
+          setResponseText((prev) => prev + payload.delta); // UI typing
         }
 
-        setResponseText("");
-        return;
+        if (payload.type === "tool") {
+          toolCall = payload.tool;
+        }
+
+        if (payload.type === "done") {
+          // ✅ push FINAL assistant message
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: assistantText.trim(),
+            },
+          ]);
+
+          if (toolCall) {
+            let args = toolCall.args;
+            if (typeof args === "string") {
+              try {
+                args = JSON.parse(args);
+              } catch {}
+            }
+            handleToolCall(toolCall.name, args);
+          }
+
+          setResponseText("");
+          return;
+        }
       }
     }
-  }
-};
+  };
 
   useEffect(() => {
     setTimeout(() => {
@@ -763,13 +765,12 @@ const sendChatMessage = async ({ text }) => {
     }
   }, [mode]);
 
-const ensureCorrectTab = (requiredTab) => {
-  if (activeTab !== requiredTab) {
-    console.log(`🔀 Auto-navigating to ${requiredTab}`);
-    setActiveTab(requiredTab);
-  }
-};
-
+  const ensureCorrectTab = (requiredTab) => {
+    if (activeTab !== requiredTab) {
+      console.log(`🔀 Auto-navigating to ${requiredTab}`);
+      setActiveTab(requiredTab);
+    }
+  };
 
   const cleanupWebRTC = () => {
     if (peerConnectionRef.current) {
@@ -801,15 +802,15 @@ const ensureCorrectTab = (requiredTab) => {
     setRemoteStream(null);
     resetToggles();
   };
-const handleQuestionClick = (question) => {
-  sendChatMessage({ text: question });
+  const handleQuestionClick = (question) => {
+    sendChatMessage({ text: question });
 
-  // optional: collapse accordion after click
-  setAccordionOpen(false);
+    // optional: collapse accordion after click
+    setAccordionOpen(false);
 
-  // optional: clear predefined questions after first use
-  // setVisibleQuestions([]);
-};
+    // optional: clear predefined questions after first use
+    // setVisibleQuestions([]);
+  };
 
   const sendSessionUpdate = () => {
     const ch = dataChannelRef.current;
@@ -987,10 +988,62 @@ const handleQuestionClick = (question) => {
         break;
       }
       // ---------------------------------------------------------
-      // Navigation Tool 
+      // Navigation Tool
       // ---------------------------------------------------------
       case "navigate_tab": {
         setActiveTab(args.tab);
+        break;
+      }
+      // ---------------------------------------------------------
+      // Meeting Sharing Tool
+      // ---------------------------------------------------------
+      case "share_meeting_to_n8n": {
+        ensureCorrectTab("history");
+        if (!selectedMeeting) {
+          setResponseText("Please select a meeting before sharing.")
+          Swal.fire({
+            icon: "warning",
+            title: "No meeting selected",
+            text: "Please select a meeting before sharing.",
+          });
+          return;
+        }
+
+        Swal.fire({
+          title: "Share meeting?",
+          text: "Do you want to send this meeting to the automation workflow?",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonText: "Yes, Share",
+        }).then(async (result) => {
+          if (!result.isConfirmed) return;
+
+          try {
+            Swal.fire({
+              title: "Sharing...",
+              allowOutsideClick: false,
+              didOpen: () => Swal.showLoading(),
+            });
+
+            await shareMeetingToN8n(selectedMeeting);
+
+            Swal.fire({
+              icon: "success",
+              title: "Shared successfully",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          setResponseText("I have shared the meeting successfully!!")
+
+          } catch (err) {
+            Swal.fire({
+              icon: "error",
+              title: "Share failed",
+              text: err.message || "Could not share meeting",
+            });
+          }
+        });
+
         break;
       }
       // ---------------------------------------------------------
@@ -1351,13 +1404,12 @@ const handleQuestionClick = (question) => {
                     )}
                   </div>
                 )}
-               <ChatInputWidget
-  ref={chatInputRef}
-  inputText={chatInputText}
-  setInputText={setChatInputText}
-  onSendMessage={sendChatMessage}
-/>
-
+                <ChatInputWidget
+                  ref={chatInputRef}
+                  inputText={chatInputText}
+                  setInputText={setChatInputText}
+                  onSendMessage={sendChatMessage}
+                />
               </div>
             )}
 
