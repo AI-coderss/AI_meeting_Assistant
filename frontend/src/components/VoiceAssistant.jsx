@@ -661,6 +661,25 @@ const VoiceAssistant = () => {
   const { activeTab, setActiveTab } = useContext(NavigationContext);
 
   const chatInputRef = useRef(null);
+const restartingRef = useRef(false);
+
+useEffect(() => {
+  if (mode !== "voice") return;
+  if (connectionStatus !== "connected") return;
+  if (!peerConnectionRef.current) return;
+  if (restartingRef.current) return;
+
+  console.log("🔄 Meeting changed → restarting WebRTC session");
+
+  restartingRef.current = true;
+
+  cleanupWebRTC();
+
+  setTimeout(() => {
+    restartingRef.current = false;
+    startWebRTC(); // ✅ YOUR existing function
+  }, 300);
+}, [selectedMeeting]);
 
   const sendChatMessage = async ({ text }) => {
     const message = text.trim();
