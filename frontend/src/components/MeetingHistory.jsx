@@ -5,6 +5,7 @@ import MeetingContext from "./context/MeetingContext";
 import axios from "axios";
 import Swal from "sweetalert2";
 import { shareMeetingToN8n } from "../utils/shareToN8n";
+import api from "../api/api";
 
 const MeetingHistory = () => {
   const [meetings, setMeetings] = useState([]);
@@ -76,35 +77,26 @@ const formatParticipants = (participants = []) => {
 };
 
   const fetchMeetings = useCallback(async () => {
-    if (!hostName) return;
+  if (!hostName) return;
 
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append("search", searchQuery);
-      if (participantFilter) params.append("participant", participantFilter);
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+    if (searchQuery) params.append("search", searchQuery);
+    if (participantFilter) params.append("participant", participantFilter);
 
-      const url = `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/host/${hostName}${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
+    const res = await api.get(
+      `/api/meetings/host/${hostName}${params.toString() ? `?${params.toString()}` : ""}`
+    );
 
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+    setMeetings(res.data);
+  } catch (err) {
+    console.error("Failed to fetch meetings:", err);
+  } finally {
+    setLoading(false);
+  }
+}, [hostName, searchQuery, participantFilter]);
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-
-      const data = await res.json();
-      setMeetings(data);
-    } catch (err) {
-      console.error("Failed to fetch meetings:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [hostName, searchQuery, participantFilter, token]);
 
   useEffect(() => {
     const storedEmail = localStorage.getItem("email");

@@ -71,6 +71,7 @@ export default function AuthPage() {
       const res = await fetch(LOGIN_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email: signInEmail, password: signInPass }),
       });
 
@@ -87,6 +88,9 @@ export default function AuthPage() {
         // Store token and user info (same keys as your old code)
         if (data.access_token) {
           localStorage.setItem("token", data.access_token);
+        }
+         if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
         }
         localStorage.setItem("email", signInEmail);
         localStorage.setItem("roles", JSON.stringify(data.roles || []));

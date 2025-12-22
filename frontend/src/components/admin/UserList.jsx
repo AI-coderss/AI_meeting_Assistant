@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import "../../styles/UserList.css";
+import api from "../../api/api";
 
 export default function UserList() {
   const [users, setUsers] = useState([]);
@@ -16,129 +17,78 @@ export default function UserList() {
   }, []);
 
   // Inside UserList.jsx
-  const updateStatus = async (userId, isActive) => {
-    try {
-      setUpdating(userId);
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}/status`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ is_active: isActive }),
-        }
-      );
+const updateStatus = async (userId, isActive) => {
+  try {
+    setUpdating(userId);
 
-      const data = await res.json();
-      if (res.ok) {
-        fetchUsers(); // refresh
-      } else {
-        alert(data.message || "Failed to update status");
-      }
-    } catch (err) {
-      console.error("Error updating status:", err);
-    } finally {
-      setUpdating(null);
-    }
-  };
-  const deleteUser = async (userId) => {
-    // Confirmation dialog
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This action cannot be undone!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
+    await api.put(`/api/users/${userId}/status`, {
+      is_active: isActive,
     });
 
-    if (!result.isConfirmed) return;
+    fetchUsers();
+  } catch (err) {
+    console.error("Error updating status:", err);
+    Swal.fire("Error", "Failed to update status", "error");
+  } finally {
+    setUpdating(null);
+  }
+};
+const deleteUser = async (userId) => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This action cannot be undone!",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    confirmButtonColor: "#3085d6",
+    confirmButtonText: "Yes, delete it!",
+  });
 
-    try {
-      setUpdating(userId);
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+  if (!result.isConfirmed) return;
 
-      const data = await res.json();
-      if (res.ok) {
-        Swal.fire("Deleted!", "User has been deleted.", "success");
-        fetchUsers(); // refresh
-      } else {
-        Swal.fire("Error", data.message || "Failed to delete user", "error");
-      }
-    } catch (err) {
-      console.error("Error deleting user:", err);
-      Swal.fire("Error", "Something went wrong!", "error");
-    } finally {
-      setUpdating(null);
-    }
-  };
+  try {
+    setUpdating(userId);
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/users",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+    await api.delete(`/api/users/${userId}`);
 
-      const data = await res.json();
-      if (res.ok) {
-        setUsers(data);
-      } else {
-        console.error("Failed to fetch users:", data.message);
-      }
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    Swal.fire("Deleted!", "User has been deleted.", "success");
+    fetchUsers();
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    Swal.fire("Error", "Failed to delete user", "error");
+  } finally {
+    setUpdating(null);
+  }
+};
 
-  const updateRoles = async (userId, roles) => {
-    try {
-      setUpdating(userId);
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/users/${userId}/roles`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ roles }),
-        }
-      );
 
-      const data = await res.json();
-      if (res.ok) {
-        fetchUsers(); // refresh list
-      } else {
-        alert(data.message || "Failed to update roles");
-      }
-    } catch (err) {
-      console.error("Error updating roles:", err);
-    } finally {
-      setUpdating(null);
-      setOpenDropdown(null);
-    }
-  };
+const fetchUsers = async () => {
+  try {
+    setLoading(true);
+    const res = await api.get("/api/users");
+    setUsers(res.data);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+const updateRoles = async (userId, roles) => {
+  try {
+    setUpdating(userId);
+
+    await api.put(`/api/users/${userId}/roles`, { roles });
+
+    fetchUsers();
+  } catch (err) {
+    console.error("Error updating roles:", err);
+    Swal.fire("Error", "Failed to update roles", "error");
+  } finally {
+    setUpdating(null);
+    setOpenDropdown(null);
+  }
+};
 
   if (loading) {
     return <p className="p-4">Loading users...</p>;

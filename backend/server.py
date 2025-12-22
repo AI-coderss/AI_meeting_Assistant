@@ -53,7 +53,8 @@ load_dotenv(ROOT_DIR / ".env")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 DEEPGRAM_API_KEY = os.environ.get("DEEPGRAM_API_KEY")
 JWT_SECRET = os.environ.get("JWT_SECRET", "change_me_in_prod")
-JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRES_MIN", "120"))
+JWT_REFRESH_SECRET = os.getenv("JWT_REFRESH_SECRET_KEY")
+JWT_EXPIRES_MIN = int(os.environ.get("JWT_EXPIRES_MIN", "5"))
 HF_TOKEN = os.getenv("HF_TOKEN")
 
 openai.api_key = OPENAI_API_KEY
@@ -76,7 +77,7 @@ app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "a_secure_random_s
 # CORS for API + SocketIO
 CORS(
     app,
-    resources={r"/*": {"origins": ["http://localhost:3000", 'https://9a86c1d2a8db.ngrok-free.app',"http://127.0.0.1:3001", "*"]}},
+    resources={r"/*": {"origins": ["http://localhost:3000", "https://ai-meeting-assistant-frontend.onrender.com", "*"]}},
     supports_credentials=True,
 )
 # socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # keep your original
@@ -161,6 +162,23 @@ def create_access_token(user: Dict[str, Any]) -> str:
         "iat": datetime.utcnow(),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+def create_refresh_token(user_id):
+    payload = {
+        "sub": user_id,
+        "type": "refresh",
+        "exp": datetime.utcnow() + timedelta(
+            days=int(os.getenv("JWT_REFRESH_EXPIRES_DAYS", 7))
+        )
+    }
+    return jwt.encode(payload, JWT_REFRESH_SECRET, algorithm="HS256")
+
+
+def verify_refresh_token(token):
+    payload = jwt.decode(token, JWT_REFRESH_SECRET, algorithms=["HS256"])
+    if payload.get("type") != "refresh":
+        raise Exception("Invalid token type")
+    return payload["sub"]
 
 def decode_token(token: str) -> Dict[str, Any]:
     return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
@@ -274,7 +292,7 @@ def register():
         return jsonify({"success": False, "message": "Internal error"}), 500
 
 @api_bp.route("/auth/login", methods=["POST", "OPTIONS"])
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def login():
     if request.method == "OPTIONS":
         return ("", 204)
@@ -296,19 +314,43 @@ def login():
     if not verify_password(password, user["password_hash"]):
         return jsonify({"success": False, "message": "Invalid password"}), 401
 
-    # Ensure user ID exists
     if "id" not in user:
-        user["id"] = str(user.get("_id", "")) or str(uuid.uuid4())
+        user["id"] = str(user.get("_id", ""))
 
-    token = create_access_token(user)
-    return jsonify({
+    access_token = create_access_token(user)
+    refresh_token = create_refresh_token(user["id"])
+
+    response = jsonify({
         "success": True,
         "message": "Login successful",
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token, 
         "roles": user.get("roles", []),
         "user_id": user["id"],
         "name": user.get("name", "")
-    }), 200
+    })
+
+    return response, 200
+
+@api_bp.route("/auth/refresh", methods=["POST"])
+def refresh():
+    data = request.get_json()
+    refresh_token = data.get("refresh_token")
+
+    if not refresh_token:
+        return jsonify({"message": "Missing refresh token"}), 401
+
+    try:
+        user_id = verify_refresh_token(refresh_token)
+        user = db.users.find_one({"id": user_id, "is_active": True})
+        if not user:
+            return jsonify({"message": "User not found"}), 401
+
+        new_access = create_access_token(user)
+        return jsonify({"access_token": new_access}), 200
+
+    except Exception:
+        return jsonify({"message": "Invalid refresh token"}), 401
 
 # ---- Admin endpoints ----
 @api_bp.route("/users", methods=["GET"])
