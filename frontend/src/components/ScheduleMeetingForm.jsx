@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import "../styles/MeetingSchedule.css";
 import VoiceAssistant from "./VoiceAssistant.jsx";
 import { FormContext } from "./context/FormContext.jsx";
+import api from "../api/api";
 
 const formatMinutesLabel = (m) => `${m} min`;
 
@@ -295,77 +296,66 @@ const MedicalMeetingScheduler = () => {
     return `${datePart}T${timePart}:00+03:00`;
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsScheduling(true);
-    setResponse({ type: "", message: "" });
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsScheduling(true);
+  setResponse({ type: "", message: "" });
 
-    try {
-      const saudiMeetingISO = toSaudiIso(formData.meeting_time);
+  try {
+    const saudiMeetingISO = toSaudiIso(formData.meeting_time);
 
-      // Reminder (1 hour later)
-      const oneHourLater = new Date(formData.meeting_time);
-      oneHourLater.setHours(oneHourLater.getHours() + 1);
-      const saudiReminderISO = toSaudiIso(oneHourLater.toISOString());
+    const oneHourLater = new Date(formData.meeting_time);
+    oneHourLater.setHours(oneHourLater.getHours() + 1);
+    const saudiReminderISO = toSaudiIso(oneHourLater.toISOString());
 
-      const payload = {
-        ...formData,
-        meeting_time: saudiMeetingISO,
-      };
+    const payload = {
+      ...formData,
+      meeting_time: saudiMeetingISO,
+    };
 
-      const n8npayload = {
-        ...formData,
-        meeting_time: saudiMeetingISO,
-        reminder_time: saudiReminderISO,
-      };
+    const n8npayload = {
+      ...formData,
+      meeting_time: saudiMeetingISO,
+      reminder_time: saudiReminderISO,
+    };
 
-      // Send to n8n webhook
-      const n8nWebhookUrl =
-        "https://n8n-latest-h3pu.onrender.com/webhook/e6ed149a-7494-4477-b2dd-f6a254fa36de";
-      await fetch(n8nWebhookUrl, {
+    // 🔹 Public webhook → fetch
+    await fetch(
+      "https://n8n-latest-h3pu.onrender.com/webhook/e6ed149a-7494-4477-b2dd-f6a254fa36de",
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(n8npayload),
-      });
-
-      // Save to Flask MongoDB API
-      const flaskAPI =
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/save_medical_meeting";
-      const flaskRes = await fetch(flaskAPI, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (flaskRes.ok) {
-        setResponse({
-          type: "success",
-          message: "✅ Medical meeting scheduled successfully in Saudi time!",
-        });
-        setFormData({
-          meeting_title: "",
-          meeting_type: "",
-          meeting_time: "",
-          host_email: localStorage.getItem("name") || "",
-          participants: [{ name: "", email: "", role: "" }],
-          agenda: [],
-        });
-      } else {
-        setResponse({
-          type: "error",
-          message: "❌ Error saving meeting. Please try again.",
-        });
       }
-    } catch (err) {
-      console.error(err);
-      setResponse({
-        type: "error",
-        message: "❌ Network issue — unable to connect to server.",
-      });
-    } finally {
-      setIsScheduling(false);
-    }
-  };
+    );
+
+    // 🔐 Authenticated API → api instance
+    await api.post("/api/save_medical_meeting", payload);
+
+    setResponse({
+      type: "success",
+      message: "✅ Medical meeting scheduled successfully in Saudi time!",
+    });
+
+    setFormData({
+      meeting_title: "",
+      meeting_type: "",
+      meeting_time: "",
+      host_email: localStorage.getItem("email") || "",
+      participants: [{ name: "", email: "", role: "" }],
+      agenda: [],
+    });
+  } catch (err) {
+    console.error("❌ Scheduling error:", err);
+    setResponse({
+      type: "error",
+      message: "❌ Unable to schedule meeting. Please try again.",
+    });
+  } finally {
+    setIsScheduling(false);
+  }
+};
+
 
   return (
     <div className="meeting-container">

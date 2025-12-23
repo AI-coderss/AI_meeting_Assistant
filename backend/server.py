@@ -1169,7 +1169,7 @@ def process_meeting():
                 {
                     "role": "system",
                     "content": (
-                        "You are a strict meeting summarizer. "
+                        "You are a strict meeting summarizer.Only generate the output in English no matter the language you get. Strictly generate output in english."
                         "Do NOT hallucinate. Only use information from the transcript."
                     )
                 },
@@ -1181,7 +1181,7 @@ def process_meeting():
                         "- No markdown, no backticks\n"
                         "- Follow schema strictly\n\n"
                         "{\n"
-                        "  \"overview\": \"<4–7 sentence summary>\",\n"
+                        "  \"overview\": \"<Generated summary>\",\n"
                         "  \"action_items\": [\n"
                         "    {\"task\": \"\", \"owner\": \"\", \"due_date\": null, \"note\": \"\"}\n"
                         "  ],\n"

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "../styles/UpcomingMeetings.css";
+import api from "../api/api"; 
 
 const UpcomingMeetings = () => {
   const [meetings, setMeetings] = useState([]);
@@ -51,25 +52,22 @@ const UpcomingMeetings = () => {
 
 const fetchUpcomingMeetings = async () => {
   try {
+    setLoading(true);
+
     const storedEmail = localStorage.getItem("email");
     if (!storedEmail) {
       console.error("No email in localStorage");
       return;
     }
 
-    const res = await fetch(
-      `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
-        storedEmail
-      )}`
+    const res = await api.get(
+      `/api/get_user_medical_meetings`,
+      {
+        params: { email: storedEmail },
+      }
     );
 
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Bad response:", text);
-      throw new Error("Failed to fetch user meetings");
-    }
-
-    const data = await res.json();
+    const data = res.data;
     console.log("User meetings:", data);
 
     const now = new Date();
@@ -81,11 +79,16 @@ const fetchUpcomingMeetings = async () => {
     setMeetings(upcoming);
   } catch (err) {
     console.error("Error fetching user meetings:", err);
+
+    // Optional UX improvement
+    if (err.response?.status === 401) {
+      localStorage.clear();
+      window.location.href = "/authpage";
+    }
   } finally {
     setLoading(false);
   }
 };
-
 
   const formatDate = (gmtString) =>
     new Date(gmtString).toLocaleString("en-SA", {

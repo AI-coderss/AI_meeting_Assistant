@@ -5,6 +5,7 @@ import MeetingAudioVisualizer from "./MeetingAudioVisualizer.jsx";
 import AudioVisualizer from "./AudioVisualizer.jsx";
 import Swal from "sweetalert2";
 import { Pencil, Trash2, Check, X, CloudCog } from "lucide-react";
+import api from "../api/api";
 
 const LiveMeeting = ({
   participants,
@@ -46,18 +47,10 @@ const LiveMeeting = ({
   const syncActionItemsToAPI = async (updatedItems) => {
     if (!currentMeeting?.id) return;
 
-    const token = localStorage.getItem("token");
-
     try {
-      await axios.put(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/${currentMeeting.id}/action-items`,
-        { action_items: updatedItems },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await api.put(`/api/meetings/${currentMeeting.id}/action-items`, {
+        action_items: updatedItems,
+      });
 
       console.log("✅ Action items synced");
     } catch (err) {
@@ -121,13 +114,10 @@ const LiveMeeting = ({
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(
-          `https://ai-meeting-assistant-backend-suu9.onrender.com/api/get_user_medical_meetings?email=${encodeURIComponent(
-            userEmail
-          )}`
-        );
-        const meetings = await res.json();
-
+        const res = await api.get("/api/get_user_medical_meetings", {
+          params: { email: userEmail },
+        });
+        const meetings = res.data;
         const now = new Date();
 
         meetings.forEach((m) => {
@@ -266,8 +256,9 @@ const LiveMeeting = ({
 
     async function checkScheduledMeeting() {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/get_medical_meetings`);
-        const meetings = await res.json();
+const res = await api.get("/api/get_medical_meetings");
+const meetings = res.data;
+
 
         const now = new Date();
 
@@ -340,43 +331,19 @@ const LiveMeeting = ({
       (p) => p.email && p.email === hostEmail
     );
     try {
-      const res = await fetch(
-        `https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            title: meetingTitle,
-            host: localStorage.getItem("email") || "Host",
+      const res = await api.post("/api/meetings", {
+  title: meetingTitle,
+  host: localStorage.getItem("email") || "Host",
+  participants: [
+    ...(!hostExists && hostEmail
+      ? [{ name: hostName, email: hostEmail, role: "host" }]
+      : []),
+    ...normalizedParticipants,
+  ],
+});
 
-            participants: [
-              // ✅ Add host ONLY if missing
-              ...(!hostExists && hostEmail
-                ? [
-                    {
-                      name: hostName,
-                      email: hostEmail,
-                      role: "host",
-                    },
-                  ]
-                : []),
-
-              // Other participants
-              ...normalizedParticipants,
-            ],
-          }),
-        }
-      );
-
-      if (!res.ok) throw new Error(`Failed to create meeting: ${res.status}`);
-
-      const data = await res.json();
-      console.log("✅ Meeting created:", data);
-      setCurrentMeeting(data);
-      return data;
+setCurrentMeeting(res.data);
+return res.data;
     } catch (err) {
       console.error("❌ Error creating meeting:", err);
       showToast("Failed to create meeting", "error");
@@ -429,24 +396,13 @@ ${
       };
 
       // Fire request
-      const res = await fetch(
-        `${BACKEND_URL}/api/meetings/${currentMeeting.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        }
-      );
+    const res = await api.put(
+  `/api/meetings/${currentMeeting.id}`,
+  body
+);
 
-      if (!res.ok) throw new Error(`Failed to update meeting: ${res.status}`);
-
-      const updated = await res.json();
-      console.log("✅ Meeting updated:", updated);
-      showToast("Meeting updated successfully", "success");
-      return updated;
+    showToast("Meeting updated successfully", "success");
+return res.data;
     } catch (err) {
       console.error("❌ Error updating meeting:", err);
       showToast("Failed to update meeting", "error");
@@ -547,11 +503,9 @@ ${
       // -----------------------------------------------------------
       // 1️⃣ FIRST CALL — Process meeting WITHOUT structured transcript
       // -----------------------------------------------------------
-      const res = await axios.post(
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/process-meeting",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      const res = await api.post("/api/process-meeting", formData, {
+  headers: { "Content-Type": "multipart/form-data" },
+});
 
       const data = res.data;
       setTranscriptData(data);
@@ -567,16 +521,13 @@ ${
       // 2️⃣ SECOND CALL — Generate structured speaker transcript
       // -----------------------------------------------------------
       setLoaderText("Generating Summary...");
-      const structuredRes = await axios.post(
-        "https://ai-meeting-assistant-backend-suu9.onrender.com/api/structured-transcript",
-        {
-          transcript: rawTranscript,
-          participants: participants,
-        }
-      );
+     const structuredRes = await api.post("/api/structured-transcript", {
+  transcript: rawTranscript,
+  participants: participants,
+});
 
-      const structuredData = structuredRes.data;
-      console.log("🗣️ Structured transcript:", structuredData);
+const structuredData = structuredRes.data;
+console.log("🗣️ Structured transcript:", structuredData);
 
       // Inject structured transcript into existing data
       const finalData = {

@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Swal from "sweetalert2";
 import { FaTrash } from "react-icons/fa";
+import api from "../api/api"; 
 
 /**
  * AllMeetings.jsx
@@ -25,94 +26,66 @@ const AllMeetings = () => {
 
   const token = localStorage.getItem("token");
 
-  const fetchAllMeetings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`https://ai-meeting-assistant-backend-suu9.onrender.com/api/meetings/all`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data = await res.json();
-      setMeetings(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to fetch meetings:", err);
-      Swal.fire("Error", "Unable to load meetings", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+const fetchAllMeetings = useCallback(async () => {
+  setLoading(true);
+  try {
+    const res = await api.get("/api/meetings/all");
+    setMeetings(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.error("Failed to fetch meetings:", err);
+    Swal.fire("Error", "Unable to load meetings", "error");
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
-  // Filtered fetch when hitting Search (calls existing /meetings route with query params)
-  const fetchFilteredMeetings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append("search", searchQuery);
-      if (participantFilter) params.append("participant", participantFilter);
+const fetchFilteredMeetings = useCallback(async () => {
+  setLoading(true);
+  try {
+    const params = {};
+    if (searchQuery) params.search = searchQuery;
+    if (participantFilter) params.participant = participantFilter;
 
-      const url = `${API_BASE}/api/meetings${params.toString() ? `?${params.toString()}` : ""}`;
+    const res = await api.get("/api/meetings", { params });
 
-      const res = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data = await res.json();
-      setMeetings(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Failed to fetch filtered meetings:", err);
-      Swal.fire("Error", "Unable to search meetings", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, participantFilter, token]);
+    setMeetings(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.error("Failed to fetch filtered meetings:", err);
+    Swal.fire("Error", "Unable to search meetings", "error");
+  } finally {
+    setLoading(false);
+  }
+}, [searchQuery, participantFilter]);
 
   useEffect(() => {
     fetchAllMeetings();
   }, [fetchAllMeetings]);
 
   // delete meeting by id (available on card + inside modal)
-  const deleteMeeting = async (id, afterDeleteCloseModal = false) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This meeting will be permanently deleted.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!",
-    });
+const deleteMeeting = async (id, afterDeleteCloseModal = false) => {
+  const result = await Swal.fire({
+    title: "Are you sure?",
+    text: "This meeting will be permanently deleted.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Yes, delete it!",
+  });
 
-    if (!result.isConfirmed) return;
+  if (!result.isConfirmed) return;
 
-    try {
-      const res = await fetch(`${API_BASE}/api/meetings/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  try {
+    await api.delete(`/api/meetings/${id}`);
 
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Delete failed: ${res.status}`);
-      }
-
-      Swal.fire("Deleted!", "Meeting has been deleted.", "success");
-      // refresh list
-      await fetchAllMeetings();
-      if (afterDeleteCloseModal) setSelectedMeeting(null);
-    } catch (err) {
-      console.error("Failed to delete meeting:", err);
-      Swal.fire("Error!", "Failed to delete meeting. Please try again.", "error");
-    }
-  };
+    Swal.fire("Deleted!", "Meeting has been deleted.", "success");
+    await fetchAllMeetings();
+    if (afterDeleteCloseModal) setSelectedMeeting(null);
+  } catch (err) {
+    console.error("Failed to delete meeting:", err);
+    Swal.fire("Error!", "Failed to delete meeting. Please try again.", "error");
+  }
+};
 
   // Safe participants renderer (handles strings, objects, mixed arrays)
  const renderParticipants = (participants) => {
