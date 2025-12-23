@@ -755,7 +755,7 @@ console.log("🗣️ Structured transcript:", structuredData);
             Transcript
           </button>
           </div>
-          {/* {currentMeeting && ( */}
+          {currentMeeting && (
   <button
     className="btn btn-share share"
     onClick={sendMeetingToN8n}
@@ -769,7 +769,7 @@ console.log("🗣️ Structured transcript:", structuredData);
     <CloudCog size={16} style={{ marginRight: "6px" }} />
     Share Meeting
   </button>
-{/* )} */}
+ )} 
 
         </div>
       )}
