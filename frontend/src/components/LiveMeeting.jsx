@@ -350,6 +350,74 @@ return res.data;
       return null;
     }
   };
+
+const sendMeetingToN8n = async () => {
+  if (!currentMeeting) {
+    Swal.fire({
+      icon: "error",
+      title: "Meeting not created",
+      text: "Please start or load a meeting first.",
+    });
+    return;
+  }
+
+  if (!transcriptData) {
+    Swal.fire({
+      icon: "warning",
+      title: "Minutes not generated",
+      text: "Please generate the Minutes of Meeting before sharing.",
+    });
+    return;
+  }
+
+  try {
+    Swal.fire({
+      title: "Sharing meeting...",
+      text: "Sending data to workflow",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    await axios.post(
+      "https://n8n-latest-h3pu.onrender.com/webhook/85637224-7bfe-42fa-bdb0-7bfa84b16001",
+      {
+        meeting_id: currentMeeting.id,
+        meeting_title: meetingTitle,
+        participants,
+        summary: transcriptData?.summary || "",
+        overview: transcriptData?.overview || "",
+        insights: transcriptData?.insights || [],
+        outline: transcriptData?.outline || [],
+        key_points: transcriptData?.key_points || [],
+        action_items: actionItems || [],
+        decisions_made: transcriptData?.decisions_made || [],
+        structured_transcript:
+          transcriptData?.structured_transcript || [],
+        shared_by: localStorage.getItem("email"),
+        timestamp: new Date().toISOString(),
+      }
+    );
+
+    Swal.fire({
+      icon: "success",
+      title: "Meeting Shared 🚀",
+      text: "The meeting details were sent successfully.",
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  } catch (err) {
+    console.error("❌ Failed to share meeting:", err);
+
+    Swal.fire({
+      icon: "error",
+      title: "Sharing Failed",
+      text: "Something went wrong while sending the meeting.",
+    });
+  }
+};
+
   const updateMeetingWithTranscript = async (
     currentMeeting,
     structuredTranscript,
@@ -629,6 +697,8 @@ console.log("🗣️ Structured transcript:", structuredData);
                   : "📤 Generate Minutes of Meeting"}
               </button>
             )}
+
+
           </div>
         </div>
         {agenda.length > 0 && (
@@ -670,6 +740,7 @@ console.log("🗣️ Structured transcript:", structuredData);
 
       {transcriptData && (
         <div className="bottom-tabs">
+          <div className="btn-space">
           <button
             className={`tab-btn ${activeTab === "summary" ? "active" : ""}`}
             onClick={() => setActiveTab("summary")}
@@ -683,6 +754,23 @@ console.log("🗣️ Structured transcript:", structuredData);
           >
             Transcript
           </button>
+          </div>
+          {/* {currentMeeting && ( */}
+  <button
+    className="btn btn-share share"
+    onClick={sendMeetingToN8n}
+    disabled={!transcriptData}
+    title={
+      !transcriptData
+        ? "Generate Minutes of Meeting first"
+        : "Share meeting"
+    }
+  >
+    <CloudCog size={16} style={{ marginRight: "6px" }} />
+    Share Meeting
+  </button>
+{/* )} */}
+
         </div>
       )}
 

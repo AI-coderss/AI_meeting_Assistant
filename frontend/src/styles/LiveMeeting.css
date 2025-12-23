@@ -82,12 +82,19 @@
   margin-top: 20px;
 }
 .bottom-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid #e5e7eb; /* light grey bottom line */
-  padding-bottom: 6px;
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 6px;
+    justify-content: space-between;
 }
-
+.btn-space {
+    display: flex;
+    gap: 15px;
+}
+.share {
+    color: #fff;
+}
 .tab-btn {
   background: none;
   border: none;
@@ -261,4 +268,12 @@ svg.lucide.lucide-trash2.lucide-trash-2 {
 }
 .dark-bg-clr .swal2-confirm.swal2-styled {
     background-color: #5f8b8b;
+}
+.btn-share {
+  background: #4f46e5;
+  color: #fff;
+}
+
+.btn-share:hover {
+  background: #4338ca;
 }
