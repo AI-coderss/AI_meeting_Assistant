@@ -651,3 +651,6 @@ body.dark-theme .error-content {
 .participant-form label {
   font-weight: 600;
 }
+.participant-form input {
+    width: 100% !important;
+}

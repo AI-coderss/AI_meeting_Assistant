@@ -3,6 +3,7 @@ import "../styles/MeetingSchedule.css";
 import VoiceAssistant from "./VoiceAssistant.jsx";
 import { FormContext } from "./context/FormContext.jsx";
 import api from "../api/api";
+import SearchableMeetingType from "./SearchableMeetingType.jsx";
 
 const formatMinutesLabel = (m) => `${m} min`;
 
@@ -416,22 +417,13 @@ const handleSubmit = async (e) => {
             </div>
 
             {/* Meeting Type */}
-            <div>
-              <label>Meeting Type</label>
-              <select
-                id="meeting_type"
-                value={formData.meeting_type}
-                onChange={handleChange}
-                required
-              >
-                <option value="">Select Meeting Type</option>
-                <option value="Consultation">Consultation</option>
-                <option value="Case Discussion">Case Discussion</option>
-                <option value="Follow-up">Follow-up</option>
-                <option value="Team Meeting">Team Meeting</option>
-                <option value="Training Session">Training Session</option>
-              </select>
-            </div>
+            <SearchableMeetingType
+  value={formData.meeting_type}
+  onChange={(val) =>
+    setFormData({ ...formData, meeting_type: val })
+  }
+/>
+
           </div>
 
           <div className="fex-sec">

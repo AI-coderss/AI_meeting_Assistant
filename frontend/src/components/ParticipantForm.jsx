@@ -17,6 +17,91 @@ const ParticipantForm = ({ participants, setParticipants, closeForm,meetingTitle
   const [modalError, setModalError] = useState("");
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+function SearchableMeetingCategory({ value, onChange }) {
+  const MEETING_TYPES = [
+      // Existing
+      "Consultation",
+      "Case Discussion",
+      "Follow-up",
+      "Team Meetings",
+      "Client Meetings",
+      "Project Kickoff Meetings",
+      "Status Update Meetings",
+      "Brainstorming Sessions",
+      "Training Sessions",
+      "Board Meetings",
+      "All-Hands Meetings",
+      "Strategy Planning Meetings",
+      "Performance Review Meetings",
+      "Daily Stand-Ups",
+      "Retrospective Meetings",
+      "Innovation Sessions (Hackathons)",
+      "Committee Meetings",
+      "Demo Meetings (with vendors or companies)",
+      "Sales Meetings",
+      "Product Demos and Launch Meetings",
+      "Crisis Management Meetings",
+      "Cross-department Meetings",
+      "Town Hall Meetings",
+      "Budget or Financial Review Meetings",
+    ];
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const filtered = MEETING_TYPES.filter((type) =>
+    type.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type="text"
+        placeholder="Search meeting category..."
+        value={search || value}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          onChange("");
+        }}
+      />
+
+      {open && (
+        <ul
+          style={{
+            position: "absolute",
+            zIndex: 20,
+            width: "100%",
+            background: "#fff",
+            border: "1px solid #ccc",
+            maxHeight: "180px",
+            overflowY: "auto",
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
+          }}
+        >
+          {filtered.length === 0 && (
+            <li style={{ padding: "8px", color: "#999" }}>No results</li>
+          )}
+
+          {filtered.map((type) => (
+            <li
+              key={type}
+              style={{ padding: "8px", cursor: "pointer" }}
+              onClick={() => {
+                onChange(type);
+                setSearch("");
+                setOpen(false);
+              }}
+            >
+              {type}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
   // ✅ Add host automatically
   useEffect(() => {
@@ -137,17 +222,12 @@ const ParticipantForm = ({ participants, setParticipants, closeForm,meetingTitle
 
         <div className="input-group">
           <label>Meeting Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="category-select"
-          >
-            <option value="Medical Meeting">Medical Meeting</option>
-            <option value="Follow-up Consultation">Follow-up Consultation</option>
-            <option value="Case Discussion">Case Discussion</option>
-            <option value="Training Session">Training Session</option>
-            <option value="Emergency Meeting">Emergency Meeting</option>
-          </select>
+          <SearchableMeetingCategory
+  value={category}
+  onChange={setCategory}
+  className="category-select"
+/>
+
         </div>
       </div>
 

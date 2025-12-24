@@ -1325,7 +1325,8 @@ def rtc_connect():
         - For datetime-local fields, the correct format is YYYY-MM-DDTHH:MM.
         - If user only provides time, output just HH:MM.
         - If user provides date and time together, output full datetime format.
-        - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meeting,Training Session]. Dont add anything other than this. 
+        - Options for meeting type are [Consultation, Case Discussion,Follow-up,Team Meetings,Training Sessions,Client Meetings,Project Kickoff Meetings,Status Update Meetings,Brainstorming Sessions,Board Meetings,All-Hands Meetings,Strategy Planning Meetings,Performance Review Meetings,Daily Stand-Ups,Retrospective Meetings,Innovation Sessions (Hackathons),Committee Meetings,Demo Meetings (with vendors or companies)
+       Sales Meetings,Product Demos and Launch Meetings,Crisis Management Meetings,Cross-department Meetings,Town Hall Meetings,Budget or Financial Review Meetings]. Dont add anything other than this. 
         - Always keep your responses clear, concise, and helpful, and remember to stick to English in all replies.
         - If you cant find the meeting context mention user to go to the Meeting history page and select a meeting also ask them if they want you to navigate them to meeting history page.
         ======================
@@ -1614,7 +1615,8 @@ TIME FORMAT RULES
 MEETING TYPE RULES
 ======================
 Meeting type must be EXACTLY one of:
-[Consultation, Case Discussion, Follow-up, Team Meeting, Training Session]
+[Consultation, Case Discussion,Follow-up,Team Meetings,Training Sessions,Client Meetings,Project Kickoff Meetings,Status Update Meetings,Brainstorming Sessions,Board Meetings,All-Hands Meetings,Strategy Planning Meetings,Performance Review Meetings,Daily Stand-Ups,Retrospective Meetings,Innovation Sessions (Hackathons),Committee Meetings,Demo Meetings (with vendors or companies)
+Sales Meetings,Product Demos and Launch Meetings,Crisis Management Meetings,Cross-department Meetings,Town Hall Meetings,Budget or Financial Review Meetings]
 
 Never output anything outside this list.
 
