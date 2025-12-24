@@ -1368,7 +1368,7 @@
     left: 2.5%;
     height: 80vh; /* Adjusted for better mobile view */
     max-height: 600px; /* Ensures it doesn't exceed a certain height */
-    padding-bottom: 80px;
+    padding-bottom: 0px;
   }
 }
 /* --- Open Avatar 3D Button --- */
