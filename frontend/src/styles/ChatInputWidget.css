@@ -159,7 +159,11 @@
 @keyframes spin{ to{ transform:rotate(360deg); } }
 
 @media (max-width:480px){
-  .icon-btn{ width:48px; height:48px; }
+  .icon-btn {
+    height: 35px;
+    width: 35px;
+}
+
   .chat-container{ gap:8px; }
 }
 /* Loader overlay (glassmorphic) */
