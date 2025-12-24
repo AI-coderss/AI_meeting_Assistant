@@ -1488,9 +1488,9 @@
     animation: none !important;
   }
 }
-@media screen and (min-width: 600px) {
+@media screen and (max-width: 600px) {
 .voice-toggle-btn.left {
-    bottom: 5rem;
+    bottom: 6rem;
     height: 30px;
     width: 30px;
 }
