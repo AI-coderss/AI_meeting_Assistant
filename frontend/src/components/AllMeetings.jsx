@@ -231,8 +231,8 @@ const deleteMeeting = async (id, afterDeleteCloseModal = false) => {
             className="modal-content bg-space"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="btn-close-modal">
-              <button className="btn btn-close" onClick={() => setSelectedMeeting(null)}></button>
+            <div className="btn-close-modal d-flex justify-content-end">
+              <button className=" btn-close" onClick={() => setSelectedMeeting(null)}></button>
             </div>
 {/* 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>

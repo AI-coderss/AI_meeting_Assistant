@@ -327,6 +327,16 @@ body.dark-theme p {
     background: #9ee7e7;
     transform: translateY(-1px);
 }
+.dark-theme .tab-content li {
+    color: #fff;
+}
+.dark-theme .transcript-line {
+background: #131820;
+border: 1px solid #413838;
+}
+.dark-theme .transcript-line strong {
+    color: #fff;
+}
 @media only screen and (max-device-width: 768px) {
 .upcoming-table th,
 .upcoming-table td {

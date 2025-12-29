@@ -2,3 +2,5 @@ backend/.env
 backend/venv/
 /backend/venv
 __pycache__/
+config.bat
+node_modules
